@@ -110,9 +110,9 @@ $$;
 -- Normalize defaults/backfill where needed.
 do $$
 declare
-  table_name text;
+  v_table_name text;
 begin
-  foreach table_name in array ARRAY[
+  foreach v_table_name in array ARRAY[
     'companies',
     'profiles',
     'products',
@@ -129,7 +129,7 @@ begin
     'csv_import_history'
   ]
   loop
-    if to_regclass(format('public.%I', table_name)) is null then
+    if to_regclass(format('public.%I', v_table_name)) is null then
       continue;
     end if;
 
@@ -137,20 +137,20 @@ begin
       select 1
       from information_schema.columns c
       where c.table_schema = 'public'
-        and c.table_name = table_name
+        and c.table_name = v_table_name
         and c.column_name = 'tenant_id'
     ) then
       continue;
     end if;
 
-    execute format('alter table public.%I alter column tenant_id set default public.single_tenant_id()', table_name);
-    execute format('update public.%I set tenant_id = public.single_tenant_id() where tenant_id is null', table_name);
+    execute format('alter table public.%I alter column tenant_id set default public.single_tenant_id()', v_table_name);
+    execute format('update public.%I set tenant_id = public.single_tenant_id() where tenant_id is null', v_table_name);
 
-    execute format('drop trigger if exists enforce_single_tenant_%I on public.%I', table_name, table_name);
+    execute format('drop trigger if exists enforce_single_tenant_%I on public.%I', v_table_name, v_table_name);
     execute format(
       'create trigger enforce_single_tenant_%I before insert or update on public.%I for each row execute function public.enforce_single_tenant_fk()',
-      table_name,
-      table_name
+      v_table_name,
+      v_table_name
     );
   end loop;
 end $$;
