@@ -11,6 +11,8 @@ export interface TenantResolution {
   domainKind: DomainKind
 }
 
+const SINGLE_TENANT_MODE = import.meta.env.VITE_SINGLE_TENANT_MODE !== 'false'
+
 export function normalizeHost(rawHost: string): string {
   return rawHost.toLowerCase().split(':')[0]
 }
@@ -76,6 +78,20 @@ function withPrimaryDomain(tenant: Tenant, primaryDomain: string | null): Tenant
   }
 }
 
+async function resolveAsAppHost(pathname: string): Promise<TenantResolution> {
+  const slug = extractTenantSlug(pathname)
+  if (slug) {
+    const tenant = await fetchTenantBySlug(slug)
+    const primaryDomain = tenant ? await fetchPrimaryDomain(tenant.id) : null
+    return {
+      tenant: tenant ? withPrimaryDomain(tenant, primaryDomain) : null,
+      source: tenant ? 'slug' : 'none',
+      domainKind: 'app',
+    }
+  }
+  return { tenant: null, source: 'none', domainKind: 'app' }
+}
+
 export async function resolveTenant(hostInput: string, pathname: string): Promise<TenantResolution> {
   const host = normalizeHost(hostInput)
   const isVercelPreviewHost = host.endsWith('.vercel.app')
@@ -85,19 +101,15 @@ export async function resolveTenant(hostInput: string, pathname: string): Promis
     return { tenant: null, source: 'none', domainKind: 'marketing' }
   }
 
+  // In standalone mode, treat every non-marketing host as the app host.
+  // This removes hard dependency on tenant_domains/subdomain routing.
+  if (SINGLE_TENANT_MODE) {
+    return resolveAsAppHost(pathname)
+  }
+
   // ── App host: tenant via /t/:slug ──
   if (APP_HOSTS.has(host) || isVercelPreviewHost) {
-    const slug = extractTenantSlug(pathname)
-    if (slug) {
-      const tenant = await fetchTenantBySlug(slug)
-      const primaryDomain = tenant ? await fetchPrimaryDomain(tenant.id) : null
-      return {
-        tenant: tenant ? withPrimaryDomain(tenant, primaryDomain) : null,
-        source: tenant ? 'slug' : 'none',
-        domainKind: 'app',
-      }
-    }
-    return { tenant: null, source: 'none', domainKind: 'app' }
+    return resolveAsAppHost(pathname)
   }
 
   // ── Custom tenant domain (verified in tenant_domains) ──

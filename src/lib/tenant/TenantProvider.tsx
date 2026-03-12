@@ -48,9 +48,11 @@ function shouldRedirectToCanonical(args: {
   primaryDomain: string | null | undefined
   currentHost: string
   source: TenantSource
+  singleTenantMode: boolean
 }): boolean {
-  const { primaryDomain, currentHost, source } = args
+  const { primaryDomain, currentHost, source, singleTenantMode } = args
   if (!primaryDomain) return false
+  if (singleTenantMode) return false
   const normalizedPrimary = normalizeHost(primaryDomain)
   if (source === 'domain') return false
   // Safety: never redirect to local or platform-owned hosts.
@@ -91,6 +93,7 @@ function withTimeout<T>(promiseLike: PromiseLike<T>, ms: number, label: string):
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const queryClient = useQueryClient()
+  const singleTenantMode = import.meta.env.VITE_SINGLE_TENANT_MODE !== 'false'
 
   // Detect host category synchronously so the first render never shows a
   // spinner on pages that don't need tenant resolution.
@@ -100,8 +103,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     [normalizedHost]
   )
   const isAppLikeHost = useMemo(
-    () => APP_HOSTS.has(normalizedHost) || normalizedHost.endsWith('.vercel.app'),
-    [normalizedHost]
+    () => singleTenantMode || APP_HOSTS.has(normalizedHost) || normalizedHost.endsWith('.vercel.app'),
+    [normalizedHost, singleTenantMode]
   )
   const slugCandidate = useMemo(() => getSlugCandidate(location.pathname), [location.pathname])
   const isAppHostNoSlug = useMemo(
@@ -246,6 +249,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           primaryDomain,
           currentHost: host.toLowerCase().split(':')[0],
           source: resolution.source,
+          singleTenantMode,
         })
       ) {
         if (!nextSession?.user) {
@@ -300,7 +304,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         refreshInFlightRef.current = null
       }
     }
-  }, [clearTenantQueries, isMarketingHost, isAppHostNoSlug])
+  }, [clearTenantQueries, isMarketingHost, isAppHostNoSlug, singleTenantMode])
 
   useEffect(() => {
     let active = true
