@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { AlertTriangle, Loader2, Package } from 'lucide-react'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useAppContext } from '@/lib/app/AppContext'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -22,8 +22,7 @@ export function LoginPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { tenant, source, domainKind } = useTenant()
-  const { withBase } = useTenantPath()
+  const { workspaceName } = useAppContext()
 
   const loginSchema = z.object({
     email: z.string().email(t('auth.invalidEmail')),
@@ -41,16 +40,12 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
   })
 
-  // After login, go to redirect param (e.g. accept-invite) or tenant root
+  // After login, go to redirect param (e.g. accept-invite) or dashboard
   const redirectParam = searchParams.get('redirect')
   const postLoginPath =
     redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
       ? redirectParam
-      : tenant
-        ? withBase('/')
-        : '/'
-
-  const canReturnToWorkspaceSelector = domainKind === 'app' && source === 'slug' && !!tenant
+      : '/dashboard'
 
   // Pick up ?reason=no-membership from auto-signout redirect, then clean the URL
   useEffect(() => {
@@ -127,7 +122,7 @@ export function LoginPage() {
       }
 
       // Login succeeded — redirect immediately.
-      // Membership is checked by TenantEntry / MembershipGuard after the
+      // Membership is checked by MembershipGuard after the
       // redirect, using TenantProvider's refresh (which fires on the
       // onAuthStateChange event). This avoids a duplicate membership query
       // that can race with session propagation and intermittently fail.
@@ -187,7 +182,7 @@ export function LoginPage() {
             <Package className="w-12 h-12 text-primary" />
           </div>
           <h1 className="text-3xl font-bold mb-2">
-            {tenant?.name ? `${t('auth.welcomeBack')} • ${tenant.name}` : t('auth.welcomeToFurniTrade')}
+            {workspaceName ? `${t('auth.welcomeBack')} • ${workspaceName}` : t('auth.welcomeToFurniTrade')}
           </h1>
           <p className="text-muted-foreground">
             {t('auth.signInToAccount')}
@@ -252,16 +247,6 @@ export function LoginPage() {
             {t('auth.signIn')}
           </Button>
         </form>
-
-        {canReturnToWorkspaceSelector && (
-          <div className="mt-4 text-center">
-            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground hover:underline">
-              Back to all workspaces
-            </Link>
-          </div>
-        )}
-
-        {!tenant && (
           <div className="mt-6 text-center text-sm">
             <p className="text-muted-foreground">
               {t('auth.dontHaveAccount')}{' '}
@@ -273,8 +258,7 @@ export function LoginPage() {
               </Link>
             </p>
           </div>
-        )}
-      </GlassCard>
+        </GlassCard>
       </div>
     </div>
   )

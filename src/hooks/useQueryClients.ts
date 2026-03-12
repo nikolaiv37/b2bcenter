@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import { Client } from '@/types'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 interface QuoteCompanyRow {
   user_id?: string | null
@@ -12,10 +12,9 @@ interface QuoteCompanyRow {
 }
 
 export function useQueryClients() {
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   return useQuery({
-    queryKey: ['tenant', tenantId, 'clients'],
+    queryKey: ['workspace', 'clients'],
     queryFn: async () => {
       if (!tenantId) return []
 
@@ -132,10 +131,9 @@ export function useQueryClients() {
 
 /** Fetch pending invitations for the current tenant (admin only) */
 export function useQueryInvitations() {
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   return useQuery({
-    queryKey: ['tenant', tenantId, 'invitations'],
+    queryKey: ['workspace', 'invitations'],
     queryFn: async () => {
       if (!tenantId) return []
       const { data, error } = await supabase
@@ -154,10 +152,9 @@ export function useQueryInvitations() {
 }
 
 export function useQueryClient(clientId: string) {
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   return useQuery({
-    queryKey: ['tenant', tenantId, 'clients', clientId],
+    queryKey: ['workspace', 'clients', clientId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')

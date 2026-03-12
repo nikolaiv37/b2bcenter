@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
@@ -14,13 +15,12 @@ import { useCartStore } from '@/stores/cartStore'
 import { Product } from '@/types'
 import { Heart, ShoppingCart, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useTenantPath } from '@/lib/tenant/TenantProvider'
 
 export function WishlistPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const { withBase } = useTenantPath()
   const { toast } = useToast()
   const { wishlistItems, removeFromWishlist, count: wishlistCount } = useWishlist()
@@ -33,7 +33,7 @@ export function WishlistPage() {
 
   // Fetch products by SKUs
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ['tenant', tenantId, 'wishlist-products', wishlistSkus.join(',')],
+    queryKey: ['workspace', 'wishlist-products', wishlistSkus.join(',')],
     queryFn: async () => {
       if (!tenantId || wishlistSkus.length === 0) return []
 

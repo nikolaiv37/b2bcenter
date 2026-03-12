@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -34,7 +35,6 @@ import { Eye, Search, Building2, X } from 'lucide-react'
 import { SHIPPING_METHOD_CONFIG } from '@/types'
 import { ShippingMethodBadge } from '@/components/ShippingMethodBadge'
 import { formatPrice, formatDateTime, cn } from '@/lib/utils'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { ShipmentPanel } from '@/components/shipping/ShipmentPanel'
 // Proforma PDFs are generated only from company user accounts (see OrdersPage/OrderDetailsSheet)
 
@@ -171,8 +171,7 @@ export function AdminOrdersView() {
   const [dateFilter, setDateFilter] = useState<string>('all')
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   // Handle URL query parameters for filtering
   useEffect(() => {
@@ -192,7 +191,7 @@ export function AdminOrdersView() {
 
   // Fetch all orders (admin sees all via RLS)
   const { data: orders, isLoading } = useQuery({
-    queryKey: ['tenant', tenantId, 'admin-orders'],
+    queryKey: ['workspace', 'admin-orders'],
     queryFn: async () => {
       if (!tenantId) return []
       let data: unknown[] | null = null
@@ -316,7 +315,7 @@ export function AdminOrdersView() {
         },
         () => {
           // Refetch orders when any change occurs
-          queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'admin-orders'] })
+          queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-orders'] })
         }
       )
       .subscribe()
@@ -339,7 +338,7 @@ export function AdminOrdersView() {
       if (error) throw error
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'admin-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-orders'] })
 
       // Notify the company user who placed the order
       if (variables.userId) {
@@ -386,7 +385,7 @@ export function AdminOrdersView() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'admin-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-orders'] })
       toast({
         title: 'Notes updated',
         description: 'Internal notes have been saved.',

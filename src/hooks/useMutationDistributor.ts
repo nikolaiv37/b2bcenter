@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import { Distributor } from '@/types'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 interface UpdateDistributorData {
   id: string
@@ -16,8 +16,7 @@ interface UpdateDistributorData {
  */
 export function useMutationUpdateDistributor() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (data: UpdateDistributorData) => {
@@ -40,11 +39,11 @@ export function useMutationUpdateDistributor() {
     },
     onSuccess: (data) => {
       // Invalidate the distributors list
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'distributors'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'distributors'] })
       // Also invalidate the specific distributor
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'distributors', data.id] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'distributors', data.id] })
       // Invalidate profiles queries if any component uses them
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'profiles'] })
     },
   })
 }
@@ -56,8 +55,7 @@ export function useMutationUpdateDistributor() {
  */
 export function useMutationDeleteDistributor() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (distributorId: string) => {
@@ -76,8 +74,8 @@ export function useMutationDeleteDistributor() {
     },
     onSuccess: () => {
       // Invalidate the distributors list
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'distributors'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'distributors'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'profiles'] })
     },
   })
 }
@@ -97,8 +95,6 @@ interface CreateDistributorData {
  */
 export function useMutationCreateDistributor() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
 
   return useMutation({
     mutationFn: async (_data: CreateDistributorData) => {
@@ -112,7 +108,7 @@ export function useMutationCreateDistributor() {
       throw new Error('Creating new distributors requires admin API integration. Please have the user sign up first.')
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'distributors'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'distributors'] })
     },
   })
 }

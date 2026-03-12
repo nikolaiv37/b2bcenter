@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from './useAuth'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 export interface CompanyUnpaidBalance {
   /** Company name or identifier */
@@ -40,11 +40,10 @@ export interface CompanyUnpaidBalancesData {
  */
 export function useCompanyUnpaidBalances(limit: number = 10) {
   const { user, isAdmin } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useQuery<CompanyUnpaidBalancesData | null>({
-    queryKey: ['tenant', tenantId, 'company-unpaid-balances', limit],
+    queryKey: ['workspace', 'company-unpaid-balances', limit],
     queryFn: async () => {
       if (!tenantId) return null
       // Fetch unpaid orders: Processing ('new') + Awaiting Payment ('pending')
@@ -135,11 +134,10 @@ export function useCompanyUnpaidBalances(limit: number = 10) {
  */
 export function useAllCompanyUnpaidBalances() {
   const { user, isAdmin } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useQuery<CompanyUnpaidBalancesData | null>({
-    queryKey: ['tenant', tenantId, 'all-company-unpaid-balances'],
+    queryKey: ['workspace', 'all-company-unpaid-balances'],
     queryFn: async () => {
       if (!tenantId) return null
       // Fetch unpaid orders: Processing ('new') + Awaiting Payment ('pending')

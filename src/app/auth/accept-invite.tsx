@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useTenantPath } from '@/lib/tenant/TenantProvider'
 
 type AcceptState = 'loading' | 'accepting' | 'success' | 'redirecting_setup' | 'error' | 'login_required' | 'wrong_account'
 
@@ -24,7 +24,6 @@ export function AcceptInvitePage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { withBase } = useTenantPath()
-  const { domainKind } = useTenant()
   const token = searchParams.get('token')
   const [state, setState] = useState<AcceptState>('loading')
   const [message, setMessage] = useState('')
@@ -34,17 +33,7 @@ export function AcceptInvitePage() {
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const acceptedRef = useRef(false) // prevent double-accept
 
-  const buildTenantAuthPath = (tenantSlug: string | null | undefined, authPath: string) => {
-    if (domainKind === 'tenant') {
-      return withBase(authPath)
-    }
-
-    if (tenantSlug) {
-      return `/t/${tenantSlug}${authPath.startsWith('/') ? authPath : `/${authPath}`}`
-    }
-
-    return withBase(authPath)
-  }
+  const buildTenantAuthPath = (_tenantSlug: string | null | undefined, authPath: string) => withBase(authPath)
 
   // Core accept logic
   const doAccept = async (inviteToken: string) => {

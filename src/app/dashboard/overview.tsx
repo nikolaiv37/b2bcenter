@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -9,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { OrderStatusBadge } from '@/components/OrderStatusBadge'
 import { formatCurrency, calculatePercentageChange } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { useUnpaidBalance } from '@/hooks/useUnpaidBalance'
 import { useCompanyUnpaidBalances } from '@/hooks/useCompanyUnpaidBalances'
 import {
@@ -120,8 +121,7 @@ interface ProductCategoryRow {
 export function DashboardOverview() {
   const { t } = useTranslation()
   const { user, isAdmin } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const navigate = useNavigate()
   const { withBase } = useTenantPath()
   
@@ -162,7 +162,7 @@ export function DashboardOverview() {
   }, [tenantId, isAdmin, user?.id])
 
   const { data: summary, isLoading: isSummaryLoading } = useQuery({
-    queryKey: ['tenant', tenantId, 'dashboard-summary', user?.id, isAdmin],
+    queryKey: ['workspace', 'dashboard-summary', user?.id, isAdmin],
     queryFn: async () => {
       if (!tenantId) return null
       if (!isAdmin && !user?.id) return null
@@ -246,7 +246,7 @@ export function DashboardOverview() {
   })
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['tenant', tenantId, 'dashboard-stats', user?.id, isAdmin],
+    queryKey: ['workspace', 'dashboard-stats', user?.id, isAdmin],
     queryFn: async () => {
       if (!tenantId) return null
       // For admin, we can proceed without user.id (they see all data)

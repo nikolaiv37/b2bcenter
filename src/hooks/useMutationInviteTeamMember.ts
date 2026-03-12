@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 interface InviteTeamMemberData {
   email: string
@@ -22,8 +22,7 @@ interface InviteTeamMemberResult {
 
 export function useMutationInviteTeamMember() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (data: InviteTeamMemberData): Promise<InviteTeamMemberResult> => {
@@ -50,16 +49,15 @@ export function useMutationInviteTeamMember() {
       return result as InviteTeamMemberResult
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'team-members'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'team-invitations'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'team-members'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'team-invitations'] })
     },
   })
 }
 
 export function useMutationResendTeamInvite() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (data: { email: string }) => {
@@ -86,16 +84,15 @@ export function useMutationResendTeamInvite() {
       return result
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'team-members'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'team-invitations'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'team-members'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'team-invitations'] })
     },
   })
 }
 
 export function useMutationRevokeTeamInvite() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (invitationId: string) => {
@@ -112,8 +109,8 @@ export function useMutationRevokeTeamInvite() {
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'team-members'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'team-invitations'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'team-members'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'team-invitations'] })
     },
   })
 }

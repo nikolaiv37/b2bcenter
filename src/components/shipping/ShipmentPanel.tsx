@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
@@ -6,7 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronsUpDown, Loader2, PackageSearch, RefreshCcw, Truck, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase/client'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { useToast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -341,8 +341,7 @@ function officeTextMatches(input: string, target: string) {
 
 export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; className?: string }) {
   const { t } = useTranslation()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [lastTrackMessage, setLastTrackMessage] = useState<string | null>(null)
@@ -362,7 +361,7 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
   const numericQuoteId = Number(seed.quoteId)
 
   const settingsQuery = useQuery({
-    queryKey: ['tenant', tenantId, 'econt-settings-sanitized'],
+    queryKey: ['workspace', 'econt-settings-sanitized'],
     queryFn: async () => {
       if (!tenantId) return null
       const { data, error } = await supabase.functions.invoke('econt-settings-get', { body: { tenant_id: tenantId } })
@@ -375,7 +374,7 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
   const integrationEnabled = settingsQuery.data?.integration?.enabled ?? false
 
   const shipmentsQuery = useQuery({
-    queryKey: ['tenant', tenantId, 'shipments', 'econt', numericQuoteId],
+    queryKey: ['workspace', 'shipments', 'econt', numericQuoteId],
     queryFn: async () => {
       if (!tenantId || !Number.isFinite(numericQuoteId)) return [] as ShipmentRow[]
       const { data, error } = await supabase
@@ -393,7 +392,7 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
   })
 
   const officesQuery = useQuery({
-    queryKey: ['tenant', tenantId, 'econt-offices'],
+    queryKey: ['workspace', 'econt-offices'],
     queryFn: async () => {
       if (!tenantId) return [] as EcontOfficeRow[]
       const { data, error } = await supabase.functions.invoke('econt-offices-list', {
@@ -422,7 +421,7 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
   const draftShipmentId = latestShipment && !latestShipment.econt_waybill_number ? latestShipment.id : undefined
 
   const invalidateShipments = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'shipments', 'econt', numericQuoteId] })
+    await queryClient.invalidateQueries({ queryKey: ['workspace', 'shipments', 'econt', numericQuoteId] })
   }
 
   const clearCarrierFieldErrors = () => {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
@@ -24,7 +25,6 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/use-toast'
 import { cn, slugify } from '@/lib/utils'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import {
   FolderKanban,
   Plus,
@@ -51,8 +51,7 @@ type CategoryFilter = 'all' | 'main' | 'sub'
 export function ManageCategoriesPage() {
   const { t } = useTranslation()
   const { company } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -71,7 +70,7 @@ export function ManageCategoriesPage() {
   const [nameError, setNameError] = useState<string | null>(null)
 
   const { data: categories = [], isLoading } = useQuery<Category[]>({
-    queryKey: ['tenant', tenantId, 'categories'],
+    queryKey: ['workspace', 'categories'],
     queryFn: async () => {
       if (!tenantId) return []
       const { data, error } = await supabase
@@ -96,7 +95,7 @@ export function ManageCategoriesPage() {
 
   // Query product counts using category_id (normalized architecture)
   const { data: productCounts = {} } = useQuery<Record<string, number>>({
-    queryKey: ['tenant', tenantId, 'category-product-counts'],
+    queryKey: ['workspace', 'category-product-counts'],
     queryFn: async () => {
       if (!tenantId) return {}
       const result: Record<string, number> = {}
@@ -381,8 +380,8 @@ export function ManageCategoriesPage() {
       setNameError(null)
 
       // Properly invalidate category hierarchy and categories so buyer catalog picks up rename
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'category-hierarchy'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'categories'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'category-hierarchy'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'categories'] })
     },
     onError: (error: Error) => {
       // Only show generic error toast if not a validation error
@@ -460,9 +459,9 @@ export function ManageCategoriesPage() {
       setDeleteModalOpen(false)
 
       // Invalidate all category-related queries
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'category-hierarchy'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'categories'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'category-product-counts'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'category-hierarchy'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'categories'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'category-product-counts'] })
     },
     onError: () => {
       toast({
@@ -539,9 +538,9 @@ export function ManageCategoriesPage() {
       setMergeModalOpen(false)
 
       // Invalidate all category-related queries
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'category-hierarchy'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'categories'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'category-product-counts'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'category-hierarchy'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'categories'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'category-product-counts'] })
     },
     onError: () => {
       toast({

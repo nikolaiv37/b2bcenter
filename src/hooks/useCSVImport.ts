@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
@@ -6,13 +7,11 @@ import { parseCSV, csvRowToProduct, cleanProductForDatabase } from '@/lib/csv/pa
 import { validateTransformedProducts, TransformedProductData } from '@/lib/csv/validator'
 import { trackEvent, AnalyticsEvents } from '@/lib/analytics'
 import { useToast } from '@/components/ui/use-toast'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 export function useCSVImport() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('')
   const [previewData, setPreviewData] = useState<TransformedProductData[]>([])
@@ -220,7 +219,7 @@ export function useCSVImport() {
     },
     onSuccess: (result) => {
       // Invalidate products query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'products'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'products'] })
       
       // Show success toast with detailed stats
       const messages = []

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import { Client } from '@/types'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { sendNotification } from '@/lib/notifications'
 
 interface UpdateClientData {
@@ -11,8 +11,7 @@ interface UpdateClientData {
 
 export function useMutationUpdateClient() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (data: UpdateClientData) => {
@@ -35,18 +34,18 @@ export function useMutationUpdateClient() {
     },
     onSuccess: (data, variables) => {
       // Invalidate client queries
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'clients'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'clients', data.id] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'clients'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'clients', data.id] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'profiles'] })
       
       // If commission_rate was updated, invalidate product queries and notify the user
       if (variables.commission_rate !== undefined) {
         // Invalidate all product queries so adjusted prices are recalculated
-        queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'products'] })
-        queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'public-products'] })
-        queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'product'] })
+        queryClient.invalidateQueries({ queryKey: ['workspace', 'products'] })
+        queryClient.invalidateQueries({ queryKey: ['workspace', 'public-products'] })
+        queryClient.invalidateQueries({ queryKey: ['workspace', 'product'] })
         // Also invalidate quotes so they show updated pricing
-        queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'quotes'] })
+        queryClient.invalidateQueries({ queryKey: ['workspace', 'quotes'] })
 
         // Notify the affected company user about the commission change
         sendNotification({
@@ -64,8 +63,7 @@ export function useMutationUpdateClient() {
 
 export function useMutationDeleteClient() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (clientId: string) => {
@@ -83,8 +81,8 @@ export function useMutationDeleteClient() {
       return clientId
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'clients'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'clients'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'profiles'] })
     },
   })
 }

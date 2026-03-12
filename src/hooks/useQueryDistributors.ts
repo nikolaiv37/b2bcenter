@@ -1,17 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import { Distributor } from '@/types'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 /**
  * Fetches all distributors (users with role='company')
  * Admin-only: Used for managing B2B clients and their commission rates
  */
 export function useQueryDistributors() {
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   return useQuery({
-    queryKey: ['tenant', tenantId, 'distributors'],
+    queryKey: ['workspace', 'distributors'],
     queryFn: async () => {
       if (!tenantId) return []
       // Fetch profiles where role is 'company' (distributors)
@@ -38,10 +37,9 @@ export function useQueryDistributors() {
  * Fetches a single distributor by ID
  */
 export function useQueryDistributor(distributorId: string) {
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   return useQuery({
-    queryKey: ['tenant', tenantId, 'distributors', distributorId],
+    queryKey: ['workspace', 'distributors', distributorId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')

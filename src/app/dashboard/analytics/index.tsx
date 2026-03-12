@@ -1,5 +1,6 @@
 // This is the page owners open every morning with their coffee ☕
 import { useState, useMemo } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
@@ -34,7 +35,6 @@ import {
   Line,
 } from 'recharts'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { formatCurrency, calculatePercentageChange } from '@/lib/utils'
 import { OrderStatusBadge } from '@/components/OrderStatusBadge'
 import {
@@ -178,8 +178,7 @@ interface AnalyticsOrderRow {
 export function AnalyticsPage() {
   const { t } = useTranslation()
   const { user, profile, isAdmin } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const [dateRange, setDateRange] = useState<DateRange>('alltime')
 
   // Calculate date range
@@ -224,7 +223,7 @@ export function AnalyticsPage() {
 
   // Fetch all analytics data in parallel
   const { data: analytics, isLoading, error } = useQuery({
-    queryKey: ['tenant', tenantId, 'analytics', companyId, dateRange, user?.id],
+    queryKey: ['workspace', 'analytics', companyId, dateRange, user?.id],
     queryFn: async (): Promise<AnalyticsData> => {
       try {
         if (!tenantId) {

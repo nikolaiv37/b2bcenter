@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
@@ -30,7 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { OrderDetailsSheet } from '@/components/OrderDetailsSheet'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { AdminOrdersView } from './AdminOrdersView'
 import {
   Eye,
@@ -335,8 +336,7 @@ function CompanyOrdersView() {
   const { t } = useTranslation()
   const { user, company, profile } = useAuth()
   const { toast } = useToast()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const { withBase } = useTenantPath()
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -357,7 +357,7 @@ function CompanyOrdersView() {
 
   // Fetch real orders from quotes table (Eastern Europe B2B style: quotes are orders)
   const { data: quotesData, isLoading } = useQuery<Order[]>({
-    queryKey: ['tenant', tenantId, 'orders', userId, isDevMode || isDemoMode],
+    queryKey: ['workspace', 'orders', userId, isDevMode || isDemoMode],
     queryFn: async (): Promise<Order[]> => {
       if (!tenantId) {
         return []

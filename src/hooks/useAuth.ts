@@ -125,8 +125,7 @@ export function useAuth() {
         setUser(session?.user ?? null)
         
         if (session?.user) {
-          // App host / platform routes have no tenant context, so there is no
-          // tenant-scoped profile to load here. Unblock UI immediately.
+          // Membership has not resolved yet, so tenant-scoped profile loading cannot proceed. Unblock UI immediately.
           if (!tenantId) {
             setProfile(null)
             setCompany(null)
@@ -599,7 +598,6 @@ export function useAuth() {
   // Computed values
   const isAuthenticated = !!user
   const isAdmin = membership?.role === 'owner' || membership?.role === 'admin'
-  const isPlatformAdmin = profile?.is_platform_admin === true
   const isLoading = useAuthStore((state) => state.isLoading)
   const company = useAuthStore((state) => state.company)
 
@@ -611,7 +609,6 @@ export function useAuth() {
     isLoading,
     isAuthenticated,
     isAdmin,
-    isPlatformAdmin,
     isSigningOut: _isSigningOut,
     // Actions
     signOut,

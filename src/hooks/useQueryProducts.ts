@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import { Product } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
 import { applyCommissionRate, shouldApplyCommission } from '@/lib/priceUtils'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 /**
  * Apply commission-based price adjustments to products.
@@ -32,11 +32,10 @@ function applyCommissionToProducts(
 
 export function useQueryProducts(supplierId?: string) {
   const profile = useAuthStore((state) => state.profile)
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useQuery({
-    queryKey: ['tenant', tenantId, 'products', supplierId, profile?.id, profile?.commission_rate],
+    queryKey: ['workspace', 'products', supplierId, profile?.id, profile?.commission_rate],
     queryFn: async () => {
       let query = supabase.from('products').select('*').order('created_at', { ascending: false })
 
@@ -62,11 +61,10 @@ export function useQueryProducts(supplierId?: string) {
 
 export function useQueryProduct(productId: string) {
   const profile = useAuthStore((state) => state.profile)
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useQuery({
-    queryKey: ['tenant', tenantId, 'product', productId, profile?.id, profile?.commission_rate],
+    queryKey: ['workspace', 'product', productId, profile?.id, profile?.commission_rate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
@@ -92,11 +90,10 @@ export function useQueryPublicProducts(companySlug: string, filters?: {
   maxPrice?: number
 }) {
   const profile = useAuthStore((state) => state.profile)
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useQuery({
-    queryKey: ['tenant', tenantId, 'public-products', companySlug, filters, profile?.id, profile?.commission_rate],
+    queryKey: ['workspace', 'public-products', companySlug, filters, profile?.id, profile?.commission_rate],
     queryFn: async () => {
       // For MVP: Show all visible products
       // TODO: Later filter by company if needed
@@ -143,11 +140,10 @@ export function useQueryPublicProducts(companySlug: string, filters?: {
  */
 export function useQueryProductBySku(sku: string) {
   const profile = useAuthStore((state) => state.profile)
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useQuery({
-    queryKey: ['tenant', tenantId, 'product', 'sku', sku, profile?.id, profile?.commission_rate],
+    queryKey: ['workspace', 'product', 'sku', sku, profile?.id, profile?.commission_rate],
     queryFn: async () => {
       if (!sku) throw new Error('SKU is required')
 

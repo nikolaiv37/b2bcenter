@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, memo } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { GlassCard } from '@/components/GlassCard'
@@ -24,7 +25,6 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { supabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -202,8 +202,7 @@ export function CategoryMappingStep({
   onUpdateMapping,
 }: CategoryMappingStepProps) {
   const { t } = useTranslation()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   // State
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false)
@@ -242,7 +241,7 @@ export function CategoryMappingStep({
 
   // Fetch real categories from the database
   const { data: dbCategories = [], isLoading: isLoadingCategories } = useQuery({
-    queryKey: ['tenant', tenantId, 'categories-for-import'],
+    queryKey: ['workspace', 'categories-for-import'],
     queryFn: async () => {
       if (!tenantId) return []
       const { data, error } = await supabase

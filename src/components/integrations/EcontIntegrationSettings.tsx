@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, PlugZap } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { useToast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -107,8 +107,7 @@ function toFormDefaults(data?: SettingsResponse['integration']): FormValues {
 }
 
 export function EcontIntegrationSettings() {
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const { toast } = useToast()
 
   const form = useForm<FormValues>({
@@ -118,7 +117,7 @@ export function EcontIntegrationSettings() {
   })
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['tenant', tenantId, 'econt-settings'],
+    queryKey: ['workspace', 'econt-settings'],
     queryFn: async () => {
       if (!tenantId) return null
       const { data, error } = await supabase.functions.invoke('econt-settings-get', {

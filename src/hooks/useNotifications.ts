@@ -2,25 +2,24 @@ import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenant } from '@/lib/tenant/TenantProvider'
+import { useAppContext } from '@/lib/app/AppContext'
 import type { AppNotification } from '@/types'
 
 const NOTIFICATIONS_LIMIT = 20
 
 export function useNotifications() {
   const { user } = useAuth()
-  const { tenant } = useTenant()
   const queryClient = useQueryClient()
 
   const userId = user?.id
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   // ── Fetch latest notifications ──────────────────────────
   const {
     data: notifications = [],
     isLoading,
   } = useQuery({
-    queryKey: ['tenant', tenantId, 'notifications'],
+    queryKey: ['workspace', 'notifications'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notifications')
@@ -57,7 +56,7 @@ export function useNotifications() {
         },
         () => {
           queryClient.invalidateQueries({
-            queryKey: ['tenant', tenantId, 'notifications'],
+            queryKey: ['workspace', 'notifications'],
           })
         }
       )
@@ -81,7 +80,7 @@ export function useNotifications() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ['tenant', tenantId, 'notifications'],
+        queryKey: ['workspace', 'notifications'],
       })
     },
   })
@@ -100,7 +99,7 @@ export function useNotifications() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ['tenant', tenantId, 'notifications'],
+        queryKey: ['workspace', 'notifications'],
       })
     },
   })

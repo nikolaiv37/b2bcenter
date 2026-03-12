@@ -30,7 +30,8 @@ import {
 import { useDarkMode } from '@/hooks/useDarkMode'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useAppContext } from '@/lib/app/AppContext'
 
 // Buyers section removed — this is a single-wholesaler platform. Stores place orders directly to us.
 
@@ -52,17 +53,19 @@ export function DashboardLayout() {
   const { t } = useTranslation()
   const [cartOpen, setCartOpen] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
-  const { user, profile, isAdmin, signOut } = useAuth()
-  const { tenant } = useTenant()
+  const { signOut } = useAuth()
+  const { currentAccount, workspaceId } = useAppContext()
   const { withBase, stripBase } = useTenantPath()
-  const tenantId = tenant?.id
+  const profile = currentAccount.profile
+  const isAdmin = currentAccount.isAdmin
+  const userId = currentAccount.userId
   
   // Fetch real status data for badges
   const { data: statusData } = useQuery({
-    queryKey: ['tenant', tenantId, 'status-badges', user?.id, isAdmin],
+    queryKey: ['workspace', 'status-badges', userId, isAdmin],
     queryFn: async () => {
-      if (!tenantId) return null
-      if (!isAdmin && !user?.id) return null
+      if (!workspaceId) return null
+      if (!isAdmin && !userId) return null
 
       // Fetch pending orders: Processing ('new') + Awaiting Payment ('pending')
       // These are orders that need attention
@@ -70,7 +73,7 @@ export function DashboardLayout() {
         .from('quotes')
         .select('*', { count: 'exact', head: true })
         .in('status', ['new', 'pending'])
-        .eq('tenant_id', tenantId)
+        .eq('tenant_id', workspaceId)
 
       // Fetch low stock products (quantity 1-10)
       const { count: lowStockCount } = await supabase
@@ -78,14 +81,14 @@ export function DashboardLayout() {
         .select('*', { count: 'exact', head: true })
         .gt('quantity', 0)
         .lte('quantity', 10)
-        .eq('tenant_id', tenantId)
+        .eq('tenant_id', workspaceId)
 
       return {
         pendingOrders: pendingCount || 0,
         lowStockItems: lowStockCount || 0,
       }
     },
-    enabled: !!tenantId && (isAdmin || !!user?.id),
+    enabled: !!workspaceId && (isAdmin || !!userId),
     refetchInterval: 30000, // Refetch every 30 seconds
   })
 

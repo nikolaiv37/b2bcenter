@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 export interface TeamMember {
   id: string
@@ -12,11 +12,10 @@ export interface TeamMember {
 }
 
 export function useQueryTeamMembers() {
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useQuery({
-    queryKey: ['tenant', tenantId, 'team-members'],
+    queryKey: ['workspace', 'team-members'],
     queryFn: async (): Promise<TeamMember[]> => {
       if (!tenantId) return []
 
@@ -71,11 +70,10 @@ export function useQueryTeamMembers() {
 }
 
 export function useQueryTeamInvitations() {
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useQuery({
-    queryKey: ['tenant', tenantId, 'team-invitations'],
+    queryKey: ['workspace', 'team-invitations'],
     queryFn: async () => {
       if (!tenantId) return []
 

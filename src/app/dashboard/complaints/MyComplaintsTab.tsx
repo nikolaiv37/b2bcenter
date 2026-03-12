@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
@@ -21,7 +22,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { Eye, AlertCircle, Image as ImageIcon, Filter } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -96,14 +96,13 @@ function getReasonLabel(reason: string, t: (key: string) => string) {
 export function MyComplaintsTab() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
   const { data: complaints, isLoading } = useQuery({
-    queryKey: ['tenant', tenantId, 'complaints', user?.id],
+    queryKey: ['workspace', 'complaints', user?.id],
     queryFn: async () => {
       if (!user?.id || !tenantId) return []
 

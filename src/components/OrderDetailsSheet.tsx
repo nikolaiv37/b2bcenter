@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import {
   Sheet,
@@ -35,7 +36,6 @@ import {
 } from 'lucide-react'
 import { SHIPPING_METHOD_CONFIG } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import type { ProformaInvoicePDFProps } from './ProformaInvoicePDF'
 import { supabase } from '@/lib/supabase/client'
 import { Company } from '@/types'
@@ -148,8 +148,7 @@ export function OrderDetailsSheet({
 }: OrderDetailsSheetProps) {
   const { t } = useTranslation()
   const { company, profile } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
 
   // Check if current user is a company user (not admin)

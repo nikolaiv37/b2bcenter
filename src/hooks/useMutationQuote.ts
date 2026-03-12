@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import { Quote, QuoteItem } from '@/types'
 import { addDays } from 'date-fns'
 import { sendEmail, EmailTemplates } from '@/lib/resendClient'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 interface CreateQuoteData {
   companyId: string
@@ -20,8 +20,7 @@ interface CreateQuoteData {
 
 export function useMutationCreateQuote() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (data: CreateQuoteData) => {
@@ -72,15 +71,14 @@ export function useMutationCreateQuote() {
       return quote as Quote
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'quotes'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'quotes'] })
     },
   })
 }
 
 export function useMutationUpdateQuoteStatus() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async ({
@@ -133,7 +131,7 @@ export function useMutationUpdateQuoteStatus() {
       return quote as Quote
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'quotes'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'quotes'] })
     },
   })
 }

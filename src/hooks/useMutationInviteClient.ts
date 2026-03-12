@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 interface InviteClientData {
   email: string
@@ -25,8 +25,7 @@ interface InviteClientResult {
 
 export function useMutationInviteClient() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (data: InviteClientData): Promise<InviteClientResult> => {
@@ -55,16 +54,15 @@ export function useMutationInviteClient() {
     },
     onSuccess: () => {
       // Invalidate clients list so the new invited client appears
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'clients'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'invitations'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'clients'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'invitations'] })
     },
   })
 }
 
 export function useMutationResendInvite() {
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useMutation({
     mutationFn: async (data: { email: string; company_name?: string }) => {
@@ -91,8 +89,8 @@ export function useMutationResendInvite() {
       return result
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'clients'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'invitations'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'clients'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'invitations'] })
     },
   })
 }

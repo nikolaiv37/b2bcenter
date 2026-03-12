@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
@@ -30,7 +31,6 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { Eye, Image as ImageIcon, Search, Building2 } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
 
@@ -123,12 +123,11 @@ export function AdminComplaintsView() {
   const [companyFilter, setCompanyFilter] = useState<string>('all')
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   // Fetch all complaints (admin sees all via RLS)
   const { data: complaints, isLoading } = useQuery({
-    queryKey: ['tenant', tenantId, 'admin-complaints'],
+    queryKey: ['workspace', 'admin-complaints'],
     queryFn: async () => {
       if (!tenantId) return []
       const { data, error } = await supabase
@@ -261,7 +260,7 @@ export function AdminComplaintsView() {
         },
         () => {
           // Refetch complaints when any change occurs
-          queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'admin-complaints'] })
+          queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-complaints'] })
         }
       )
       .subscribe()
@@ -284,7 +283,7 @@ export function AdminComplaintsView() {
       if (error) throw error
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'admin-complaints'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-complaints'] })
 
       // Notify the company user who filed the complaint
       if (variables.userId) {
@@ -327,7 +326,7 @@ export function AdminComplaintsView() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'admin-complaints'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-complaints'] })
       toast({
         title: t('complaints.noteAdded'),
         description: t('complaints.noteAdded'),

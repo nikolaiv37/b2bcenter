@@ -4,7 +4,6 @@
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string
   readonly VITE_SUPABASE_ANON_KEY: string
-  readonly VITE_SINGLE_TENANT_MODE?: string
   readonly VITE_STRIPE_PUBLISHABLE_KEY: string
   readonly VITE_RESEND_API_KEY: string
   readonly VITE_POSTHOG_KEY: string

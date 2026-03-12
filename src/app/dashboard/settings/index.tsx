@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
@@ -25,7 +26,6 @@ import { useAuthStore } from '@/stores/authStore'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { useQueryTeamMembers, useQueryTeamInvitations } from '@/hooks/useQueryTeamMembers'
 import {
   useMutationInviteTeamMember,
@@ -39,8 +39,7 @@ export function SettingsPage() {
   const { t } = useTranslation()
   const location = useLocation()
   const { company, profile, user, isAdmin } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)

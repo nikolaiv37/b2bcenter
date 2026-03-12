@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 export interface CategoryInfo {
   id: string // Category UUID from categories table
@@ -36,10 +36,9 @@ export interface CategoryHierarchy {
  * - Subcategories: parent_id points to parent category
  */
 export function useCategoryHierarchy(companyId?: string) {
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   return useQuery({
-    queryKey: ['tenant', tenantId, 'category-hierarchy', companyId],
+    queryKey: ['workspace', 'category-hierarchy', companyId],
     queryFn: async (): Promise<CategoryHierarchy> => {
       if (!tenantId) {
         return { mainCategories: new Map() }

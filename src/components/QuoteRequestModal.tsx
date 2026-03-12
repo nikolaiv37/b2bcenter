@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useCartStore } from '@/stores/cartStore'
 import { useAuth } from '@/hooks/useAuth'
 import { useCommissionRate } from '@/hooks/useCommissionRate'
@@ -21,7 +22,6 @@ import { FileText, Loader2, Warehouse, Truck, Package, Store, Percent } from 'lu
 import { formatPrice } from '@/lib/utils'
 import { ShippingMethod, SHIPPING_METHOD_CONFIG } from '@/types'
 import { cn } from '@/lib/utils'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { sendNotification } from '@/lib/notifications'
 
 interface OrderRequestModalProps {
@@ -38,8 +38,7 @@ export function OrderRequestModal({
   const { items, getTotal, clearCart } = useCartStore()
   const { user, profile, company } = useAuth()
   const { hasDiscount, commissionRate } = useCommissionRate()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [notes, setNotes] = useState('')
@@ -106,8 +105,8 @@ export function OrderRequestModal({
       const isDevMode = import.meta.env.VITE_DEV_MODE === 'true'
       const devUserId = isDevMode ? 'dev-user-123' : null
       const userId = user?.id || devUserId
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'orders', userId] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'orders'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'orders', userId] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'orders'] })
 
       // Notify admins about the new order
       sendNotification({

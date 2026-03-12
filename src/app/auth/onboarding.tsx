@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { GlassCard } from '@/components/GlassCard'
@@ -8,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { slugify } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { CompanyForm, CompanyFormData } from '@/components/CompanyForm'
 import {
   Building2,
@@ -31,8 +32,7 @@ export function OnboardingPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
   const { user, profile, isLoading: authLoading, signOut } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id ?? null
+  const { workspaceId: tenantId } = useAppContext()
   const { withBase } = useTenantPath()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -213,7 +213,7 @@ export function OnboardingPage() {
       })
 
       // Refresh auth state to get updated company
-      const postOnboardingPath = tenant ? withBase('/dashboard') : '/'
+      const postOnboardingPath = withBase('/dashboard')
       window.location.href = postOnboardingPath
     } catch (error: unknown) {
       console.error('Onboarding error:', error)

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from './useAuth'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 export interface UnpaidBalanceData {
   /** Sum of all unpaid order totals */
@@ -22,11 +22,10 @@ export interface UnpaidBalanceData {
  */
 export function useUnpaidBalance() {
   const { user, isAdmin } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   return useQuery<UnpaidBalanceData | null>({
-    queryKey: ['tenant', tenantId, 'unpaid-balance', user?.id],
+    queryKey: ['workspace', 'unpaid-balance', user?.id],
     queryFn: async () => {
       if (!tenantId || !user?.id) return null
 

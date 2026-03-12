@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
@@ -26,7 +27,6 @@ import {
   Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { sendNotification } from '@/lib/notifications'
 
 interface OrderItem {
@@ -61,8 +61,7 @@ export function NewComplaintTab({ onSubmitted }: { onSubmitted: () => void }) {
   const { user, profile, company } = useAuth()
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
 
   const [formData, setFormData] = useState<ComplaintFormData>({
     orderId: '',
@@ -83,7 +82,7 @@ export function NewComplaintTab({ onSubmitted }: { onSubmitted: () => void }) {
   const userId = user?.id || devUserId
 
   const { data: orders, isLoading: ordersLoading } = useQuery({
-    queryKey: ['tenant', tenantId, 'user-orders-complaints', userId, isDevMode || isDemoMode],
+    queryKey: ['workspace', 'user-orders-complaints', userId, isDevMode || isDemoMode],
     queryFn: async () => {
       if (!userId || !tenantId) return []
 
@@ -310,7 +309,7 @@ export function NewComplaintTab({ onSubmitted }: { onSubmitted: () => void }) {
         title: t('complaints.complaintSubmitted'),
         description: t('complaints.complaintSubmittedDescription'),
       })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'complaints', user?.id] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'complaints', user?.id] })
       onSubmitted()
       
       // Reset form

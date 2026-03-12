@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from './useAuth'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 import { WishlistItem } from '@/types'
 
 // Wishlist is per-user, persisted forever, survives catalog re-uploads (uses SKU)
@@ -13,14 +13,13 @@ import { WishlistItem } from '@/types'
  */
 export function useWishlist() {
   const { user } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const queryClient = useQueryClient()
   const userId = user?.id
 
   // Fetch all wishlist items for the current user
   const { data: wishlistItems = [], isLoading } = useQuery({
-    queryKey: ['tenant', tenantId, 'wishlist', userId],
+    queryKey: ['workspace', 'wishlist', userId],
     queryFn: async () => {
       if (!userId || !tenantId) return []
 
@@ -53,7 +52,7 @@ export function useWishlist() {
         },
         () => {
           // Invalidate and refetch wishlist on any change
-          queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'wishlist', userId] })
+          queryClient.invalidateQueries({ queryKey: ['workspace', 'wishlist', userId] })
         }
       )
       .subscribe()
@@ -92,10 +91,10 @@ export function useWishlist() {
     },
     onMutate: async (sku) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['tenant', tenantId, 'wishlist', userId] })
+      await queryClient.cancelQueries({ queryKey: ['workspace', 'wishlist', userId] })
 
       // Snapshot previous value
-      const previousItems = queryClient.getQueryData<WishlistItem[]>(['tenant', tenantId, 'wishlist', userId])
+      const previousItems = queryClient.getQueryData<WishlistItem[]>(['workspace', 'wishlist', userId])
 
       // Optimistically update
       if (previousItems && !previousItems.some((item) => item.product_sku === sku)) {
@@ -105,7 +104,7 @@ export function useWishlist() {
           product_sku: sku,
           created_at: new Date().toISOString(),
         }
-        queryClient.setQueryData<WishlistItem[]>(['tenant', tenantId, 'wishlist', userId], [
+        queryClient.setQueryData<WishlistItem[]>(['workspace', 'wishlist', userId], [
           optimisticItem,
           ...previousItems,
         ])
@@ -116,11 +115,11 @@ export function useWishlist() {
     onError: (_err, _sku, context) => {
       // Rollback on error
       if (context?.previousItems) {
-        queryClient.setQueryData(['tenant', tenantId, 'wishlist', userId], context.previousItems)
+        queryClient.setQueryData(['workspace', 'wishlist', userId], context.previousItems)
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'wishlist', userId] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'wishlist', userId] })
     },
   })
 
@@ -140,15 +139,15 @@ export function useWishlist() {
     },
     onMutate: async (sku) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['tenant', tenantId, 'wishlist', userId] })
+      await queryClient.cancelQueries({ queryKey: ['workspace', 'wishlist', userId] })
 
       // Snapshot previous value
-      const previousItems = queryClient.getQueryData<WishlistItem[]>(['tenant', tenantId, 'wishlist', userId])
+      const previousItems = queryClient.getQueryData<WishlistItem[]>(['workspace', 'wishlist', userId])
 
       // Optimistically update
       if (previousItems) {
         queryClient.setQueryData<WishlistItem[]>(
-          ['tenant', tenantId, 'wishlist', userId],
+          ['workspace', 'wishlist', userId],
           previousItems.filter((item) => item.product_sku !== sku)
         )
       }
@@ -158,11 +157,11 @@ export function useWishlist() {
     onError: (_err, _sku, context) => {
       // Rollback on error
       if (context?.previousItems) {
-        queryClient.setQueryData(['tenant', tenantId, 'wishlist', userId], context.previousItems)
+        queryClient.setQueryData(['workspace', 'wishlist', userId], context.previousItems)
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'wishlist', userId] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'wishlist', userId] })
     },
   })
 

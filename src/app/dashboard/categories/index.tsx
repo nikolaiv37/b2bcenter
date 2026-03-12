@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -25,7 +26,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { useAuth } from '@/hooks/useAuth'
 import { Product } from '@/types'
 import { Search, X, ChevronLeft, ChevronRight, Grid3X3, Package } from 'lucide-react'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useTenantPath } from '@/lib/tenant/TenantProvider'
 
 const ITEMS_PER_PAGE = 24
 
@@ -33,8 +34,7 @@ export function CategoriesPage() {
   const { t } = useTranslation()
   const { mainCategory, subCategory } = useParams<{ mainCategory?: string; subCategory?: string }>()
   const navigate = useNavigate()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const { withBase } = useTenantPath()
 
   // Decode URL parameters
@@ -236,7 +236,7 @@ export function CategoriesPage() {
 
   // Fetch manufacturers for filter (using normalized category_id)
   const { data: manufacturers = [] } = useQuery({
-    queryKey: ['tenant', tenantId, 'category-manufacturers', categoryIds],
+    queryKey: ['workspace', 'category-manufacturers', categoryIds],
     queryFn: async () => {
       if (!tenantId || categoryIds.length === 0) return []
       
@@ -273,7 +273,7 @@ export function CategoriesPage() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'category-products'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'category-products'] })
       toast({ title: t('products.productDeleted'), description: t('products.productRemoved') })
     },
     onError: () => {

@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { GlassCard } from '@/components/GlassCard'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenant } from '@/lib/tenant/TenantProvider'
+import { useAppContext } from '@/lib/app/AppContext'
 import { Lock, LogOut, Loader2 } from 'lucide-react'
 
 export function NoAccessPortal() {
   const { user, signOut } = useAuth()
-  const { tenant } = useTenant()
+  const { workspaceName } = useAppContext()
   const [signingOut, setSigningOut] = useState(false)
 
   const handleSwitchAccount = async () => {
@@ -26,10 +26,10 @@ export function NoAccessPortal() {
             <>
               <span className="font-medium text-foreground">{user.email}</span>{' '}
               is not a member of{' '}
-              <span className="font-medium text-foreground">{tenant?.name ?? 'this tenant'}</span>.
+              <span className="font-medium text-foreground">{workspaceName ?? 'this workspace'}</span>.
             </>
           ) : (
-            'Your account is not a member of this tenant.'
+            'Your account is not a member of this workspace.'
           )}
           {' '}Contact your administrator to request access, or sign in with a different account.
         </p>

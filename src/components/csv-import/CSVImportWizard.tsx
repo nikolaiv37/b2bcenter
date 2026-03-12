@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSmartMapping } from '@/hooks/useSmartMapping'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { parseCSVFlexible } from '@/lib/csv/parser'
 import { supabase } from '@/lib/supabase/client'
 import { sendNotification } from '@/lib/notifications'
@@ -69,8 +70,7 @@ export function CSVImportWizard() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { company } = useAuth()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const { withBase } = useTenantPath()
 
   const WIZARD_STEPS = [
@@ -488,10 +488,10 @@ export function CSVImportWizard() {
 
       // Categories are already synced during import (non-destructive sync)
       // Just invalidate caches to refresh UI
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'categories'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'category-hierarchy'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'products'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'products', 'categories-for-filter'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'categories'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'category-hierarchy'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'products'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'products', 'categories-for-filter'] })
 
       // Notify all company users about the catalog update (only if meaningful changes)
       if ((result.imported || 0) > 0 || (result.updated || 0) > 0) {
@@ -584,12 +584,12 @@ export function CSVImportWizard() {
       return { deleted: count || 0, categoriesDeleted, categoriesPreserved: preserveCategoriesOnDelete }
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'products'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'category-hierarchy'] })
-      queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'products', 'categories-for-filter'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'products'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'category-hierarchy'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'products', 'categories-for-filter'] })
       
       if (!result.categoriesPreserved) {
-        queryClient.invalidateQueries({ queryKey: ['tenant', tenantId, 'categories'] })
+        queryClient.invalidateQueries({ queryKey: ['workspace', 'categories'] })
       }
       
       setDeleteDialogOpen(false)

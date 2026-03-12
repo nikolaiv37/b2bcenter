@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { GlassCard } from '@/components/GlassCard'
@@ -29,7 +30,6 @@ import { Quote } from '@/types'
 import { Search, CheckCircle2, XCircle, Eye } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { useTranslation } from 'react-i18next'
-import { useTenant } from '@/lib/tenant/TenantProvider'
 
 export function QuotesPage() {
   const { t } = useTranslation()
@@ -38,12 +38,11 @@ export function QuotesPage() {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const { user, isAdmin } = useAuth()
   const { toast } = useToast()
-  const { tenant } = useTenant()
-  const tenantId = tenant?.id
+  const { workspaceId: tenantId } = useAppContext()
   const updateStatusMutation = useMutationUpdateQuoteStatus()
 
   const { data: quotes, isLoading } = useQuery({
-    queryKey: ['tenant', tenantId, 'quotes', user?.id, isAdmin],
+    queryKey: ['workspace', 'quotes', user?.id, isAdmin],
     queryFn: async () => {
       if (!tenantId) return []
 

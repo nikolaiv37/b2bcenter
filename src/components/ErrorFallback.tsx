@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { GlassCard } from './GlassCard'
 import { AlertCircle } from 'lucide-react'
-import { useTenant, useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useTenantPath } from '@/lib/tenant/TenantProvider'
 
 interface ErrorFallbackProps {
   error: Error
@@ -11,7 +11,6 @@ interface ErrorFallbackProps {
 
 export function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
   const { t } = useTranslation()
-  const { domainKind, tenant } = useTenant()
   const { withBase } = useTenantPath()
   // Safely extract error information
   const errorMessage = error?.message || error?.toString() || t('errors.unknownError')
@@ -49,15 +48,7 @@ export function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps)
           </Button>
           <Button
             onClick={() => {
-              if (tenant) {
-                window.location.href = withBase('/dashboard')
-                return
-              }
-              if (domainKind === 'tenant') {
-                window.location.href = '/'
-                return
-              }
-              window.location.href = '/'
+              window.location.href = withBase('/dashboard')
             }}
             variant="outline"
           >
