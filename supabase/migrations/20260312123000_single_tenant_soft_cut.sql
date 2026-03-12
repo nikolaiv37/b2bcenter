@@ -112,7 +112,7 @@ do $$
 declare
   table_name text;
 begin
-  foreach table_name in array [
+  foreach table_name in array ARRAY[
     'companies',
     'profiles',
     'products',
