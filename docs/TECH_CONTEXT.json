@@ -1,0 +1,172 @@
+{
+  "stack": {
+    "frontend": [
+      "React 18",
+      "TypeScript",
+      "Vite",
+      "React Router v6",
+      "TanStack Query",
+      "Zustand",
+      "Tailwind CSS",
+      "shadcn/ui",
+      "react-hook-form",
+      "zod",
+      "i18next"
+    ],
+    "backend": [
+      "Supabase Postgres via supabase-js (direct from frontend)",
+      "Supabase Auth",
+      "Supabase Storage",
+      "Supabase Realtime"
+    ],
+    "db": [
+      "PostgreSQL (Supabase)",
+      "RLS policies",
+      "SQL migration scripts in /supabase"
+    ],
+    "auth": [
+      "Supabase Auth sessions/JWT"
+    ],
+    "hosting": [
+      "Vercel SPA rewrite (vercel.json)",
+      "UNKNOWN production hosting target if not Vercel"
+    ]
+  },
+  "frontend": {
+    "routes": [
+      "/",
+      "/landing",
+      "/auth/login",
+      "/auth/signup",
+      "/auth/onboarding",
+      "/dashboard",
+      "/dashboard/categories",
+      "/dashboard/categories/:mainCategory",
+      "/dashboard/categories/:mainCategory/:subCategory",
+      "/dashboard/categories/manage",
+      "/dashboard/products",
+      "/dashboard/products/:sku",
+      "/dashboard/wishlist",
+      "/dashboard/orders",
+      "/dashboard/complaints",
+      "/dashboard/quotes",
+      "/dashboard/csv-import",
+      "/dashboard/settings",
+      "/dashboard/analytics",
+      "/dashboard/unpaid-balances",
+      "/dashboard/clients"
+    ],
+    "state": [
+      "TanStack Query server cache",
+      "Zustand authStore",
+      "Zustand cartStore (persisted)"
+    ],
+    "i18n": {
+      "library": "i18next + react-i18next + browser language detector",
+      "supported_languages": [
+        "en",
+        "bg"
+      ],
+      "files": [
+        "src/locales/en.json",
+        "src/locales/bg.json"
+      ]
+    },
+    "ui": [
+      "GlassCard pattern",
+      "shadcn/ui components",
+      "Lucide icons",
+      "Recharts",
+      "React PDF for proforma invoices"
+    ]
+  },
+  "backend": {
+    "endpoints": [
+      "Supabase PostgREST table ops from frontend",
+      "https://api.resend.com/emails",
+      "/api/create-checkout-session (expected, not implemented in repo)",
+      "Arbitrary XML URL fetch in browser (parseXmlFromUrl)"
+    ],
+    "jobs": [
+      "UNKNOWN (no explicit background job runner in repo)"
+    ],
+    "integrations": [
+      "Supabase",
+      "Resend",
+      "Stripe",
+      "PostHog"
+    ]
+  },
+  "database": {
+    "tables": [
+      "companies",
+      "profiles",
+      "products",
+      "categories",
+      "quotes",
+      "orders (legacy in schema.sql; app primarily uses quotes)",
+      "complaints",
+      "wishlist_items",
+      "import_configs",
+      "csv_distributor_mappings",
+      "category_synonyms",
+      "csv_import_history"
+    ],
+    "rls_policies": [
+      "profiles: Users can view their own profile",
+      "profiles: Admins can view all profiles",
+      "companies: Users can view/update their own company",
+      "categories: Anyone can view categories",
+      "categories: Admins can manage categories in their company",
+      "quotes: Users can view/insert/update their own quotes (file-dependent variants)",
+      "complaints: Users can view/insert/update own complaints",
+      "wishlist_items: Users can view/insert/delete own wishlist",
+      "import_configs: company-scoped CRUD + admin all"
+    ],
+    "enums": [
+      "profiles.role CHECK in newer migrations: admin|company",
+      "quotes.status values used by app: new|pending|shipped|approved (+legacy variants mapped in UI)",
+      "complaints.status: pending|in-review|approved|rejected",
+      "import_configs.format_type: csv|xml"
+    ]
+  },
+  "imports": {
+    "csv": {
+      "wizard": "src/components/csv-import/CSVImportWizard.tsx",
+      "mapping_hook": "src/hooks/useSmartMapping.ts",
+      "parser": "src/lib/csv/parser.ts",
+      "distributor_detection": "src/lib/csv/distributors.ts",
+      "db_write": "products upsert + category sync"
+    },
+    "xml": {
+      "wizard": "src/components/import/UniversalImportWizard.tsx",
+      "mapping_hook": "src/hooks/useXmlMapping.ts",
+      "parser": "src/lib/xml/parser.ts",
+      "validator": "src/lib/xml/validator.ts",
+      "status": "in-progress (core pipeline exists; config UX and hardening incomplete)"
+    },
+    "mapping": {
+      "runtime_state": "in-memory mapping state in hooks",
+      "persisted_table": "import_configs (used by save/load functions in useXmlMapping)",
+      "csv_persistence_status": "csv_distributor_mappings/category_synonyms/csv_import_history exist in SQL but are not wired into current UI flow"
+    }
+  },
+  "security": {
+    "roles": [
+      "admin",
+      "company"
+    ],
+    "permissions": [
+      "Admin-only UI for imports and client management",
+      "Company users can place orders and complaints",
+      "RLS enforces table-level ownership/company constraints"
+    ],
+    "secrets": [
+      "VITE_SUPABASE_ANON_KEY",
+      "VITE_RESEND_API_KEY",
+      "VITE_STRIPE_PUBLISHABLE_KEY",
+      "VITE_POSTHOG_KEY",
+      "VITE_SUPABASE_URL"
+    ]
+  }
+}

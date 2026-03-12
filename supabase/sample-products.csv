@@ -1,0 +1,10 @@
+sku,name,description,category,moq,retail_price,wholesale_price,stock,images
+CHAIR-003,Velvet Accent Chair,Luxurious velvet accent chair with gold metal legs,Chairs,10,399.99,279.99,35,https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=500
+SOFA-002,L-Shaped Sectional,Large L-shaped sectional sofa with reversible chaise,Sofas,3,1799.99,1299.99,12,https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=500
+TABLE-002,Marble Dining Table,Elegant dining table with marble top and brass base,Tables,5,899.99,649.99,18,https://images.unsplash.com/photo-1565183997392-2f5e8d4e8c2d?w=500
+BED-002,Queen Upholstered Bed,Classic upholstered bed with tufted headboard,Beds,4,699.99,499.99,22,https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=500
+DESK-002,Standing Desk,Adjustable height standing desk with electric motor,Desks,6,599.99,419.99,28,https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?w=500
+CHAIR-004,Rocking Chair,Classic wooden rocking chair with cushioned seat,Chairs,8,349.99,249.99,20,https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=500
+CABINET-001,Media Console,Modern media console with cable management system,Storage,10,449.99,319.99,15,https://images.unsplash.com/photo-1588999292985-c6e49cb1e2c9?w=500
+BENCH-001,Entryway Bench,Upholstered entryway bench with storage compartment,Benches,12,279.99,199.99,30,https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=500
+

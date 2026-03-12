@@ -1,0 +1,78 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "submit": "Submit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "products": "Products",
+    "orders": "Orders",
+    "quotes": "Quotes",
+    "customers": "Customers",
+    "settings": "Settings",
+    "totalRevenue": "Total Revenue",
+    "totalOrders": "Total Orders",
+    "pendingQuotes": "Pending Quotes",
+    "lowStock": "Low Stock Items"
+  },
+  "products": {
+    "title": "Products",
+    "addProduct": "Add Product",
+    "importCSV": "Import CSV",
+    "sku": "SKU",
+    "name": "Name",
+    "category": "Category",
+    "price": "Price",
+    "stock": "Stock",
+    "moq": "Minimum Order Quantity",
+    "retailPrice": "Retail Price",
+    "wholesalePrice": "Wholesale Price"
+  },
+  "catalog": {
+    "title": "Product Catalog",
+    "viewDetails": "View Details",
+    "requestQuote": "Request Quote",
+    "addToCart": "Add to Cart",
+    "minOrder": "Min. Order"
+  },
+  "quotes": {
+    "title": "Quotes",
+    "requestQuote": "Request Quote",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "expired": "Expired"
+  },
+  "orders": {
+    "title": "Orders",
+    "orderNumber": "Order Number",
+    "status": "Status",
+    "total": "Total",
+    "date": "Date",
+    "trackingNumber": "Tracking Number"
+  }
+}
