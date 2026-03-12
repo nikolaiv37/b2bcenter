@@ -21,6 +21,18 @@ interface TenantContextValue {
 
 const TenantContext = createContext<TenantContextValue | null>(null)
 
+type TenantMembershipRow = {
+  id: string
+  user_id: string
+  tenant_id: string
+  role: string
+  tenant:
+    | (Tenant & {
+        tenant_domains?: Array<{ domain: string; verified: boolean; is_primary: boolean }>
+      })
+    | null
+}
+
 function ensureLeadingSlash(path: string): string {
   return path.startsWith('/') ? path : `/${path}`
 }
@@ -90,6 +102,22 @@ function withTimeout<T>(promiseLike: PromiseLike<T>, ms: number, label: string):
   })
 }
 
+function mapTenantFromMembershipRow(row: TenantMembershipRow | null): Tenant | null {
+  if (!row?.tenant) return null
+
+  const primaryDomain =
+    row.tenant.tenant_domains?.find((domain) => domain.verified && domain.is_primary)?.domain ?? null
+
+  return {
+    id: row.tenant.id,
+    name: row.tenant.name,
+    slug: row.tenant.slug,
+    status: row.tenant.status,
+    branding: row.tenant.branding ?? null,
+    primary_domain: primaryDomain,
+  }
+}
+
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const queryClient = useQueryClient()
@@ -108,8 +136,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   )
   const slugCandidate = useMemo(() => getSlugCandidate(location.pathname), [location.pathname])
   const isAppHostNoSlug = useMemo(
-    () => isAppLikeHost && !slugCandidate,
-    [isAppLikeHost, slugCandidate]
+    () => !singleTenantMode && isAppLikeHost && !slugCandidate,
+    [singleTenantMode, isAppLikeHost, slugCandidate]
   )
   // Skip the blocking bootstrap spinner for marketing hosts and for the
   // app host when there is no /t/:slug in the path (e.g. /auth/login, /).
@@ -190,37 +218,74 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       const nextSession = sessionResult.data.session ?? null
       let nextMembership: TenantMembership | null = null
       let nextMembershipChecked = true
+      let nextTenant = resolution.tenant
+      let nextSource = resolution.source
+      let nextDomainKind = resolution.domainKind
 
-      if (resolution.tenant && nextSession?.user) {
+      if (singleTenantMode && !nextTenant && nextSession?.user) {
+        const querySingleTenantMembership = () =>
+          supabase
+            .from('tenant_memberships')
+            .select(
+              'id, user_id, tenant_id, role, tenant:tenants(id, name, slug, status, branding, tenant_domains(domain, verified, is_primary))'
+            )
+            .eq('user_id', nextSession.user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+
+        const { data: membershipRows } = await withTimeout(
+          querySingleTenantMembership(),
+          timeoutMs,
+          'singleTenantMembership'
+        )
+
+        const row = ((membershipRows as TenantMembershipRow[] | null) || [])[0] ?? null
+        const tenantFromMembership = mapTenantFromMembershipRow(row)
+        if (row && tenantFromMembership) {
+          nextTenant = tenantFromMembership
+          nextSource = 'none'
+          nextDomainKind = 'app'
+          nextMembership = {
+            id: row.id,
+            user_id: row.user_id,
+            tenant_id: row.tenant_id,
+            role: row.role,
+          }
+        }
+      }
+
+      if (nextTenant && nextSession?.user) {
         if (shouldBlock) {
           nextMembershipChecked = false
         }
 
-        const queryMembership = () =>
-          supabase
-            .from('tenant_memberships')
-            .select('id, user_id, tenant_id, role')
-            .eq('user_id', nextSession.user.id)
-            .eq('tenant_id', resolution.tenant!.id)
-            .maybeSingle()
+        if (!nextMembership || nextMembership.tenant_id !== nextTenant.id) {
+          const queryMembership = () =>
+            supabase
+              .from('tenant_memberships')
+              .select('id, user_id, tenant_id, role')
+              .eq('user_id', nextSession.user.id)
+              .eq('tenant_id', nextTenant.id)
+              .maybeSingle()
 
-        const { data } = await withTimeout(queryMembership(), timeoutMs, 'membershipCheck')
-        nextMembership = (data as TenantMembership) || null
+          const { data } = await withTimeout(queryMembership(), timeoutMs, 'membershipCheck')
+          nextMembership = (data as TenantMembership) || null
 
-        // Bootstrap retry: on the very first load after a login redirect the
-        // Supabase PostgREST layer may not have picked up the fresh JWT yet,
-        // so the RLS-filtered query returns null for a valid member. A single
-        // retry after a short pause lets the client catch up and resolves the
-        // race reliably. The delay is invisible to the user (hidden behind
-        // the loading spinner) and only fires when the first check fails.
-        if (shouldBlock && !nextMembership) {
-          await new Promise((r) => setTimeout(r, 600))
-          const { data: retryData } = await withTimeout(queryMembership(), timeoutMs, 'membershipRetry')
-          nextMembership = (retryData as TenantMembership) || null
+          // Bootstrap retry: on the very first load after a login redirect the
+          // Supabase PostgREST layer may not have picked up the fresh JWT yet,
+          // so the RLS-filtered query returns null for a valid member. A single
+          // retry after a short pause lets the client catch up and resolves the
+          // race reliably. The delay is invisible to the user (hidden behind
+          // the loading spinner) and only fires when the first check fails.
+          if (shouldBlock && !nextMembership) {
+            await new Promise((r) => setTimeout(r, 600))
+            const { data: retryData } = await withTimeout(queryMembership(), timeoutMs, 'membershipRetry')
+            nextMembership = (retryData as TenantMembership) || null
+          }
         }
 
         nextMembershipChecked = true
-      } else if (shouldBlock && resolution.tenant && !nextSession) {
+      } else if (shouldBlock && nextTenant && !nextSession) {
         // During bootstrap, getSession() can return null if the Supabase
         // client hasn't finished loading the session from localStorage yet.
         // Don't mark membership as checked — a follow-up refresh (triggered
@@ -228,27 +293,27 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         nextMembershipChecked = false
       }
 
-      setTenant(resolution.tenant)
-      setSource(resolution.source)
-      setDomainKind(resolution.domainKind)
+      setTenant(nextTenant)
+      setSource(nextSource)
+      setDomainKind(nextDomainKind)
       setSession(nextSession)
       setMembership(nextMembership)
       setMembershipChecked(nextMembershipChecked)
 
       const prevTenantId = prevTenantIdRef.current
-      const nextTenantId = resolution.tenant?.id ?? null
+      const nextTenantId = nextTenant?.id ?? null
       if (prevTenantId && prevTenantId !== nextTenantId) {
         clearTenantQueries(prevTenantId)
       }
       prevTenantIdRef.current = nextTenantId
 
-      const primaryDomain = resolution.tenant?.primary_domain
+      const primaryDomain = nextTenant?.primary_domain
       if (
-        resolution.tenant &&
+        nextTenant &&
         shouldRedirectToCanonical({
           primaryDomain,
           currentHost: host.toLowerCase().split(':')[0],
-          source: resolution.source,
+          source: nextSource,
           singleTenantMode,
         })
       ) {
@@ -259,7 +324,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
               pathname,
               search,
               hash,
-              slug: resolution.source === 'slug' ? resolution.tenant.slug : null,
+              slug: nextSource === 'slug' ? nextTenant.slug : null,
             })
           )
           return
@@ -272,7 +337,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
               pathname,
               search,
               hash,
-              slug: resolution.source === 'slug' ? resolution.tenant.slug : null,
+              slug: nextSource === 'slug' ? nextTenant.slug : null,
             })
           )
         }

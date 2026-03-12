@@ -14,6 +14,7 @@ import { SLUG_PREFIX } from '@/lib/tenant/constants'
 export function MainIndexRoute() {
   const { isAuthenticated, isLoading } = useAuth()
   const { data: memberships = [], isLoading: membershipsLoading } = useTenantMemberships()
+  const singleTenantMode = import.meta.env.VITE_SINGLE_TENANT_MODE !== 'false'
 
   if (!isAuthenticated) {
     return <PlatformLoginPage />
@@ -32,10 +33,17 @@ export function MainIndexRoute() {
   }
 
   if (memberships.length === 1) {
+    if (singleTenantMode) {
+      return <Navigate to="/dashboard" replace />
+    }
     const onlyTenant = memberships[0]?.tenant
     if (onlyTenant?.slug) {
       return <Navigate to={`${SLUG_PREFIX}/${onlyTenant.slug}/dashboard`} replace />
     }
+  }
+
+  if (singleTenantMode && memberships.length > 1) {
+    return <Navigate to="/dashboard" replace />
   }
 
   return <TenantSelector />

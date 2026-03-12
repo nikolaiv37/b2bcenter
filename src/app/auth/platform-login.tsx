@@ -37,6 +37,7 @@ interface DiscoveredTenant {
  */
 export function PlatformLoginPage() {
   const { t } = useTranslation()
+  const singleTenantMode = import.meta.env.VITE_SINGLE_TENANT_MODE !== 'false'
   const [step, setStep] = useState<'email' | 'password'>('email')
   const [isLookingUp, setIsLookingUp] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -158,7 +159,9 @@ export function PlatformLoginPage() {
 
       if (discoveredTenant) {
         // Tenant member flow
-        window.location.href = `${SLUG_PREFIX}/${discoveredTenant.slug}/dashboard`
+        window.location.href = singleTenantMode
+          ? '/dashboard'
+          : `${SLUG_PREFIX}/${discoveredTenant.slug}/dashboard`
         return
       }
 
@@ -170,6 +173,19 @@ export function PlatformLoginPage() {
       if (!session?.user) {
         setLoginError('Could not verify your account. Please try again.')
         return
+      }
+
+      if (singleTenantMode) {
+        const { data: memberships, error: membershipsError } = await supabase
+          .from('tenant_memberships')
+          .select('tenant_id')
+          .eq('user_id', session.user.id)
+          .limit(1)
+
+        if (!membershipsError && memberships && memberships.length > 0) {
+          window.location.href = '/dashboard'
+          return
+        }
       }
 
       const { data: profileRows, error: profileError } = await supabase
