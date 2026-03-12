@@ -6,76 +6,58 @@
 [Browser: React + Vite SPA]
   - Routes: /auth/*, /dashboard/*
   - State: TanStack Query + Zustand
+  - Context: AppContext (currentAccount/currentCompany/workspaceId)
   - i18n: i18next (en/bg)
           |
           | supabase-js (auth, db, storage, realtime)
           v
 [Supabase]
   ├─ Auth (auth.users)
-  ├─ Postgres tables (profiles, companies, products, categories, quotes, complaints, wishlist_items, import_configs, ...)
-  ├─ Storage buckets (logos, complaints, category-images*)
-  └─ Realtime channels (admin orders/complaints views)
+  ├─ Postgres tables (profiles, companies, products, categories, quotes, complaints, wishlist_items, ...)
+  ├─ Tenant compatibility layer (tenants, tenant_memberships, tenant_domains) in single-tenant mode
+  ├─ Storage buckets (complaints, logos, category-images)
+  └─ Realtime channels (orders/complaints updates)
           |
-          +--> External HTTP integrations from frontend:
-                - Resend API (email): https://api.resend.com/emails
-                - Stripe checkout bootstrap: /api/create-checkout-session (expected backend, not in repo)
-                - XML URL feed fetch (browser fetch in xml parser)
+          +--> External HTTP integrations:
+                - Econt edge functions
+                - Resend API helper
+                - Stripe publishable-key bootstrap
 ```
 
-`category-images*` bucket is referenced in app code; migration file for bucket creation is UNKNOWN.
+## Runtime architecture
 
-## Data flows (top 3)
+### Routing
+- Workspace entry is `/dashboard` only.
+- Removed route families:
+  - `/platform/*`
+  - `/t/:slug/*`
 
-### Flow 1: Signup -> profile -> company onboarding
-1. `supabase.auth.signUp` (`src/app/auth/signup.tsx`).
-2. Auth state listener (`useAuth`) loads profile from `profiles` or inserts one with role `company`.
-3. `AuthGuard` checks onboarding readiness (`profile.company_id`, `company.onboarding_completed`).
-4. Onboarding writes/updates `companies` and links `profiles.company_id` (`src/app/auth/onboarding.tsx`).
-5. User is redirected to `/dashboard`.
+### Auth and workspace resolution
+- `TenantProvider` still resolves membership + tenant row for compatibility and RLS alignment.
+- `AppContext` provides the app-facing API:
+  - `currentAccount`
+  - `currentCompany`
+  - `workspaceId`
+  - `workspaceName`
+- Most frontend modules now consume `workspaceId` from `AppContext` while DB filters still use `tenant_id`.
 
-### Flow 2: Import -> category sync -> products upsert
-1. Admin opens Universal wizard (`/dashboard/csv-import`).
-2. CSV:
-   - parse/detect headers and mappings (`parseCSVFlexible`, `useSmartMapping`).
-3. XML:
-   - parse XML tree + detect product path (`parseXmlFlexible`, `detectProductPath`).
-   - field mapping via XPath-like keys (`useXmlMapping`).
-4. Wizard transforms rows to product payloads.
-5. `prepareProductsWithCategoryId` finds/creates categories and assigns `category_id`.
-6. Wizard batches `upsert` into `products` on conflict `sku`.
-7. Query caches invalidated (`products`, `categories`, `category-hierarchy`).
+### Data isolation model
+- DB remains tenant-column based for safety (`tenant_id` is kept).
+- Single-tenant soft cut migration (`20260312123000_single_tenant_soft_cut.sql`) enforces one fixed tenant ID via defaults + triggers.
+- This preserves existing integrations (including Econt) without risky table rewrites.
 
-### Flow 3: Company order request -> admin processing
-1. Company user adds products to cart (`cartStore`) and submits from `QuoteRequestModal`.
-2. App inserts into `quotes` with status `new` and shipping method.
-3. Company view maps DB statuses to UI statuses in `/dashboard/orders`.
-4. Admin view (`AdminOrdersView`) reads all `quotes`, updates status/internal notes.
-5. Optional proforma PDF generation uses company/admin company fields (`ProformaInvoicePDF`).
+## Core flows
 
-## Auth model + roles/permissions
+1. Signup/login -> onboarding -> `/dashboard`
+2. Product import (CSV/XML) -> category sync -> products upsert
+3. Order/quote flow -> status processing -> complaints/wishlist/analytics
+4. Econt shipping via edge functions + `tenant_integrations` / `shipments`
 
-### Auth model
-- Provider: Supabase Auth (`src/lib/supabase/client.ts`).
-- Session persistence + refresh enabled.
-- Route protection: `AuthGuard` wraps `/dashboard` routes.
+## Permissions summary
+- App roles in use: `admin`, `company`.
+- Membership checks are still enforced for dashboard access.
+- Platform-admin console permissions are deprecated in single-tenant mode.
 
-### Roles in app code
-- `admin`
-- `company`
-(older SQL files reference `sales`/`buyer`; current TS types and profile creation use `admin|company`.)
-
-### Permission behavior (effective)
-- **Admin-only UI sections:** import page, clients page, category management actions.
-- **Company users:** browse products, create orders, see own orders, submit complaints.
-- **RLS:** defined by multiple SQL files; key policies include:
-  - `profiles`: "Users can view their own profile", "Admins can view all profiles" (`supabase/fix-profiles-rls-final.sql`)
-  - `categories`: "Admins can manage categories in their company" (`supabase/create-categories-table.sql`)
-  - `import_configs`: company-scoped CRUD + admin all (`supabase/migrations/20260205_import_configs.sql`)
-  - `quotes`, `complaints`, `wishlist_items`: per-user plus admin/dev-mode patterns (various SQL files)
-
-## Error handling + logging strategy
-- **UI boundary:** React ErrorBoundary with `ErrorFallback` (`src/App.tsx`, `src/components/ErrorFallback.tsx`).
-- **Mutation/query errors:** handled via `try/catch` + toasts in pages/hooks.
-- **Console logging:** extensive `console.error/warn/log` for diagnostics in auth/import/orders/complaints modules.
-- **No centralized backend logging pipeline in repo:** UNKNOWN (likely external Supabase logs + hosting logs).
-- **Retry behavior:** TanStack Query default retry is `1`, with window-focus refetch disabled (`src/App.tsx`).
+## Operational notes
+- Build verified with `npm run build`.
+- No automated backend rollback framework; rely on DB backups + migration discipline.

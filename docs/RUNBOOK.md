@@ -5,15 +5,13 @@
 ### Prerequisites
 - Node.js 18+
 - npm
-- Supabase project
+- Supabase project (Postgres + Auth + Storage)
 
 ### Install + run
 ```bash
 npm install
 npm run dev
 ```
-
-App runs at `http://localhost:5173` (Vite default).
 
 ### Build + preview
 ```bash
@@ -26,75 +24,86 @@ npm run preview
 npm run lint
 ```
 
-### Tests
-- `UNKNOWN` (no test script in `package.json`).
-- Likely location if added later: `package.json` scripts + `src/**/*.test.ts(x)`.
-
 ## Environment variables
 Create `.env` in repo root.
 
-| Variable | Meaning | Secret |
+| Variable | Required | Notes |
 |---|---|---|
-| `VITE_SUPABASE_URL` | Supabase project URL | SECRET |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key | SECRET |
-| `VITE_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key for frontend checkout bootstrap | SECRET |
-| `VITE_RESEND_API_KEY` | Resend API key (currently used directly from frontend code) | SECRET |
-| `VITE_POSTHOG_KEY` | PostHog project key | SECRET |
-| `VITE_POSTHOG_HOST` | PostHog host (default `https://app.posthog.com`) | No |
-| `VITE_DEV_MODE` | Enables dev-mode fallback IDs in several flows | No |
+| `VITE_SUPABASE_URL` | Yes | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Yes | Supabase anon/public API key |
+| `VITE_DEV_MODE` | No | Enables local/dev fallback flows in order/complaint/import paths |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Optional | Used by Stripe frontend bootstrap |
+| `VITE_RESEND_API_KEY` | Optional | Used by frontend email client helper |
+| `VITE_POSTHOG_KEY` | Optional | Analytics key |
+| `VITE_POSTHOG_HOST` | Optional | Defaults to PostHog cloud host |
 
-Do not commit real values.
+Notes:
+- `VITE_SINGLE_TENANT_MODE` is no longer used.
+- Do not commit real secrets.
 
-## Supabase setup, migrations, deployment notes
+## Supabase bootstrap (single-tenant)
 
-### Baseline DB setup
-1. In Supabase SQL editor, run:
-   - `supabase/schema.sql` (baseline; older model)
-2. Apply newer feature migrations used by current app (important):
-   - `supabase/add-company-onboarding-fields.sql`
-   - `supabase/add-company-invoice-fields.sql`
-   - `supabase/fix-profiles-rls-final.sql`
-   - `supabase/migration-update-products-table-safe.sql`
-   - `supabase/create-categories-table.sql`
-   - `supabase/add-category-id-to-products.sql`
-   - `supabase/add-category-slug-and-unique-constraint.sql`
-   - `supabase/create-quotes-table.sql`
-   - `supabase/add-order-number-column.sql`
-   - `supabase/add-shipping-method-column.sql`
-   - `supabase/create-complaints-table.sql`
-   - `supabase/fix-complaints-foreign-key.sql`
-   - `supabase/create-wishlist-table.sql`
-   - `supabase/migrations/20260205_import_configs.sql`
+### Preferred
+Use migration files under `supabase/migrations` in timestamp order.
 
-> Note: there are many "fix-*" SQL files in repo that overlap and may conflict. Use with care.
+### Execution order
+1. `20260312119900_profiles_harmonization.sql`
+2. `20260312120000_add_company_onboarding_fields.sql`
+3. `20260312120100_add_company_invoice_fields.sql`
+4. `20260312120200_add_commission_rate_to_profiles.sql`
+5. `20260312120300_update_products_table_safe.sql`
+6. `20260312120400_create_categories_table.sql`
+7. `20260312120500_add_category_slug_and_constraints.sql`
+8. `20260312120600_add_category_id_to_products.sql`
+9. `20260312120700_optimize_category_indexes.sql`
+10. `20260312120800_drop_legacy_quotes_table.sql`
+11. `20260312120900_create_quotes_table.sql`
+12. `20260312121000_add_order_number_column.sql`
+13. `20260312121100_add_shipping_method_column.sql`
+14. `20260312121200_add_quotes_internal_notes.sql`
+15. `20260312121300_create_complaints_table.sql`
+16. `20260312121400_add_complaints_internal_notes.sql`
+17. `20260312121500_create_wishlist_table.sql`
+18. `20260312121600_create_tenants_and_domains.sql`
+19. `20260312121700_tenant_data_isolation.sql`
+20. `20260312121800_add_client_invitations.sql`
+21. `20260312121900_add_target_role_to_invitations.sql`
+22. `20260312122000_lookup_tenant_by_email.sql` (created then removed by later migration)
+23. `20260312122100_platform_admin_and_tenant_status.sql`
+24. `20260312122200_platform_admin_auth_no_tenant.sql`
+25. `20260312122300_fix_handle_new_user_tenant_aware.sql`
+26. `20260312122400_create_notifications_table.sql`
+27. `20260312122500_create_logos_storage_bucket.sql`
+28. `20260312122600_create_category_images_bucket.sql`
+29. `20260312122700_first_tenant_bootstrap_auto.sql`
+30. `20260312122800_confirm_owner_auth_users.sql`
+31. `20260312122900_create_econt_integrations_and_shipments.sql`
+32. `20260312123000_single_tenant_soft_cut.sql`
 
-### Storage buckets
-- Required by code:
-  - `logos` (see `supabase/create-logos-storage-bucket.sql`)
-  - `complaints` (see `supabase/create-complaints-table.sql` comments/policies)
-  - `category-images` (referenced in app; migration file for bucket creation is UNKNOWN)
+### Important bootstrap note
+- Migration `20260312122700_first_tenant_bootstrap_auto.sql` requires at least one row in `auth.users`.
+- If your DB has no users yet, create one user first (Supabase Auth), then run migration 22700+.
 
-### Hosting/deploy
-- SPA rewrite config exists for Vercel (`vercel.json`).
-- Typical deploy path:
-  1. `npm run build`
-  2. Deploy `dist/` to Vercel/Netlify
-  3. Configure same env vars in hosting project
+## Storage buckets
+Created by migrations:
+- `complaints`
+- `logos`
+- `category-images`
 
-## Migrations and rollback notes
+## Single-tenant behavior
+- Workspace routes are only under `/dashboard/*`.
+- `/platform/*` and `/t/:slug/*` are removed.
+- Tenant tables/columns remain in DB for compatibility, but `20260312123000_single_tenant_soft_cut.sql` enforces one tenant ID.
 
-### Forward migration notes
-- Prefer idempotent migration files (`IF NOT EXISTS`/`ADD COLUMN IF NOT EXISTS`).
-- Validate RLS after each migration (profiles/companies/categories/quotes/import configs).
+## Deployment notes
+- Vercel must have at least:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+- Build command: `npm run build`
+- Output directory: `dist`
 
-### Rollback strategy
-- There is **no formal rollback framework** in repo (no migration tool config, no down migrations).
-- Practical rollback options:
-  1. Restore from Supabase backup/snapshot.
-  2. Manually reverse specific migration statements.
-  3. For app-only rollback, deploy previous Git commit and keep DB schema backward-compatible.
-
-### High-risk migration areas
-- Role constraint changes in `profiles` (`admin/company` vs older role sets).
-- `products` schema evolutions (`company_id` -> `supplier_id`, `category_id` additions).
-- Status workflow assumptions in `quotes` (`new/pending/shipped/approved`).
+## Rollback
+- No down-migration framework is configured.
+- Safe rollback options:
+  1. Restore DB backup/snapshot.
+  2. Re-deploy previous git commit while keeping DB backward-compatible.
