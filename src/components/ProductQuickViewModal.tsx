@@ -38,6 +38,7 @@ export function ProductQuickViewModal({
   open,
   onClose,
 }: ProductQuickViewModalProps) {
+  const { t } = useTranslation()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const { addItem } = useCartStore()
   const { toast } = useToast()
@@ -52,7 +53,6 @@ export function ProductQuickViewModal({
     ? [product.main_image]
     : []
 
-  const { t } = useTranslation()
   const quantity = product.quantity ?? 0
   const isOutOfStock = quantity === 0
   const hasSku = product.sku && product.sku.trim() !== ''

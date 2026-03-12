@@ -727,7 +727,7 @@ function CompanyOrdersView() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold">{t('orders.title')}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('orders.title')}</h1>
         <p className="text-muted-foreground mt-1">
           {t('orders.subtitle')}
         </p>
@@ -863,14 +863,14 @@ function CompanyOrdersView() {
 
       {/* Bulk Action Bar */}
       {selectedOrders.size > 0 && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">
               {selectedOrders.size} {selectedOrders.size === 1 ? t('orders.order') : t('orders.orders')}{' '}
               {t('orders.selected')}
             </span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"

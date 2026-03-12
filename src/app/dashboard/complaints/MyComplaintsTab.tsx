@@ -387,7 +387,7 @@ export function MyComplaintsTab() {
 
               <div className="space-y-6 mt-4">
                 {/* Status and Order Info */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">{t('complaints.status')}</p>
                     {getStatusBadge(selectedComplaint.status, t)}
@@ -424,7 +424,7 @@ export function MyComplaintsTab() {
                       {selectedComplaint.items.map((item, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-3 bg-muted rounded"
+                          className="flex flex-col gap-2 p-3 bg-muted rounded sm:flex-row sm:items-center sm:justify-between"
                         >
                           <div>
                             <p className="font-medium">{item.name}</p>

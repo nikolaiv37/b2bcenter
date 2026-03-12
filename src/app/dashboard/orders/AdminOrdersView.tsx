@@ -495,7 +495,7 @@ export function AdminOrdersView() {
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h1 className="text-3xl font-bold">{t('adminOrders.title')}</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">{t('adminOrders.title')}</h1>
           <p className="text-muted-foreground mt-1">
             {t('adminOrders.subtitle')}
           </p>
@@ -783,7 +783,7 @@ export function AdminOrdersView() {
 
               <div className="space-y-6 mt-4">
                 {/* Status and Order Info */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">{t('orders.status')}</p>
                     <Select
@@ -826,7 +826,7 @@ export function AdminOrdersView() {
                 {/* Shipping Method */}
                 <div className="p-4 rounded-lg bg-muted/50 border">
                   <p className="text-sm text-muted-foreground mb-2">{t('orders.shipping')}</p>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <ShippingMethodBadge method={selectedOrder.shipping_method} size="md" />
                     <span className="text-sm text-muted-foreground">
                       {SHIPPING_METHOD_CONFIG[selectedOrder.shipping_method || 'shop_delivery']?.label}
@@ -835,7 +835,7 @@ export function AdminOrdersView() {
                 </div>
 
                 {/* Customer Info */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">{t('general.email')}</p>
                     <p className="text-sm">{selectedOrder.email}</p>
@@ -856,7 +856,7 @@ export function AdminOrdersView() {
                       {selectedOrder.items.map((item, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-3 bg-muted rounded"
+                          className="flex flex-col gap-2 p-3 bg-muted rounded sm:flex-row sm:items-center sm:justify-between"
                         >
                           <div className="flex-1">
                             <p className="font-medium">{item.product_name}</p>

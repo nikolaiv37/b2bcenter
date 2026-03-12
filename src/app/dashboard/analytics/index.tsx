@@ -668,8 +668,8 @@ export function AnalyticsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Skeleton className="h-9 w-64 mb-2" />
             <Skeleton className="h-5 w-48" />
@@ -692,7 +692,7 @@ export function AnalyticsPage() {
   if (error) {
     console.error('Analytics error:', error)
     return (
-      <div className="p-6">
+      <div>
         <GlassCard className="p-12">
           <div className="text-center">
             <BarChart3 className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
@@ -708,17 +708,17 @@ export function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">{t('analytics.title')}</h1>
+          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{t('analytics.title')}</h1>
           <p className="text-muted-foreground">
             {t('analytics.subtitle')}
           </p>
         </div>
         <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

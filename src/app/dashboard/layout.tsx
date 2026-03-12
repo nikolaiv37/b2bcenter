@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useCartStore } from '@/stores/cartStore'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import {
   ShoppingCart,
   Sun,
@@ -17,6 +18,7 @@ import {
   Settings,
   Building2,
   LogOut,
+  Menu,
   ChevronRight,
 } from 'lucide-react'
 import {
@@ -53,6 +55,7 @@ export function DashboardLayout() {
   const { t } = useTranslation()
   const [cartOpen, setCartOpen] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const { signOut } = useAuth()
   const { currentAccount, workspaceId } = useAppContext()
   const { withBase, stripBase } = useTenantPath()
@@ -129,35 +132,58 @@ export function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex overflow-x-hidden">
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent
+          side="left"
+          className="w-[86vw] max-w-[340px] p-0 border-r border-gray-200 dark:border-gray-800"
+        >
+          <SheetTitle className="sr-only">{t('nav.mainNavigation')}</SheetTitle>
+          <SidebarNav mobile onNavigate={() => setMobileNavOpen(false)} />
+        </SheetContent>
+      </Sheet>
       <SidebarNav />
       <div className="flex-1 flex flex-col lg:ml-64">
         {/* Enhanced Top Header */}
         <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="px-6 py-4">
+          <div className="px-3 py-3 sm:px-4 lg:px-6 lg:py-4">
             {/* Main Navbar */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               {/* LEFT: Breadcrumbs */}
-              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                <span
-                  className="hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer"
-                  onClick={() => navigate(withBase('/dashboard'))}
+              <div className="flex min-w-0 flex-1 items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 lg:hidden"
+                  onClick={() => setMobileNavOpen(true)}
+                  aria-label={t('common.landing.nav.toggleMenu')}
                 >
-                  {t('header.home')}
-                </span>
-                <ChevronRight className="h-4 w-4" />
-                <span className="text-gray-900 dark:text-gray-100 font-medium">
+                  <Menu className="h-5 w-5" />
+                </Button>
+                <div className="hidden min-w-0 items-center gap-2 sm:flex">
+                  <span
+                    className="cursor-pointer truncate hover:text-gray-900 dark:hover:text-gray-100"
+                    onClick={() => navigate(withBase('/dashboard'))}
+                  >
+                    {t('header.home')}
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0" />
+                  <span className="truncate text-gray-900 dark:text-gray-100 font-medium">
+                    {getPageTitle()}
+                  </span>
+                </div>
+                <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100 sm:hidden">
                   {getPageTitle()}
                 </span>
               </div>
 
               {/* RIGHT: Actions Group */}
-              <div className="flex items-center gap-4">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5 lg:gap-4">
                 {/* Language Switcher */}
                 <LanguageSwitcher />
 
                 {/* Vertical Divider */}
-                <div className="h-6 w-px bg-gray-200 dark:bg-gray-700"></div>
+                <div className="hidden h-6 w-px bg-gray-200 dark:bg-gray-700 md:block"></div>
 
                 {/* Theme Toggle */}
                 <Button
@@ -174,7 +200,7 @@ export function DashboardLayout() {
                 </Button>
 
                 {/* Vertical Divider */}
-                <div className="h-6 w-px bg-gray-200 dark:bg-gray-700"></div>
+                <div className="hidden h-6 w-px bg-gray-200 dark:bg-gray-700 md:block"></div>
 
                 {/* Status Indicators */}
                 {(pendingOrders > 0 || lowStockItems > 0) && (
@@ -203,7 +229,7 @@ export function DashboardLayout() {
                 <NotificationBell />
 
                 {/* Vertical Divider */}
-                <div className="h-6 w-px bg-gray-200 dark:bg-gray-700"></div>
+                <div className="hidden h-6 w-px bg-gray-200 dark:bg-gray-700 md:block"></div>
 
                 {/* Cart Icon */}
                 <Button
@@ -224,7 +250,7 @@ export function DashboardLayout() {
                 </Button>
 
                 {/* Vertical Divider */}
-                <div className="h-6 w-px bg-gray-200 dark:bg-gray-700"></div>
+                <div className="hidden h-6 w-px bg-gray-200 dark:bg-gray-700 md:block"></div>
 
                 {/* User Profile Menu */}
                 <DropdownMenu>
@@ -303,7 +329,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 lg:p-8 overflow-auto custom-scrollbar">
+        <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8 custom-scrollbar">
           <Outlet />
         </main>
       </div>

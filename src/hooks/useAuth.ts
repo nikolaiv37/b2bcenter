@@ -161,7 +161,9 @@ export function useAuth() {
           authBootstrapState.currentProfile = null
           authBootstrapState.profileLoadStarted.clear()
         }
-      } finally {
+      } catch (error) {
+        console.error('Auth state change handler failed:', error)
+        setLoading(false)
       }
     })
 

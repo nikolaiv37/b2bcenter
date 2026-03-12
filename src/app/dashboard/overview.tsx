@@ -742,7 +742,7 @@ export function DashboardOverview() {
     <div className="space-y-8 pb-24 md:pb-8">
       {/* Header */}
       <div>
-        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+        <h1 className="mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">
           {t('overview.title')}
         </h1>
         <p className="text-muted-foreground">
@@ -828,7 +828,7 @@ export function DashboardOverview() {
       {/* Admin Only: Unpaid Balances by Company */}
       {isAdmin && (
         <GlassCard className="border border-white/10 dark:border-white/5">
-          <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/10 dark:border-white/5">
+          <div className="mb-5 flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/5">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-500/10">
                 <Building2 className="w-5 h-5 text-amber-500" />
@@ -1034,7 +1034,7 @@ export function DashboardOverview() {
               {stats.recentOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="flex items-center justify-between p-3.5 rounded-lg bg-white/5 dark:bg-black/5 hover:bg-white/10 dark:hover:bg-black/10 transition-all duration-200 border border-white/10 dark:border-white/5 hover:border-white/20 dark:hover:border-white/10 shadow-sm hover:shadow-md"
+                  className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3.5 shadow-sm transition-all duration-200 hover:border-white/20 hover:bg-white/10 hover:shadow-md sm:flex-row sm:items-center sm:justify-between dark:border-white/5 dark:bg-black/5 dark:hover:border-white/10 dark:hover:bg-black/10"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="flex-shrink-0">
@@ -1057,7 +1057,7 @@ export function DashboardOverview() {
                       <OrderStatusBadge status={order.status} />
                     </div>
                   </div>
-                  <div className="text-right ml-4 flex-shrink-0">
+                  <div className="flex-shrink-0 text-left sm:ml-4 sm:text-right">
                     <p className="font-semibold text-sm text-foreground">{formatCurrency(order.total, 'EUR')}</p>
                   </div>
                 </div>
@@ -1138,7 +1138,7 @@ export function DashboardOverview() {
                     return (
                       <div
                         key={product.id}
-                        className="flex items-center gap-3.5 p-3.5 rounded-lg bg-white/5 dark:bg-black/5 hover:bg-white/10 dark:hover:bg-black/10 transition-all duration-200 border border-white/10 dark:border-white/5 hover:border-white/20 dark:hover:border-white/10 shadow-sm hover:shadow-md"
+                        className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/5 p-3.5 shadow-sm transition-all duration-200 hover:border-white/20 hover:bg-white/10 hover:shadow-md sm:flex-row sm:items-center dark:border-white/5 dark:bg-black/5 dark:hover:border-white/10 dark:hover:bg-black/10"
                       >
                         <div className="flex-shrink-0 w-11 h-11 rounded-md bg-muted/50 flex items-center justify-center overflow-hidden border border-white/10 dark:border-white/5 shadow-sm">
                           {imageUrl ? (
@@ -1158,7 +1158,7 @@ export function DashboardOverview() {
                           <p className="font-semibold text-sm truncate text-foreground mb-0.5">{product.name}</p>
                           <p className="text-xs text-muted-foreground font-medium">SKU: {product.sku}</p>
                         </div>
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0 self-start sm:self-auto">
                           <Badge 
                             variant="outline" 
                             className="bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30 text-xs font-medium shadow-sm"

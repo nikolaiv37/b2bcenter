@@ -439,7 +439,7 @@ export function ProductsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold mb-2">{t('products.title')}</h1>
+        <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{t('products.title')}</h1>
         <p className="text-muted-foreground">
           {isLoading && !totalCount ? t('products.loading') : `${totalCount ?? 0} ${t('products.products')}`}
         </p>
@@ -463,7 +463,7 @@ export function ProductsPage() {
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Select
               value={selectedCategory}
               onValueChange={(value) => {
@@ -651,13 +651,13 @@ export function ProductsPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <GlassCard>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-muted-foreground">
                   {t('products.showing')} {(currentPage - 1) * ITEMS_PER_PAGE + 1} {t('products.to')}{' '}
                   {Math.min(currentPage * ITEMS_PER_PAGE, totalCount || 0)} {t('products.of')}{' '}
                   {totalCount || 0} {t('products.products')}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -665,9 +665,9 @@ export function ProductsPage() {
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    {t('products.previous')}
+                    <span className="hidden sm:inline">{t('products.previous')}</span>
                   </Button>
-                  <div className="flex items-center gap-1">
+                  <div className="hidden items-center gap-1 sm:flex">
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                       let pageNum: number
                       if (totalPages <= 5) {
@@ -698,7 +698,7 @@ export function ProductsPage() {
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
                   >
-                    {t('products.next')}
+                    <span className="hidden sm:inline">{t('products.next')}</span>
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>

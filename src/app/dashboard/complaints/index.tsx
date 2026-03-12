@@ -27,27 +27,29 @@ export function ComplaintsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold mb-2">{t('complaints.title')}</h1>
+        <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{t('complaints.title')}</h1>
         <p className="text-muted-foreground">
           {t('complaints.subtitle')}
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-br from-white via-gray-50/80 to-white dark:from-gray-800 dark:via-gray-900/80 dark:to-gray-800 border border-gray-200/30 dark:border-gray-700/20 backdrop-blur-md shadow-sm hover:shadow-md transition-shadow duration-200 p-1.5 gap-2">
-          <TabsTrigger 
-            value="my-complaints"
-            className="rounded-xl px-6 py-2.5 text-sm font-semibold transition-all duration-300 ease-out data-[state=active]:bg-gradient-to-br data-[state=active]:from-gray-100/90 data-[state=active]:via-white/95 data-[state=active]:to-gray-50/90 dark:data-[state=active]:from-gray-700/90 dark:data-[state=active]:via-gray-600/95 dark:data-[state=active]:to-gray-700/90 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-gray-300/50 dark:data-[state=active]:border-gray-500/40 data-[state=inactive]:text-slate-500 dark:data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-slate-700 dark:data-[state=inactive]:hover:text-slate-200 data-[state=inactive]:hover:bg-slate-100/50 dark:data-[state=inactive]:hover:bg-slate-800/30"
-          >
-            {t('complaints.myComplaints')}
-          </TabsTrigger>
-          <TabsTrigger 
-            value="new-complaint"
-            className="rounded-xl px-6 py-2.5 text-sm font-semibold transition-all duration-300 ease-out data-[state=active]:bg-gradient-to-br data-[state=active]:from-gray-100/90 data-[state=active]:via-white/95 data-[state=active]:to-gray-50/90 dark:data-[state=active]:from-gray-700/90 dark:data-[state=active]:via-gray-600/95 dark:data-[state=active]:to-gray-700/90 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-gray-300/50 dark:data-[state=active]:border-gray-500/40 data-[state=inactive]:text-slate-500 dark:data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-slate-700 dark:data-[state=inactive]:hover:text-slate-200 data-[state=inactive]:hover:bg-slate-100/50 dark:data-[state=inactive]:hover:bg-slate-800/30"
-          >
-            {t('complaints.newComplaint')}
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="inline-flex h-12 min-w-max items-center justify-start gap-2 rounded-2xl border border-gray-200/30 bg-gradient-to-br from-white via-gray-50/80 to-white p-1.5 shadow-sm backdrop-blur-md transition-shadow duration-200 hover:shadow-md dark:border-gray-700/20 dark:from-gray-800 dark:via-gray-900/80 dark:to-gray-800">
+            <TabsTrigger
+              value="my-complaints"
+              className="rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 ease-out sm:px-6 data-[state=active]:bg-gradient-to-br data-[state=active]:from-gray-100/90 data-[state=active]:via-white/95 data-[state=active]:to-gray-50/90 dark:data-[state=active]:from-gray-700/90 dark:data-[state=active]:via-gray-600/95 dark:data-[state=active]:to-gray-700/90 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-gray-300/50 dark:data-[state=active]:border-gray-500/40 data-[state=inactive]:text-slate-500 dark:data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-slate-700 dark:data-[state=inactive]:hover:text-slate-200 data-[state=inactive]:hover:bg-slate-100/50 dark:data-[state=inactive]:hover:bg-slate-800/30"
+            >
+              {t('complaints.myComplaints')}
+            </TabsTrigger>
+            <TabsTrigger
+              value="new-complaint"
+              className="rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 ease-out sm:px-6 data-[state=active]:bg-gradient-to-br data-[state=active]:from-gray-100/90 data-[state=active]:via-white/95 data-[state=active]:to-gray-50/90 dark:data-[state=active]:from-gray-700/90 dark:data-[state=active]:via-gray-600/95 dark:data-[state=active]:to-gray-700/90 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-gray-300/50 dark:data-[state=active]:border-gray-500/40 data-[state=inactive]:text-slate-500 dark:data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-slate-700 dark:data-[state=inactive]:hover:text-slate-200 data-[state=inactive]:hover:bg-slate-100/50 dark:data-[state=inactive]:hover:bg-slate-800/30"
+            >
+              {t('complaints.newComplaint')}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="my-complaints">
           <MyComplaintsTab key={refreshKey} />
@@ -60,4 +62,3 @@ export function ComplaintsPage() {
     </div>
   )
 }
-

@@ -420,7 +420,7 @@ export function ClientsPage() {
         </div>
         <Button
           onClick={() => setIsInviteModalOpen(true)}
-          className="gap-2 rounded-full px-5 bg-sky-600 hover:bg-sky-700 text-white shadow-md"
+          className="w-full gap-2 rounded-full bg-sky-600 px-5 text-white shadow-md hover:bg-sky-700 sm:w-auto"
         >
           <UserPlus className="w-4 h-4" />
           {t('distributors.inviteClient')}
@@ -494,7 +494,7 @@ export function ClientsPage() {
                 value={sortBy}
                 onValueChange={(value) => setSortBy(value as typeof sortBy)}
               >
-                <SelectTrigger className="h-9 w-[160px] text-xs bg-background/60 backdrop-blur-sm border-border/60">
+                <SelectTrigger className="h-9 w-full sm:w-[160px] text-xs bg-background/60 backdrop-blur-sm border-border/60">
                   <SelectValue placeholder={t('distributors.sortNewestFirst')} />
                 </SelectTrigger>
                 <SelectContent>

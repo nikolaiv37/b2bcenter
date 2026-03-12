@@ -333,7 +333,7 @@ export function CategoriesPage() {
             <div className="p-2 rounded-lg bg-primary/10">
               <Grid3X3 className="w-6 h-6 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold">{t('categories.browseCategories')}</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">{t('categories.browseCategories')}</h1>
           </div>
           <p className="text-muted-foreground">
             {categoriesLoading ? t('general.loading') : t('categories.categoriesWithProducts', { count: mainCategories.length, total: mainCategories.reduce((sum, c) => sum + c.productCount, 0) })}
@@ -359,7 +359,7 @@ export function CategoriesPage() {
 
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold mb-2">{selectedMainCategoryData.name}</h1>
+          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{selectedMainCategoryData.name}</h1>
           <p className="text-muted-foreground">
             {t('categories.productsInSubcategories', { count: selectedMainCategoryData.productCount, subcount: subcategories.length })}
           </p>
@@ -398,7 +398,7 @@ export function CategoriesPage() {
 
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold mb-2">{selectedSubcategoryData.name}</h1>
+          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{selectedSubcategoryData.name}</h1>
           <p className="text-muted-foreground">
             {t('categories.products', { count: totalCount })}
           </p>
@@ -408,7 +408,7 @@ export function CategoriesPage() {
         <GlassCard>
           <div className="space-y-4">
             <div className="flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative w-full min-w-0 sm:flex-1 sm:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
                   placeholder={t('categories.searchProducts')}
@@ -419,7 +419,7 @@ export function CategoriesPage() {
               </div>
               {manufacturers.length > 0 && (
                 <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder={t('products.manufacturer')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -431,7 +431,7 @@ export function CategoriesPage() {
                 </Select>
               )}
               <Select value={stockFilter} onValueChange={setStockFilter}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder={t('categories.stock')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -513,12 +513,12 @@ export function CategoriesPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <GlassCard>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-muted-foreground">
                   {t('products.showing')} {(currentPage - 1) * ITEMS_PER_PAGE + 1} {t('products.to')}{' '}
                   {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} {t('products.of')} {totalCount} {t('products.products')}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -526,7 +526,7 @@ export function CategoriesPage() {
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    {t('products.previous')}
+                    <span className="hidden sm:inline">{t('products.previous')}</span>
                   </Button>
                   <Button
                     variant="outline"
@@ -534,7 +534,7 @@ export function CategoriesPage() {
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
                   >
-                    {t('products.next')}
+                    <span className="hidden sm:inline">{t('products.next')}</span>
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>

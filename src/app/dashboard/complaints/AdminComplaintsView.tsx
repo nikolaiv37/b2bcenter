@@ -419,7 +419,7 @@ export function AdminComplaintsView() {
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h1 className="text-3xl font-bold">{t('complaints.adminView')}</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">{t('complaints.adminView')}</h1>
           <p className="text-muted-foreground mt-1">
             {t('complaints.subtitle')}
           </p>
@@ -625,7 +625,7 @@ export function AdminComplaintsView() {
 
               <div className="space-y-6 mt-4">
                 {/* Status and Order Info */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">{t('complaints.status')}</p>
                     <Select
@@ -682,7 +682,7 @@ export function AdminComplaintsView() {
                       {selectedComplaint.items.map((item, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-3 bg-muted rounded"
+                          className="flex flex-col gap-2 p-3 bg-muted rounded sm:flex-row sm:items-center sm:justify-between"
                         >
                           <div>
                             <p className="font-medium">{item.name}</p>

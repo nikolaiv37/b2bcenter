@@ -102,7 +102,12 @@ const settingsSubmenuItemsConfig = [
   },
 ]
 
-export function SidebarNav() {
+interface SidebarNavProps {
+  mobile?: boolean
+  onNavigate?: () => void
+}
+
+export function SidebarNav({ mobile = false, onNavigate }: SidebarNavProps) {
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
@@ -221,13 +226,25 @@ export function SidebarNav() {
     localStorage.setItem('sidebar-settings-open', value === 'settings' ? 'true' : 'false')
   }
 
+  const handleItemNavigate = () => {
+    onNavigate?.()
+  }
+
   return (
-    <aside className="glass-sidebar w-64 hidden lg:flex flex-col h-screen fixed left-0 top-0 z-40">
+    <aside
+      className={cn(
+        'flex flex-col',
+        mobile
+          ? 'h-full w-full bg-white dark:bg-gray-900'
+          : 'glass-sidebar w-64 hidden lg:flex h-screen fixed left-0 top-0 z-40'
+      )}
+    >
       {/* Top Section: Company Branding */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
         <Link
           to={withBase('/dashboard')}
           className="flex items-center gap-3 group cursor-pointer"
+          onClick={handleItemNavigate}
         >
           {/* Company Logo */}
           <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
@@ -266,6 +283,7 @@ export function SidebarNav() {
                 <Link
                   key={item.href}
                   to={withBase(item.href)}
+                  onClick={handleItemNavigate}
                   className={cn(
                     'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150',
                     isActive
@@ -315,6 +333,7 @@ export function SidebarNav() {
                     onClick={() => {
                       if (logicalPath !== '/dashboard/products' && logicalPath !== '/dashboard/wishlist') {
                         navigate(withBase('/dashboard/products'))
+                        handleItemNavigate()
                       }
                       handleCatalogToggle(catalogOpen === 'catalog' ? '' : 'catalog')
                     }}
@@ -379,6 +398,7 @@ export function SidebarNav() {
                               ? `${withBase(subItem.href.split('#')[0])}#${subItem.href.split('#')[1]}`
                               : withBase(subItem.href)
                           }
+                          onClick={handleItemNavigate}
                           className={cn(
                             'flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors duration-150',
                             isSubActive
@@ -422,6 +442,7 @@ export function SidebarNav() {
             {isAdmin && (
               <Link
                 to={withBase('/dashboard/csv-import')}
+                onClick={handleItemNavigate}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150',
                   isItemActive('/dashboard/csv-import')
@@ -465,6 +486,7 @@ export function SidebarNav() {
                       // Navigate to settings if not already there
                       if (logicalPath !== '/dashboard/settings') {
                         navigate(withBase('/dashboard/settings'))
+                        handleItemNavigate()
                       }
                       // Toggle accordion
                       handleSettingsToggle(settingsOpen === 'settings' ? '' : 'settings')
@@ -536,6 +558,7 @@ export function SidebarNav() {
                                 ? `${withBase(subItem.href.split('#')[0])}#${subItem.href.split('#')[1]}`
                                 : withBase(subItem.href)
                             }
+                            onClick={handleItemNavigate}
                             className={cn(
                               'flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors duration-150',
                               isSubActive
@@ -557,7 +580,10 @@ export function SidebarNav() {
             <Button
               variant="ghost"
               className="w-full justify-start px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 transition-colors duration-150"
-              onClick={() => signOut()}
+              onClick={() => {
+                handleItemNavigate()
+                signOut()
+              }}
             >
               <LogOut className="w-5 h-5 mr-3" />
               <span className="font-medium text-xs uppercase tracking-wide">{t('nav.logout')}</span>

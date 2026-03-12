@@ -193,13 +193,13 @@ export function SettingsPage() {
   return (
     <div className="max-w-5xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold mb-2">{t('settings.title')}</h1>
+        <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{t('settings.title')}</h1>
         <p className="text-muted-foreground">{t('settings.subtitle')}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[260px,1fr]">
         {/* Local Settings sidebar (within the Settings page) */}
-        <GlassCard className="p-4 h-fit sticky top-20 space-y-4">
+        <GlassCard className="h-fit space-y-4 p-4 lg:sticky lg:top-20">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t('nav.settings')}
           </p>
