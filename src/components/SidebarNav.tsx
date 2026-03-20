@@ -14,6 +14,8 @@ import {
   Heart,
   BarChart3,
   AlertCircle,
+  Moon,
+  Sun,
   Grid3X3,
   FileSpreadsheet,
   FolderKanban,
@@ -23,6 +25,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useWishlist } from '@/hooks/useWishlist'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import {
   Accordion,
   AccordionContent,
@@ -30,6 +33,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
+import { useDarkMode } from '@/hooks/useDarkMode'
 
 // Buyers section removed — this is a single-wholesaler platform. Stores place orders directly to us.
 
@@ -114,6 +118,7 @@ export function SidebarNav({ mobile = false, onNavigate }: SidebarNavProps) {
   const { withBase, stripBase } = useTenantPath()
   const { company, isAdmin, signOut } = useAuth()
   const { count: wishlistCount } = useWishlist()
+  const { isDark, toggle: toggleTheme } = useDarkMode()
   const logicalPath = stripBase(location.pathname)
   // Default to open on page load
   const [settingsOpen, setSettingsOpen] = useState<string>('settings')
@@ -438,6 +443,22 @@ export function SidebarNav({ mobile = false, onNavigate }: SidebarNavProps) {
             {t('nav.toolsAndAccount')}
           </h3>
           <nav className="space-y-1">
+            {mobile && (
+              <div className="mb-2 flex items-center gap-2 px-3">
+                <LanguageSwitcher />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 rounded-lg border-gray-200 bg-white text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  onClick={toggleTheme}
+                  aria-label={t('nav.appearance')}
+                >
+                  {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </Button>
+              </div>
+            )}
+
             {/* CSV Import Wizard - promoted as top-level item */}
             {isAdmin && (
               <Link
