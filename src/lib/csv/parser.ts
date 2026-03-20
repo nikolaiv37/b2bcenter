@@ -244,15 +244,18 @@ export function parseCSVFlexible(file: File): Promise<{
             )
           })
 
+          const normalizedData = collapseShopifyImageRows(validData, headers)
+
           console.log('CSV Flexible Parser result:', {
             totalRows: results.data.length,
             validRows: validData.length,
+            normalizedRows: normalizedData.length,
             headers: headers.slice(0, 10), // Log first 10 headers
             delimiter,
           })
 
           resolve({
-            data: validData,
+            data: normalizedData,
             headers,
             errors: nonFatalErrors,
             meta: results.meta,
@@ -270,6 +273,115 @@ export function parseCSVFlexible(file: File): Promise<{
     
     reader.readAsText(file, 'UTF-8')
   })
+}
+
+function getTrimmedString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function isValidHttpUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  const trimmed = value.trim()
+  return trimmed.startsWith('http://') || trimmed.startsWith('https://')
+}
+
+function isShopifyCsv(headers: string[]): boolean {
+  const normalizedHeaders = new Set(headers.map((header) => header.toLowerCase().trim()))
+  const requiredHeaders = ['title', 'url_handle', 'product_image_url', 'image_position']
+  return requiredHeaders.every((header) => normalizedHeaders.has(header))
+}
+
+function getShopifyImageUrls(row: Record<string, unknown>): string[] {
+  const urls = [row.product_image_url, row.variant_image_url]
+    .filter(isValidHttpUrl)
+    .map((url) => url.trim())
+
+  return Array.from(new Set(urls))
+}
+
+function mergeUniqueImageUrls(existing: unknown, incoming: string[]): string[] {
+  const merged = new Set<string>()
+
+  if (Array.isArray(existing)) {
+    for (const value of existing) {
+      if (typeof value === 'string' && value.trim()) {
+        merged.add(value.trim())
+      }
+    }
+  }
+
+  for (const url of incoming) {
+    merged.add(url)
+  }
+
+  return Array.from(merged)
+}
+
+function isShopifyPrimaryProductRow(row: Record<string, unknown>): boolean {
+  const primaryFields = [
+    'title',
+    'sku',
+    'description',
+    'vendor',
+    'product_category',
+    'type',
+    'price',
+    'inventory_quantity',
+  ]
+
+  return primaryFields.some((field) => getTrimmedString(row[field]).length > 0)
+}
+
+function isShopifyImageOnlyRow(row: Record<string, unknown>): boolean {
+  if (isShopifyPrimaryProductRow(row)) {
+    return false
+  }
+
+  return getShopifyImageUrls(row).length > 0
+}
+
+function collapseShopifyImageRows(
+  rows: Record<string, unknown>[],
+  headers: string[]
+): Record<string, unknown>[] {
+  if (!isShopifyCsv(headers)) {
+    return rows
+  }
+
+  const collapsedRows: Record<string, unknown>[] = []
+  let currentProduct: Record<string, unknown> | null = null
+  let currentHandle = ''
+
+  for (const row of rows) {
+    const handle = getTrimmedString(row.url_handle)
+    const imageUrls = getShopifyImageUrls(row)
+    const continuationRow =
+      isShopifyImageOnlyRow(row) &&
+      currentProduct !== null &&
+      (!handle || !currentHandle || handle === currentHandle)
+
+    if (continuationRow && currentProduct) {
+      currentProduct.__merged_image_urls = mergeUniqueImageUrls(currentProduct.__merged_image_urls, imageUrls)
+      continue
+    }
+
+    const normalizedRow: Record<string, unknown> = { ...row }
+    if (imageUrls.length > 0) {
+      normalizedRow.__merged_image_urls = imageUrls
+    }
+
+    collapsedRows.push(normalizedRow)
+    currentProduct = normalizedRow
+    currentHandle = handle
+  }
+
+  console.log('Shopify CSV normalization:', {
+    originalRows: rows.length,
+    collapsedRows: collapsedRows.length,
+    imageOnlyRowsMerged: rows.length - collapsedRows.length,
+  })
+
+  return collapsedRows
 }
 
 /**
@@ -437,4 +549,3 @@ export function exportToCSV(products: Product[]): string {
 
   return Papa.unparse(csvData)
 }
-

@@ -320,6 +320,8 @@
       "onlyLeft": "Only {{count}} left",
       "outOfStockToast": "Out of Stock",
       "outOfStockDescription": "This product is currently out of stock.",
+      "currentlyUnavailable": "Currently unavailable",
+      "currentlyUnavailableDescription": "This product cannot be ordered at the moment.",
       "selectQuantityAndAdd": "Select quantity and add this product to your draft order.",
       "addedToOrder": "Added to order",
       "addedToOrderDescription": "{{count}} × {{name}} added to your draft order.",

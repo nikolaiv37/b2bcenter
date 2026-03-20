@@ -42,6 +42,45 @@ function getStockVariant(quantity: number | undefined): 'default' | 'secondary' 
   return 'default'
 }
 
+function normalizeAvailability(value: string | undefined | null): string {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+function isInformativeAvailability(value: string | undefined | null): boolean {
+  const normalized = normalizeAvailability(value)
+  if (!normalized) return false
+
+  const hiddenStates = new Set([
+    'active',
+    'in stock',
+    'instock',
+    'available',
+    'available for order',
+    'в наличност',
+  ])
+
+  return !hiddenStates.has(normalized)
+}
+
+function isUnavailableAvailability(value: string | undefined | null): boolean {
+  const normalized = normalizeAvailability(value)
+  if (!normalized) return false
+
+  return [
+    'out of stock',
+    'unavailable',
+    'inactive',
+    'archived',
+    'draft',
+    'disabled',
+    'sold out',
+    'discontinued',
+    'изчерпано',
+    'неналично',
+    'неактивен',
+  ].some((state) => normalized.includes(state))
+}
+
 
 export function ProductGridCard({
   product,
@@ -60,6 +99,9 @@ export function ProductGridCard({
   const mainImage = product.main_image || product.images?.[0]
   const hasImages = product.images && product.images.length > 0
   const isOutOfStock = quantity === 0
+  const isAvailabilityUnavailable = isUnavailableAvailability(product.availability)
+  const isPurchasable = !isOutOfStock && !isAvailabilityUnavailable
+  const showAvailabilityText = isInformativeAvailability(product.availability) && !isAvailabilityUnavailable
   const maxQuantity = quantity
   const inWishlist = product.sku ? isInWishlist(product.sku) : false
   
@@ -278,16 +320,16 @@ export function ProductGridCard({
         </div>
 
         {/* Availability */}
-        {product.availability && (
+        {showAvailabilityText && (
           <p className="text-xs text-muted-foreground mb-3">
             {product.availability}
           </p>
         )}
 
         {/* Quantity Input & Add to Cart */}
-        {!isOutOfStock && (
+        {isPurchasable ? (
           <div 
-            className="mt-auto pt-3 border-t border-border/50 space-y-2"
+            className="mt-auto min-h-[118px] pt-3 border-t border-border/50 space-y-2"
             onClick={handleStopPropagation}
             onMouseDown={handleStopPropagation}
             data-no-navigate
@@ -349,11 +391,45 @@ export function ProductGridCard({
                 e.preventDefault()
                 handleAddToCart()
               }}
-              disabled={isOutOfStock}
+              disabled={!isPurchasable}
             >
               <ShoppingCart className="w-4 h-4 mr-2" />
               {t('cart.addToCart')}
             </Button>
+          </div>
+        ) : (
+          <div className="mt-auto min-h-[118px] pt-3 border-t border-border/50">
+            <div
+              className={cn(
+                'rounded-2xl border px-3.5 py-3',
+                isOutOfStock
+                  ? 'border-red-100 bg-red-50/60 dark:border-red-900/40 dark:bg-red-950/15'
+                  : 'border-amber-100 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/15'
+              )}
+            >
+              <div className="flex items-start gap-2.5">
+                <div className={cn(
+                  'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl',
+                  isOutOfStock
+                    ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                )}>
+                  <Package className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-none text-foreground">
+                    {isOutOfStock
+                      ? t('products.outOfStock')
+                      : t('products.currentlyUnavailable')}
+                  </p>
+                  <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                    {isOutOfStock
+                      ? t('products.outOfStockDescription')
+                      : t('products.currentlyUnavailableDescription')}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

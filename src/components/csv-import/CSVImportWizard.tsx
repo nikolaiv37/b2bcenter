@@ -64,6 +64,25 @@ export interface ImportResult {
   categorySyncDetails?: string[]
 }
 
+function withLegacyWholesalePrice(products: Record<string, unknown>[]): Record<string, unknown>[] {
+  return products.map((product) => {
+    const wholesalePrice =
+      typeof product.weboffer_price === 'number'
+        ? product.weboffer_price
+        : parseFloat(String(product.weboffer_price ?? 0)) || 0
+
+    return {
+      ...product,
+      wholesale_price: wholesalePrice,
+    }
+  })
+}
+
+function requiresLegacyWholesalePrice(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false
+  return error.code === '23502' && (error.message ?? '').includes('wholesale_price')
+}
+
 export function CSVImportWizard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -140,6 +159,9 @@ export function CSVImportWizard() {
       if (!tenantId) {
         throw new Error('Missing tenant context')
       }
+      if (!company?.id) {
+        throw new Error('Missing company context. Complete company onboarding before importing products.')
+      }
       const startTime = Date.now()
       setImportProgress(0)
       setImportStatus('Preparing import...')
@@ -166,7 +188,7 @@ export function CSVImportWizard() {
       // Define valid database columns (based on actual schema)
       // Only include columns that actually exist in the products table
       const validDbColumns = new Set([
-        'id', 'supplier_id', 'model', 'sku', 'retail_price', 'weboffer_price',
+        'id', 'company_id', 'supplier_id', 'model', 'sku', 'retail_price', 'weboffer_price',
         'name', 'name_bg', 'category', 'category_id', 'manufacturer', 'description', 'description_bg',
         'availability', 'quantity', 'weight', 'transportational_weight',
         'date_expected', 'main_image', 'images', 'is_visible', 'created_at', 'updated_at'
@@ -187,6 +209,7 @@ export function CSVImportWizard() {
           }
           
           const cleaned: Record<string, unknown> = {
+            company_id: company.id,
             supplier_id: supplierId,
             is_visible: true,
             sku,
@@ -279,7 +302,7 @@ export function CSVImportWizard() {
           // Remove any undefined or null values (except required fields)
           Object.keys(cleaned).forEach(key => {
             // Don't delete required fields
-            if (key === 'weboffer_price' || key === 'supplier_id' || key === 'sku' || key === 'name') {
+            if (key === 'company_id' || key === 'weboffer_price' || key === 'supplier_id' || key === 'sku' || key === 'name') {
               return
             }
             if (cleaned[key] === undefined || cleaned[key] === null) {
@@ -390,6 +413,25 @@ export function CSVImportWizard() {
 
           if (error) {
             console.error(`Batch ${i + 1} error:`, error)
+
+            if (requiresLegacyWholesalePrice(error)) {
+              console.warn(`Batch ${i + 1}: Retrying with legacy wholesale_price mirror`)
+
+              const retryBatch = withLegacyWholesalePrice(batch)
+              const { error: retryError } = await supabase
+                .from('products')
+                .upsert(retryBatch, {
+                  onConflict: 'tenant_id,sku',
+                  ignoreDuplicates: false,
+                })
+
+              if (!retryError) {
+                importedCount += batch.length
+                continue
+              }
+
+              console.error(`Batch ${i + 1} legacy wholesale_price retry error:`, retryError)
+            }
             
             // If batch fails due to duplicates, try inserting one by one as fallback
             if (error.message.includes('cannot affect row a second time')) {
@@ -401,12 +443,24 @@ export function CSVImportWizard() {
               // Insert products one by one to handle any remaining conflicts
               for (let j = 0; j < batch.length; j++) {
                 try {
-                  const { error: singleError } = await supabase
+                  const initialPayload = [batch[j]]
+                  let { error: singleError } = await supabase
                     .from('products')
-                    .upsert([batch[j]], {
+                    .upsert(initialPayload, {
                       onConflict: 'tenant_id,sku',
                       ignoreDuplicates: false,
                     })
+
+                  if (requiresLegacyWholesalePrice(singleError)) {
+                    const { error: retrySingleError } = await supabase
+                      .from('products')
+                      .upsert(withLegacyWholesalePrice(initialPayload), {
+                        onConflict: 'tenant_id,sku',
+                        ignoreDuplicates: false,
+                      })
+
+                    singleError = retrySingleError ?? null
+                  }
                   
                   if (singleError) {
                     errors.push({ 

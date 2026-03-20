@@ -547,6 +547,15 @@ export function useSmartMapping() {
     // Transform each row
     return rawData.map(row => {
       const transformed: Record<string, unknown> = {}
+      const collectedImages = new Set<string>()
+
+      const addImage = (value: unknown) => {
+        if (typeof value !== 'string') return
+        const trimmed = value.trim()
+        if (!trimmed) return
+        if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return
+        collectedImages.add(trimmed)
+      }
       
       // Map standard fields
       for (const [sourceCol, targetField] of Object.entries(fieldMap)) {
@@ -569,16 +578,21 @@ export function useSmartMapping() {
         
         transformed[targetField] = value
       }
+
+      addImage(transformed.main_image)
       
       // Collect images
-      const images: string[] = []
       for (const imgCol of imageColumns) {
-        const imgUrl = row[imgCol]
-        if (typeof imgUrl === 'string' && imgUrl.trim() && 
-            (imgUrl.startsWith('http://') || imgUrl.startsWith('https://'))) {
-          images.push(imgUrl.trim())
+        addImage(row[imgCol])
+      }
+
+      if (Array.isArray(row.__merged_image_urls)) {
+        for (const imgUrl of row.__merged_image_urls) {
+          addImage(imgUrl)
         }
       }
+
+      const images = Array.from(collectedImages)
       if (images.length > 0) {
         transformed.images = images
       }
@@ -642,4 +656,3 @@ export function useSmartMapping() {
     goToStep,
   }
 }
-

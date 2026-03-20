@@ -268,6 +268,47 @@ export const DISTRIBUTOR_PRESETS: DistributorPreset[] = [
     matchPercentage: { columns: 88, categories: 85 },
   },
   {
+    name: 'shopify',
+    displayName: 'Shopify',
+    columnMappings: {
+      title: 'name',
+      url_handle: 'ignore',
+      description: 'description',
+      vendor: 'manufacturer',
+      product_category: 'category',
+      type: 'subcategory',
+      tags: 'ignore',
+      published_on_online_store: 'ignore',
+      status: 'availability',
+      sku: 'sku',
+      barcode: 'ignore',
+      price: 'wholesale_price',
+      'compare-at_price': 'retail_price',
+      inventory_tracker: 'ignore',
+      inventory_quantity: 'stock',
+      continue_selling_when_out_of_stock: 'ignore',
+      'weight_value_(grams)': 'weight',
+      weight_unit_for_display: 'ignore',
+      requires_shipping: 'ignore',
+      fulfillment_service: 'ignore',
+      product_image_url: 'main_image',
+      image_position: 'ignore',
+      image_alt_text: 'ignore',
+      variant_image_url: 'images',
+      gift_card: 'ignore',
+      seo_title: 'ignore',
+      seo_description: 'ignore',
+    },
+    categoryMappings: {},
+    detectionPatterns: {
+      requiredColumns: ['title', 'sku', 'product_image_url'],
+      headerPatterns: ['url_handle', 'variant_image_url', 'inventory_quantity', 'image_position'],
+      manufacturerHint: 'Shopify',
+    },
+    confidence: 96,
+    matchPercentage: { columns: 94, categories: 80 },
+  },
+  {
     name: 'generic',
     displayName: 'Generic CSV',
     columnMappings: {},
@@ -671,4 +712,3 @@ export function validateColumnMappings(
 
 // Fields that should only be mapped once
 export const UNIQUE_FIELDS: StandardField[] = ['sku', 'name', 'category', 'subcategory', 'wholesale_price', 'retail_price', 'main_image']
-

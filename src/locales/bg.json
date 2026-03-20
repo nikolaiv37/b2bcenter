@@ -322,6 +322,8 @@
       "onlyLeft": "Остават само {{count}}",
       "outOfStockToast": "Изчерпано",
       "outOfStockDescription": "Този продукт в момента е изчерпан.",
+      "currentlyUnavailable": "Временно недостъпен",
+      "currentlyUnavailableDescription": "Този продукт не може да бъде поръчан в момента.",
       "selectQuantityAndAdd": "Изберете количество и добавете този продукт към черновата поръчка.",
       "addedToOrder": "Добавено в поръчка",
       "addedToOrderDescription": "{{count}} × {{name}} добавени в черновата поръчка.",
