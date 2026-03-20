@@ -21,7 +21,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { CompanyForm, CompanyFormData } from '@/components/CompanyForm'
 import { supabase } from '@/lib/supabase/client'
 import { cn, slugify } from '@/lib/utils'
-import { Building2, User, Lock, Users, UserPlus, Mail, Loader2, Shield, Crown, Clock, Trash2 } from 'lucide-react'
+import { Building2, User, Lock, Users, UserPlus, Mail, Loader2, Shield, Crown, Clock, Trash2, Upload, Phone, X } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -42,7 +42,10 @@ export function SettingsPage() {
   const { workspaceId: tenantId } = useAppContext()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || '')
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('company')
 
@@ -135,7 +138,159 @@ export function SettingsPage() {
     [t]
   )
 
+  const profileSchema = useMemo(
+    () =>
+      z.object({
+        fullName: z.string().min(2, t('settings.fullNameMinLength')),
+        phone: z.string().optional().or(z.literal('')),
+        avatar: z.instanceof(File).optional(),
+      }),
+    [t]
+  )
+
   type PasswordFormData = z.infer<typeof passwordSchema>
+  type ProfileFormData = z.infer<typeof profileSchema>
+
+  const {
+    register: registerProfile,
+    handleSubmit: handleSubmitProfile,
+    formState: {
+      errors: profileErrors,
+      isDirty: isProfileDirty,
+      isValid: isProfileValid,
+      isSubmitting: isProfileSubmitting,
+    },
+    reset: resetProfileForm,
+    setValue: setProfileValue,
+  } = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+    mode: 'onChange',
+    defaultValues: {
+      fullName: profile?.full_name || '',
+      phone: profile?.phone || '',
+    },
+  })
+
+  useEffect(() => {
+    resetProfileForm({
+      fullName: profile?.full_name || '',
+      phone: profile?.phone || '',
+    })
+    setAvatarPreview(profile?.avatar_url || '')
+    setAvatarFile(null)
+  }, [profile?.avatar_url, profile?.full_name, profile?.phone, resetProfileForm])
+
+  const handleAvatarFileChange = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: t('settings.error'),
+        description: t('settings.invalidAvatarType'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: t('settings.error'),
+        description: t('settings.avatarTooLarge'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setAvatarFile(file)
+    setProfileValue('avatar', file, { shouldDirty: true, shouldValidate: true })
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleAvatarInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleAvatarFileChange(file)
+    }
+  }
+
+  const removeAvatar = () => {
+    setAvatarFile(null)
+    setAvatarPreview('')
+    setProfileValue('avatar', undefined, { shouldDirty: true, shouldValidate: true })
+  }
+
+  const onProfileSubmit = async (data: ProfileFormData) => {
+    if (!user) {
+      toast({
+        title: t('settings.error'),
+        description: t('settings.mustBeLoggedIn'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSavingProfile(true)
+
+    try {
+      let avatarUrl = avatarPreview && !avatarFile ? avatarPreview : null
+
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop()
+        const fileName = `avatars/${user.id}-${Date.now()}.${fileExt}`
+        const { error: uploadError } = await supabase.storage
+          .from('logos')
+          .upload(fileName, avatarFile, {
+            cacheControl: '3600',
+            upsert: false,
+          })
+
+        if (uploadError) throw uploadError
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('logos').getPublicUrl(fileName)
+
+        avatarUrl = publicUrl
+      }
+
+      const { data: updatedProfile, error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: data.fullName,
+          phone: data.phone || null,
+          avatar_url: avatarUrl,
+        })
+        .eq('id', user.id)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      useAuthStore.getState().setProfile({
+        ...(profile ?? {}),
+        ...updatedProfile,
+        email: profile?.email ?? user.email ?? null,
+      })
+
+      toast({
+        title: t('settings.success'),
+        description: t('settings.profileUpdated'),
+      })
+    } catch (error: unknown) {
+      console.error('Error updating profile:', error)
+      toast({
+        title: t('settings.updateFailed'),
+        description:
+          error instanceof Error ? error.message : t('settings.profileUpdateFailed'),
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
 
   const {
     register: registerPassword,
@@ -314,6 +469,128 @@ export function SettingsPage() {
 
           {activeSection === 'profile' && (
             <>
+              <GlassCard className="p-6 space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold mb-1">
+                    {t('settings.accountManagerCard')}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {t('settings.accountManagerCardDescription')}
+                  </p>
+                </div>
+
+                <form
+                  id="profile-settings-form"
+                  onSubmit={handleSubmitProfile(onProfileSubmit)}
+                  className="grid gap-6 lg:grid-cols-[220px,1fr]"
+                >
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">
+                      {t('settings.profilePhoto')}
+                    </Label>
+
+                    <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/70 p-4 text-center dark:border-slate-700 dark:bg-slate-900/40">
+                      <div className="mx-auto flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-slate-200 to-slate-300 text-3xl font-black text-slate-700 shadow-md dark:border-slate-900 dark:from-slate-700 dark:to-slate-800 dark:text-slate-100">
+                        {avatarPreview ? (
+                          <img
+                            src={avatarPreview}
+                            alt={t('settings.avatarAlt')}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span>
+                            {(profile?.full_name || user?.email || 'AM').slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-4 space-y-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => document.getElementById('profile-avatar-input')?.click()}
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          {avatarPreview ? t('settings.changeAvatar') : t('settings.uploadPhoto')}
+                        </Button>
+                        {avatarPreview && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="w-full text-muted-foreground"
+                            onClick={removeAvatar}
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            {t('settings.removeAvatar')}
+                          </Button>
+                        )}
+                        <input
+                          id="profile-avatar-input"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAvatarInput}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {t('settings.profilePhotoHint')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="fullName">{t('settings.fullName')}</Label>
+                      <Input
+                        id="fullName"
+                        placeholder={t('settings.fullNamePlaceholder')}
+                        {...registerProfile('fullName')}
+                      />
+                      {profileErrors.fullName && (
+                        <p className="text-sm text-destructive">
+                          {profileErrors.fullName.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="profilePhone" className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        {t('settings.phone')}
+                      </Label>
+                      <Input
+                        id="profilePhone"
+                        type="tel"
+                        placeholder={t('settings.phonePlaceholder')}
+                        {...registerProfile('phone')}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 border-t pt-4">
+                      <p className="text-xs text-muted-foreground">
+                        {t('settings.profileTopbarHint')}
+                      </p>
+                      <Button
+                        type="submit"
+                        form="profile-settings-form"
+                        disabled={
+                          isSavingProfile ||
+                          !isProfileDirty ||
+                          !isProfileValid ||
+                          isProfileSubmitting
+                        }
+                      >
+                        {(isSavingProfile || isProfileSubmitting) && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        {t('settings.saveProfile')}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </GlassCard>
+
               {/* Email display */}
               <GlassCard className="p-6 space-y-4">
                 <div>

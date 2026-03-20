@@ -232,7 +232,7 @@
           "security": "Сигурност",
           "support": "Поддръжка"
         },
-        "copyright": "(c) 2026 FurniTrade. Създадено в София, България."
+        "copyright": "(c) 2026 B2BCenter. Създадено в София, България."
       }
     },
     "nav": {
@@ -265,7 +265,8 @@
       "lowStock": "ниско наличност",
       "accountSettings": "Настройки на Профила",
       "companyInfo": "Информация за Фирмата",
-      "admin": "Администратор"
+      "admin": "Администратор",
+      "accountManager": "Account manager"
     },
     "products": {
       "title": "Всички Продукти",
@@ -807,7 +808,7 @@
       "allCompaniesUpToDate": "Всички фирми са с изрядни плащания"
     },
     "auth": {
-      "welcomeToFurniTrade": "Добре дошли във FurniTrade",
+      "welcomeToFurniTrade": "Добре дошли в B2BCenter",
       "signInToAccount": "Влезте във вашия търговски профил",
       "email": "Имейл",
       "emailPlaceholder": "you@example.com",
@@ -821,7 +822,7 @@
       "signUp": "Регистрация",
       "alreadyHaveAccount": "Вече имате профил?",
       "createAccount": "Създай профил",
-      "joinFurniTrade": "Присъединете се към FurniTrade",
+      "joinFurniTrade": "Присъединете се към B2BCenter",
       "createAccountSubtitle": "Създайте вашия търговски профил",
       "accountCreated": "Профилът е създаден!",
       "accountCreatedDescription": "Профилът е създаден успешно. Пренасочване...",
@@ -863,7 +864,7 @@
         "settingUp": "Настройване...",
         "completeSetup": "Завърши настройката",
         "completeRequiredFields": "Моля, попълнете всички задължителни полета",
-        "welcomeTitle": "Добре дошли във FurniTrade! 🎉",
+        "welcomeTitle": "Добре дошли в B2BCenter! 🎉",
         "welcomeDescription": "Фирмата ви е настроена успешно.",
         "failedTitle": "Неуспешна настройка",
         "failedDescription": "Неуспешно завършване на настройката. Опитайте отново."
@@ -887,8 +888,19 @@
       "error": "Грешка",
       "mustBeLoggedIn": "Трябва да сте влезли в профила си и да имате фирма",
       "profileDescription": "Вижте имейла си за вход и обновете паролата си по сигурен начин.",
+      "accountManagerCard": "Карта за account manager",
+      "accountManagerCardDescription": "Изберете снимката и контактите, които се показват в горната лента.",
       "avatarAlt": "Аватар на потребител",
       "changeAvatar": "Смени аватара",
+      "uploadPhoto": "Качи снимка",
+      "removeAvatar": "Премахни снимката",
+      "profilePhoto": "Профилна снимка",
+      "profilePhotoHint": "По желание. Тази снимка се показва в горната лента.",
+      "profileTopbarHint": "Профилната снимка и телефонът се използват в секцията account manager в горната лента.",
+      "phone": "Телефон",
+      "phonePlaceholder": "+359 888 123 456",
+      "invalidAvatarType": "Моля, качете файл с изображение.",
+      "avatarTooLarge": "Моля, качете изображение под 5MB.",
       "changePassword": "Смяна на парола",
       "changePasswordDescription": "Изберете силна парола, която не използвате на други сайтове.",
       "currentPassword": "Текуща парола",

@@ -262,7 +262,7 @@ export function SidebarNav({ mobile = false, onNavigate }: SidebarNavProps) {
           </div>
           <div className="flex flex-col min-w-0">
             <h2 className="font-bold text-base text-gray-900 dark:text-white truncate">
-              {company?.name || 'FurniTrade'}
+              {company?.name || 'B2BCenter'}
             </h2>
           </div>
         </Link>

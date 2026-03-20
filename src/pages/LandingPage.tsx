@@ -307,7 +307,7 @@ export default function LandingPage() {
               <span className="rounded-xl bg-[color:var(--landing-accent)] flex h-9 w-9 items-center justify-center shadow-[0_2px_8px_-2px_rgba(68,64,84,0.3)] transition-all duration-300 group-hover:shadow-[0_4px_12px_-2px_rgba(68,64,84,0.4)] group-hover:-translate-y-0.5">
                 <Sparkles className="h-4 w-4 text-white" />
               </span>
-              <span className="text-[15px] font-semibold text-[color:var(--ink)]">FurniTrade</span>
+              <span className="text-[15px] font-semibold text-[color:var(--ink)]">B2BCenter</span>
             </Link>
 
             {/* Desktop nav */}
@@ -1310,7 +1310,7 @@ export default function LandingPage() {
               >
                 <Sparkles className="h-5 w-5" />
               </span>
-              <span className={theme.text.label}>FurniTrade</span>
+              <span className={theme.text.label}>B2BCenter</span>
             </div>
             <p className={`${theme.text.bodySm} ${theme.colors.inkMuted}`}>
               {t("landing.footer.tagline")}

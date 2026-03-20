@@ -98,8 +98,8 @@ export function LanguageSwitcher() {
       <div
         ref={dropdownRef}
         className={cn(
-          'absolute right-0 top-full mt-2 z-50',
-          'min-w-[200px] rounded-xl',
+          'absolute left-0 top-full mt-2 z-50 sm:left-auto sm:right-0',
+          'w-[min(220px,calc(100vw-1rem))] rounded-xl',
           'backdrop-blur-xl bg-white/80 dark:bg-gray-900/80',
           'border border-white/40 dark:border-white/20',
           'shadow-2xl shadow-black/10 dark:shadow-black/30',

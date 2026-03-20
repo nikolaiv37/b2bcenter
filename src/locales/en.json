@@ -232,7 +232,7 @@
           "security": "Security",
           "support": "Support"
         },
-        "copyright": "(c) 2026 FurniTrade. Made in Sofia, Bulgaria."
+        "copyright": "(c) 2026 B2BCenter. Made in Sofia, Bulgaria."
       }
     },
     "nav": {
@@ -265,7 +265,8 @@
       "lowStock": "low stock",
       "accountSettings": "Account Settings",
       "companyInfo": "Company Info",
-      "admin": "Admin"
+      "admin": "Admin",
+      "accountManager": "Account manager"
     },
     "products": {
       "title": "All Products",
@@ -450,7 +451,7 @@
       }
     },
     "auth": {
-      "welcomeToFurniTrade": "Welcome to FurniTrade",
+      "welcomeToFurniTrade": "Welcome to B2BCenter",
       "signInToAccount": "Sign in to your wholesale account",
       "email": "Email",
       "emailPlaceholder": "you@example.com",
@@ -464,7 +465,7 @@
       "signUp": "Sign up",
       "alreadyHaveAccount": "Already have an account?",
       "createAccount": "Create Account",
-      "joinFurniTrade": "Join FurniTrade",
+      "joinFurniTrade": "Join B2BCenter",
       "createAccountSubtitle": "Create your wholesale account",
       "accountCreated": "Account created!",
       "accountCreatedDescription": "Your account has been created successfully. Redirecting...",
@@ -506,7 +507,7 @@
         "settingUp": "Setting up...",
         "completeSetup": "Complete Setup",
         "completeRequiredFields": "Please complete all required fields",
-        "welcomeTitle": "Welcome to FurniTrade! 🎉",
+        "welcomeTitle": "Welcome to B2BCenter! 🎉",
         "welcomeDescription": "Your company has been set up successfully.",
         "failedTitle": "Onboarding failed",
         "failedDescription": "Failed to complete onboarding. Please try again."
@@ -738,8 +739,19 @@
       "error": "Error",
       "mustBeLoggedIn": "You must be logged in and have a company",
       "profileDescription": "View your login email and securely update your password.",
+      "accountManagerCard": "Account manager card",
+      "accountManagerCardDescription": "Choose the photo and contact details shown in the dashboard topbar.",
       "avatarAlt": "User avatar",
       "changeAvatar": "Change avatar",
+      "uploadPhoto": "Upload photo",
+      "removeAvatar": "Remove photo",
+      "profilePhoto": "Profile photo",
+      "profilePhotoHint": "Optional. This image appears in the topbar account manager card.",
+      "profileTopbarHint": "Your profile photo and phone are used in the topbar account manager section.",
+      "phone": "Phone",
+      "phonePlaceholder": "+359 888 123 456",
+      "invalidAvatarType": "Please upload an image file.",
+      "avatarTooLarge": "Please upload an image smaller than 5MB.",
       "changePassword": "Change Password",
       "changePasswordDescription": "Choose a strong password that you don’t reuse on other sites.",
       "currentPassword": "Current Password",
