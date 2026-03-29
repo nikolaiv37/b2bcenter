@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase/client'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { sendNotification } from '@/lib/notifications'
-import { Loader2, CheckCircle2, AlertCircle, Lock, Building2, Phone, MapPin } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertCircle, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,9 +37,6 @@ export function ClientSetupPage() {
   // Form fields
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [companyName, setCompanyName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [address, setAddress] = useState('')
 
   // Validation
   const [passwordError, setPasswordError] = useState('')
@@ -64,24 +61,6 @@ export function ClientSetupPage() {
         setState('error')
         setErrorMessage(t('clientSetup.errorNoSession'))
         return
-      }
-
-      // Load the user's profile to prefill company name
-      try {
-        const { data: profileRows } = await supabase
-          .from('profiles')
-          .select('company_name, phone')
-          .eq('id', session.user.id)
-          .limit(1)
-
-        const profile = profileRows?.[0]
-        if (profile) {
-          setCompanyName(profile.company_name || '')
-          setPhone(profile.phone || '')
-        }
-      } catch (err) {
-        console.warn('Failed to load profile for prefill:', err)
-        // Non-fatal — user can still fill in manually
       }
 
       setState('form')
@@ -126,25 +105,16 @@ export function ClientSetupPage() {
         return
       }
 
-      // 2. Update profile with company name, phone, address
+      // 2. Mark profile as active
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const updates: Record<string, string | null> = {
-          // Mark active only after client completes setup
-          invitation_status: 'active',
-        }
-        if (companyName.trim()) updates.company_name = companyName.trim()
-        if (phone.trim()) updates.phone = phone.trim()
-        if (address.trim()) updates.address = address.trim()
-
         const { error: profileError } = await supabase
           .from('profiles')
-          .update(updates)
+          .update({ invitation_status: 'active' })
           .eq('id', user.id)
 
         if (profileError) {
           console.warn('Profile update error (non-fatal):', profileError)
-          // Non-fatal — password is already set, they can update profile later
         }
       }
 
@@ -152,7 +122,7 @@ export function ClientSetupPage() {
       sendNotification({
         type: 'client_registered',
         metadata: {
-          company_name: companyName.trim() || 'New Client',
+          company_name: 'New Client',
         },
         targetAudience: 'admins',
       })
@@ -285,57 +255,6 @@ export function ClientSetupPage() {
                   {passwordError && (
                     <p className="text-sm text-red-500">{passwordError}</p>
                   )}
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-border/50" />
-
-              {/* Company details */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="companyName" className="flex items-center gap-2 text-sm font-medium">
-                    <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                    {t('clientSetup.companyNameLabel')}
-                  </Label>
-                  <Input
-                    id="companyName"
-                    type="text"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder={t('clientSetup.companyNamePlaceholder')}
-                    disabled={state === 'submitting'}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="flex items-center gap-2 text-sm font-medium">
-                    <Phone className="w-3.5 h-3.5 text-muted-foreground" />
-                    {t('clientSetup.phoneLabel')}
-                  </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder={t('clientSetup.phonePlaceholder')}
-                    disabled={state === 'submitting'}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="flex items-center gap-2 text-sm font-medium">
-                    <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-                    {t('clientSetup.addressLabel')}
-                  </Label>
-                  <Input
-                    id="address"
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder={t('clientSetup.addressPlaceholder')}
-                    disabled={state === 'submitting'}
-                  />
                 </div>
               </div>
 

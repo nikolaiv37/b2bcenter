@@ -57,6 +57,8 @@ import {
   Copy,
   Clock,
   RotateCcw,
+  Phone,
+  MapPin,
 } from 'lucide-react'
 
 const ITEMS_PER_PAGE = 12
@@ -84,6 +86,8 @@ export function ClientsPage() {
     email: '',
     company_name: '',
     commission_rate: 0,
+    phone: '',
+    address: '',
   })
 
   const [editForm, setEditForm] = useState({
@@ -249,6 +253,8 @@ export function ClientsPage() {
         email: inviteForm.email.trim(),
         company_name: inviteForm.company_name.trim() || undefined,
         commission_rate: inviteForm.commission_rate || undefined,
+        phone: inviteForm.phone.trim() || undefined,
+        address: inviteForm.address.trim() || undefined,
       })
 
       if (result?.email_sent === false) {
@@ -265,7 +271,7 @@ export function ClientsPage() {
       }
 
       setIsInviteModalOpen(false)
-      setInviteForm({ email: '', company_name: '', commission_rate: 0 })
+      setInviteForm({ email: '', company_name: '', commission_rate: 0, phone: '', address: '' })
 
       // Log token for dev convenience
       if (result?.invitation?.token) {
@@ -1050,6 +1056,46 @@ export function ClientsPage() {
               <p className="text-xs text-muted-foreground">
                 {t('distributors.commissionRateHelp')}
               </p>
+            </div>
+
+            {/* Phone field */}
+            <div className="space-y-2">
+              <Label htmlFor="invite_phone" className="text-sm font-medium">
+                {t('distributors.invitePhoneLabel')}
+              </Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  id="invite_phone"
+                  type="tel"
+                  placeholder={t('distributors.invitePhonePlaceholder')}
+                  value={inviteForm.phone}
+                  onChange={(e) =>
+                    setInviteForm((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                  className="pl-10 h-11"
+                />
+              </div>
+            </div>
+
+            {/* Address field */}
+            <div className="space-y-2">
+              <Label htmlFor="invite_address" className="text-sm font-medium">
+                {t('distributors.inviteAddressLabel')}
+              </Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  id="invite_address"
+                  type="text"
+                  placeholder={t('distributors.inviteAddressPlaceholder')}
+                  value={inviteForm.address}
+                  onChange={(e) =>
+                    setInviteForm((prev) => ({ ...prev, address: e.target.value }))
+                  }
+                  className="pl-10 h-11"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">

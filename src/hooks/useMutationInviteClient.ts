@@ -6,6 +6,8 @@ interface InviteClientData {
   email: string
   company_name?: string
   commission_rate?: number // percentage 0-50, will be sent as-is to edge fn
+  phone?: string
+  address?: string
 }
 
 interface InviteClientResult {
@@ -38,12 +40,21 @@ export function useMutationInviteClient() {
           email: data.email,
           company_name: data.company_name || undefined,
           commission_rate: data.commission_rate || undefined,
+          phone: data.phone || undefined,
+          address: data.address || undefined,
           tenant_id: tenantId,
         },
       })
 
       if (error) {
-        throw new Error(error.message || 'Failed to invite client')
+        // FunctionsHttpError body is not yet consumed — read it for the real message
+        let message = error.message || 'Failed to invite client'
+        try {
+          const body = await (error as any).context?.json?.()
+          if (body?.error) message = body.error
+          else if (body?.message) message = body.message
+        } catch { /* non-JSON or no context, keep original message */ }
+        throw new Error(message)
       }
 
       if (result?.error) {

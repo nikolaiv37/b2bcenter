@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json()
-    const { email, company_name, commission_rate, tenant_id, target_role: rawTargetRole } = body
+    const { email, company_name, commission_rate, phone, address, tenant_id, target_role: rawTargetRole } = body
 
     if (!email || !tenant_id) {
       return new Response(
@@ -221,6 +221,8 @@ Deno.serve(async (req) => {
           role: profileRole,
           company_name: isTeamInvite ? null : (company_name || null),
           commission_rate: commissionDecimal,
+          phone: isTeamInvite ? null : (phone || null),
+          address: isTeamInvite ? null : (address || null),
           invitation_status: 'invited',
           tenant_id,
         }, { onConflict: 'id' })
