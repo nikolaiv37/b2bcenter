@@ -8,11 +8,28 @@ import { GlassCard } from '@/components/GlassCard'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { OrderStatusBadge } from '@/components/OrderStatusBadge'
-import { formatCurrency, calculatePercentageChange } from '@/lib/utils'
+import { formatCurrency, calculatePercentageChange, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { useUnpaidBalance } from '@/hooks/useUnpaidBalance'
 import { useCompanyUnpaidBalances } from '@/hooks/useCompanyUnpaidBalances'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import {
   DollarSign,
   ShoppingCart,
@@ -21,11 +38,7 @@ import {
   TrendingUp,
   TrendingDown,
   ArrowRight,
-  Bell,
-  Image as ImageIcon,
   CreditCard,
-  Building2,
-  AlertTriangle,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { trackEvent, AnalyticsEvents } from '@/lib/analytics'
@@ -70,6 +83,7 @@ interface DashboardStats {
     lowStock: number
     outOfStock: number
   }
+  processingOrdersCount: number
 }
 
 interface DashboardSummary {
@@ -116,6 +130,19 @@ interface ProductCategoryRow {
   id?: string | number | null
   category?: string | null
   sku?: string | null
+}
+
+const ADMIN_TEXT = '#1A1A2E'
+const ADMIN_SUBLABEL = '#6B7280'
+const ADMIN_CARD_CLASS =
+  'rounded-[12px] border border-[#ECE8F7] bg-white p-6 shadow-[0_12px_32px_rgba(47,36,58,0.08)] backdrop-blur-none'
+const ADMIN_SECTION_TITLE = 'text-[18px] font-semibold text-[#1A1A2E]'
+const ADMIN_SUBLABEL_CLASS = 'text-[13px] text-[#6B7280]'
+const ADMIN_LINK_CLASS =
+  'inline-flex items-center gap-1 text-sm font-medium text-[#6C63A8] transition-colors hover:text-[#5b5492]'
+
+function isProcessingStatus(status: string) {
+  return ['new', 'draft', 'processing'].includes(status)
 }
 
 export function DashboardOverview() {
@@ -667,6 +694,9 @@ export function DashboardOverview() {
         recentOrders,
         lowStockProducts: lowStock,
         stockStatusCounts,
+        processingOrdersCount: allOrders.filter(
+          (order) => order.status === 'new' || order.status === 'draft' || order.status === 'processing'
+        ).length,
       } as DashboardStats
     },
     enabled: detailsEnabled && !!tenantId && (isAdmin || !!user?.id),
@@ -684,6 +714,28 @@ export function DashboardOverview() {
     if (!topStats) return 0
     return calculatePercentageChange(topStats.thisMonthOrders, topStats.lastMonthOrders)
   }, [topStats])
+
+  const isDetailsLoading = isLoading || !detailsEnabled
+
+  const topUnpaidCompanies = useMemo(
+    () => companyUnpaidData?.companies.slice(0, 4) ?? [],
+    [companyUnpaidData]
+  )
+
+  const topCategories = useMemo(
+    () => stats?.categoriesByRevenue.slice(0, 4) ?? [],
+    [stats?.categoriesByRevenue]
+  )
+
+  const lowStockPreview = useMemo(
+    () => [...(stats?.lowStockProducts ?? [])].sort((a, b) => a.stock - b.stock).slice(0, 3),
+    [stats?.lowStockProducts]
+  )
+
+  const totalTopCategoryRevenue = useMemo(
+    () => topCategories.reduce((sum, category) => sum + category.revenue, 0),
+    [topCategories]
+  )
 
   const StatCard = ({
     title,
@@ -739,7 +791,7 @@ export function DashboardOverview() {
   )
 
   return (
-    <div className="space-y-8 pb-24 md:pb-8">
+    <div className={cn('pb-24 md:pb-8', isAdmin ? 'space-y-5' : 'space-y-8')}>
       {/* Header */}
       <div>
         <h1 className="mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">
@@ -750,444 +802,674 @@ export function DashboardOverview() {
         </p>
       </div>
 
-      {/* Hero Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title={t('overview.totalRevenue')}
-          value={topStats ? formatCurrency(topStats.totalRevenue, 'EUR') : '—'}
-          subtitle={topStats ? `€${topStats.thisMonthRevenue.toFixed(2)} ${t('overview.thisMonth')}` : undefined}
-          icon={DollarSign}
-          color="text-green-500"
-          change={revenueChange}
-        />
-        <StatCard
-          title={t('overview.totalOrders')}
-          value={topStats?.totalOrders.toString() || '—'}
-          subtitle={topStats ? `${topStats.thisMonthOrders} ${t('overview.thisMonth')}` : undefined}
-          icon={ShoppingCart}
-          color="text-blue-500"
-          change={ordersChange}
-        />
-        
-        {/* Role-based card: Admin sees Active Customers, Company users see Unpaid Balance */}
-        {isAdmin ? (
-          <StatCard
-            title={t('overview.activeCustomers')}
-            value={topStats?.activeCustomers.toString() || '—'}
-            subtitle={t('overview.placedOrders')}
-            icon={Users}
-            color="text-purple-500"
-          />
-        ) : (
-          <GlassCard hover className="relative overflow-hidden">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground mb-1">{t('overview.unpaidBalance')}</p>
-                {isTopLoading || unpaidLoading ? (
-                  <Skeleton className="h-10 w-32 mb-2" />
-                ) : (
-                  <p className="text-3xl font-bold mb-1">
-                    {unpaidData ? formatCurrency(unpaidData.unpaidBalance, 'EUR') : '€0.00'}
-                  </p>
-                )}
-                <p className="text-sm text-muted-foreground mb-2">
-                  {unpaidData?.unpaidOrdersCount === 1
-                    ? `1 ${t('overview.orderAwaitingPayment')}`
-                    : `${unpaidData?.unpaidOrdersCount || 0} ${t('overview.ordersAwaitingPayment')}`}
-                </p>
-                {unpaidData && unpaidData.unpaidOrdersCount > 0 && (
-                  <button
-                    onClick={() => navigate(`${withBase('/dashboard/orders')}?filter=pending`)}
-                    className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
-                  >
-                    {t('overview.viewPendingOrders')}
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-              <div className="p-3 rounded-lg bg-white/10 dark:bg-black/10">
-                <CreditCard className={`w-6 h-6 ${unpaidData && unpaidData.unpaidBalance > 0 ? 'text-amber-500' : 'text-green-500'}`} />
-              </div>
-            </div>
-          </GlassCard>
-        )}
-        
-        <StatCard
-          title={t('overview.productsInCatalog')}
-          value={topStats?.totalProducts.toString() || '—'}
-          subtitle={
-            topStats && topStats.lowStockCount > 0
-              ? `${topStats.lowStockCount} ${t('overview.lowStock')}`
-              : t('overview.allStocked')
-          }
-          icon={Package}
-          color={topStats && topStats.lowStockCount > 0 ? 'text-red-500' : 'text-amber-500'}
-        />
-      </div>
-
-      {/* Admin Only: Unpaid Balances by Company */}
-      {isAdmin && (
-        <GlassCard className="border border-white/10 dark:border-white/5">
-          <div className="mb-5 flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <Building2 className="w-5 h-5 text-amber-500" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">{t('overview.unpaidBalancesByCompany')}</h2>
-                {companyUnpaidData && !companyUnpaidLoading && (
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {t('overview.totalUnpaid')} <span className="font-semibold text-amber-500">{formatCurrency(companyUnpaidData.totalUnpaidAmount, 'EUR')}</span>
-                    <span className="mx-2">•</span>
-                    {companyUnpaidData.totalOrdersCount} {companyUnpaidData.totalOrdersCount === 1 ? t('orders.order') : t('orders.orders')}
-                  </p>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => navigate(withBase('/dashboard/unpaid-balances'))}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-white/5 dark:hover:bg-black/5 border border-white/10 dark:border-white/5"
+      {isAdmin ? (
+        <>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <GlassCard
+              className={cn(
+                ADMIN_CARD_CLASS,
+                'flex min-h-[176px] h-full flex-col justify-between border-transparent bg-[#2F243A] text-white shadow-[0_18px_40px_rgba(47,36,58,0.24)]'
+              )}
             >
-              {t('overview.viewAll')}
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          
-          {companyUnpaidLoading ? (
-            <div className="space-y-2.5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : companyUnpaidData && companyUnpaidData.companies.length > 0 ? (
-            <>
-              {/* Desktop Table View */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
-                      <th className="pb-3 font-medium">{t('overview.company')}</th>
-                      <th className="pb-3 font-medium text-right">{t('overview.unpaidAmount')}</th>
-                      <th className="pb-3 font-medium text-center">{t('overview.orders')}</th>
-                      <th className="pb-3 font-medium text-right">{t('overview.lastOrder')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5 dark:divide-white/5">
-                    {companyUnpaidData.companies.map((company, index) => {
-                      const isHighAmount = company.unpaidAmount >= 5000
-                      const isMediumAmount = company.unpaidAmount >= 1000 && company.unpaidAmount < 5000
-                      
-                      return (
-                        <tr
-                          key={company.email || company.companyName || index}
-                          onClick={() =>
-                            navigate(
-                              `${withBase('/dashboard/orders')}?company=${encodeURIComponent(company.companyName || company.email)}&filter=pending`
-                            )
-                          }
-                          className="hover:bg-white/5 dark:hover:bg-black/5 cursor-pointer transition-colors"
-                        >
-                          <td className="py-3.5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                                {(company.companyName || company.email || 'U').charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <p className="font-medium text-sm">{company.companyName || t('overview.unknownCompany')}</p>
-                                {company.email && (
-                                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">{company.email}</p>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3.5 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {isHighAmount && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                              <span className={`font-semibold ${isHighAmount ? 'text-red-500' : isMediumAmount ? 'text-amber-500' : 'text-foreground'}`}>
-                                {formatCurrency(company.unpaidAmount, 'EUR')}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3.5 text-center">
-                            <Badge variant="outline" className="bg-white/5 dark:bg-black/5">
-                              {company.orderCount}
-                            </Badge>
-                          </td>
-                          <td className="py-3.5 text-right text-sm text-muted-foreground">
-                            {new Date(company.lastOrderDate).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <p className="text-[13px] text-white/70">{t('overview.totalRevenue')}</p>
+                  {isTopLoading ? (
+                    <Skeleton className="h-10 w-36 bg-white/10" />
+                  ) : (
+                    <p className="text-3xl font-semibold text-white">
+                      {topStats ? formatCurrency(topStats.totalRevenue, 'EUR') : '—'}
+                    </p>
+                  )}
+                  <p className="text-[13px] text-white/70">
+                    {topStats ? `€${topStats.thisMonthRevenue.toFixed(2)} ${t('overview.thisMonth')}` : ' '}
+                  </p>
+                </div>
+                <div className="rounded-[12px] bg-white/10 p-3">
+                  <DollarSign className="h-6 w-6 text-white" />
+                </div>
               </div>
-              
-              {/* Mobile Card View */}
-              <div className="md:hidden space-y-3">
-                {companyUnpaidData.companies.map((company, index) => {
-                  const isHighAmount = company.unpaidAmount >= 5000
-                  const isMediumAmount = company.unpaidAmount >= 1000 && company.unpaidAmount < 5000
-                  
-                  return (
-                    <div
+              {isTopLoading ? (
+                <Skeleton className="h-7 w-28 bg-white/10" />
+              ) : (
+                <div className="inline-flex w-fit items-center gap-1 rounded-full bg-green-500/15 px-3 py-1 text-xs font-semibold text-green-400">
+                  {revenueChange >= 0 ? (
+                    <TrendingUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <TrendingDown className="h-3.5 w-3.5 text-red-300" />
+                  )}
+                  <span>
+                    {revenueChange >= 0 ? '+' : ''}
+                    {revenueChange.toFixed(1)}%
+                  </span>
+                </div>
+              )}
+            </GlassCard>
+
+            <GlassCard className={cn(ADMIN_CARD_CLASS, 'flex min-h-[176px] h-full flex-col justify-between')}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <p className={ADMIN_SUBLABEL_CLASS}>{t('overview.totalOrders')}</p>
+                  {isTopLoading ? (
+                    <Skeleton className="h-10 w-24" />
+                  ) : (
+                    <p className="text-3xl font-semibold text-[#1A1A2E]">
+                      {topStats?.totalOrders.toString() || '—'}
+                    </p>
+                  )}
+                  <p className={ADMIN_SUBLABEL_CLASS}>
+                    {topStats ? `${topStats.thisMonthOrders} ${t('overview.thisMonth')}` : ' '}
+                  </p>
+                </div>
+                <div className="rounded-[12px] bg-[rgba(108,99,168,0.12)] p-3">
+                  <ShoppingCart className="h-6 w-6 text-[#6C63A8]" />
+                </div>
+              </div>
+              {isTopLoading ? (
+                <Skeleton className="h-5 w-24" />
+              ) : (
+                <div className="flex items-center gap-2 text-sm">
+                  {ordersChange >= 0 ? (
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  )}
+                  <span className={ordersChange >= 0 ? 'font-semibold text-green-500' : 'font-semibold text-red-500'}>
+                    {ordersChange >= 0 ? '+' : ''}
+                    {ordersChange.toFixed(1)}%
+                  </span>
+                  <span className={ADMIN_SUBLABEL_CLASS}>{t('overview.vsLastMonth')}</span>
+                </div>
+              )}
+            </GlassCard>
+
+            <GlassCard className={cn(ADMIN_CARD_CLASS, 'flex min-h-[176px] h-full flex-col justify-between')}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <p className={ADMIN_SUBLABEL_CLASS}>{t('overview.activeCustomers')}</p>
+                  {isTopLoading ? (
+                    <Skeleton className="h-10 w-24" />
+                  ) : (
+                    <p className="text-3xl font-semibold text-[#1A1A2E]">
+                      {topStats?.activeCustomers.toString() || '—'}
+                    </p>
+                  )}
+                  <p className={ADMIN_SUBLABEL_CLASS}>{t('overview.placedOrders')}</p>
+                </div>
+                <div className="rounded-[12px] bg-[rgba(108,99,168,0.12)] p-3">
+                  <Users className="h-6 w-6 text-[#6C63A8]" />
+                </div>
+              </div>
+            </GlassCard>
+
+            <GlassCard className={cn(ADMIN_CARD_CLASS, 'flex min-h-[176px] h-full flex-col justify-between')}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <p className={ADMIN_SUBLABEL_CLASS}>{t('overview.productsInCatalog')}</p>
+                  {isTopLoading ? (
+                    <Skeleton className="h-10 w-24" />
+                  ) : (
+                    <p className="text-3xl font-semibold text-[#1A1A2E]">
+                      {topStats?.totalProducts.toString() || '—'}
+                    </p>
+                  )}
+                  <p className={ADMIN_SUBLABEL_CLASS}>
+                    {topStats && topStats.lowStockCount > 0
+                      ? `${topStats.lowStockCount} ${t('overview.lowStock')}`
+                      : t('overview.allStocked')}
+                  </p>
+                </div>
+                <div className="rounded-[12px] bg-[rgba(108,99,168,0.12)] p-3">
+                  <Package className="h-6 w-6 text-[#6C63A8]" />
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+
+          {!isDetailsLoading && stats && stats.processingOrdersCount > 0 && (
+            <div
+              className="relative flex flex-col gap-3 overflow-hidden rounded-[18px] border border-[#E8E6EF] bg-white px-7 py-4 shadow-[0_10px_24px_rgba(26,26,46,0.05)] sm:flex-row sm:items-center sm:justify-between"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute bottom-0 left-4 top-0 w-4 rounded-l-full border-l-4 border-[#6C63A8] border-t-4 border-b-4 border-[#6C63A8]/0"
+              />
+              <div className="relative flex items-center gap-3 pl-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#6C63A8]" />
+                <p className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: ADMIN_TEXT }}>
+                  {t('overview.processingOrdersAlert', { count: stats.processingOrdersCount })}
+                </p>
+              </div>
+              <button
+                onClick={() => navigate(`${withBase('/dashboard/orders')}?filter=processing`)}
+                className="relative inline-flex items-center gap-1 text-[15px] font-semibold text-[#6C63A8] transition-colors hover:text-[#5b5492]"
+              >
+                {t('overview.viewOrders')}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+            <GlassCard className={cn(ADMIN_CARD_CLASS, 'h-full')}>
+              <div className="mb-6 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className={ADMIN_SECTION_TITLE}>{t('overview.ordersLast30Days')}</h2>
+                  <p className={ADMIN_SUBLABEL_CLASS}>{t('overview.recentOrders')}</p>
+                </div>
+              </div>
+              {isDetailsLoading ? (
+                <Skeleton className="h-[280px] w-full rounded-[12px]" />
+              ) : stats?.ordersByDay && stats.ordersByDay.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={stats.ordersByDay}>
+                    <CartesianGrid vertical={false} stroke="#E5E7EB" strokeDasharray="3 3" />
+                    <XAxis
+                      axisLine={false}
+                      dataKey="date"
+                      tick={{ fill: ADMIN_SUBLABEL, fontSize: 12 }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      allowDecimals={false}
+                      tick={{ fill: ADMIN_SUBLABEL, fontSize: 12 }}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      cursor={{ fill: '#F5F3FF' }}
+                      contentStyle={{
+                        backgroundColor: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '12px',
+                        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)',
+                      }}
+                    />
+                    <Bar dataKey="orders" fill="rgba(108, 99, 168, 0.8)" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-[280px] items-center justify-center rounded-[12px] bg-[#FAFAFC] text-sm text-[#6B7280]">
+                  {t('overview.noOrdersLast30Days')}
+                </div>
+              )}
+            </GlassCard>
+
+            <GlassCard className={cn(ADMIN_CARD_CLASS, 'h-full')}>
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <p className={ADMIN_SUBLABEL_CLASS}>{t('overview.unpaidBalancesByCompany')}</p>
+                  {companyUnpaidLoading ? (
+                    <Skeleton className="mt-3 h-10 w-36" />
+                  ) : (
+                    <p className="mt-2 text-3xl font-semibold text-[#1A1A2E]">
+                      {companyUnpaidData
+                        ? formatCurrency(companyUnpaidData.totalUnpaidAmount, 'EUR')
+                        : '€0.00'}
+                    </p>
+                  )}
+                  <p className="mt-2 text-[13px] text-[#6B7280]">
+                    {companyUnpaidData?.totalOrdersCount || 0}{' '}
+                    {companyUnpaidData?.totalOrdersCount === 1 ? t('orders.order') : t('orders.orders')}
+                  </p>
+                </div>
+                <div className="rounded-[12px] bg-[rgba(108,99,168,0.12)] p-3">
+                  <CreditCard className="h-6 w-6 text-[#6C63A8]" />
+                </div>
+              </div>
+
+              {companyUnpaidLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <Skeleton key={index} className="h-16 w-full rounded-[12px]" />
+                  ))}
+                </div>
+              ) : topUnpaidCompanies.length > 0 ? (
+                <div className="space-y-3">
+                  {topUnpaidCompanies.map((company, index) => (
+                    <button
                       key={company.email || company.companyName || index}
                       onClick={() =>
                         navigate(
-                          `${withBase('/dashboard/orders')}?company=${encodeURIComponent(company.companyName || company.email)}&filter=pending`
+                          `${withBase('/dashboard/orders')}?company=${encodeURIComponent(
+                            company.companyName || company.email
+                          )}&filter=pending`
                         )
                       }
-                      className="p-4 rounded-lg bg-white/5 dark:bg-black/5 hover:bg-white/10 dark:hover:bg-black/10 transition-all duration-200 border border-white/10 dark:border-white/5 cursor-pointer"
+                      className="flex w-full items-center justify-between rounded-[12px] bg-[#F8F7FC] px-4 py-3 text-left transition-colors hover:bg-[#F3F1FA]"
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                            {(company.companyName || company.email || 'U').charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">{company.companyName || t('overview.unknownCompany')}</p>
-                            {company.email && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[180px]">{company.email}</p>
-                            )}
-                          </div>
-                        </div>
-                        {isHighAmount && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-[#1A1A2E]">
+                          {company.companyName || t('overview.unknownCompany')}
+                        </p>
+                        <p className="mt-1 text-[13px] text-[#6B7280]">
+                          {company.orderCount} {company.orderCount === 1 ? t('orders.order') : t('orders.orders')}
+                        </p>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <span className="text-muted-foreground text-xs">{t('unpaidBalances.unpaid')}</span>
-                            <p className={`font-semibold ${isHighAmount ? 'text-red-500' : isMediumAmount ? 'text-amber-500' : 'text-foreground'}`}>
-                              {formatCurrency(company.unpaidAmount, 'EUR')}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground text-xs">{t('overview.orders')}</span>
-                            <p className="font-medium">{company.orderCount}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-muted-foreground text-xs">{t('overview.lastOrder')}</span>
-                          <p className="text-sm">
-                            {new Date(company.lastOrderDate).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border border-dashed border-white/10 dark:border-white/5 rounded-lg bg-white/5 dark:bg-black/5">
-              <CreditCard className="w-8 h-8 mb-3 text-green-500" />
-              <p className="text-sm font-medium">{t('unpaidBalances.noUnpaidOrders')}</p>
-              <p className="text-xs mt-1">{t('unpaidBalances.allCompaniesUpToDate')}</p>
-            </div>
-          )}
-        </GlassCard>
-      )}
+                      <p className="text-sm font-semibold text-[#1A1A2E]">
+                        {formatCurrency(company.unpaidAmount, 'EUR')}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex h-[280px] items-center justify-center rounded-[12px] bg-[#FAFAFC] text-center text-sm text-[#6B7280]">
+                  {t('unpaidBalances.noUnpaidOrders')}
+                </div>
+              )}
 
-      <Suspense
-        fallback={
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <GlassCard><Skeleton className="h-64 w-full" /></GlassCard>
-              <GlassCard><Skeleton className="h-64 w-full" /></GlassCard>
-            </div>
-            <GlassCard className="p-6"><Skeleton className="h-96 w-full rounded-lg" /></GlassCard>
-          </div>
-        }
-      >
-        <OverviewChartsSection stats={stats} isLoading={isLoading || !detailsEnabled} />
-      </Suspense>
-
-      {/* Recent Orders & Low Stock */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Orders */}
-        <GlassCard className="border border-white/10 dark:border-white/5">
-          <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/10 dark:border-white/5">
-            <h2 className="text-xl font-semibold">{t('overview.recentOrders')}</h2>
-            <button
-              onClick={() => navigate(withBase('/dashboard/orders'))}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-white/5 dark:hover:bg-black/5"
-            >
-              {t('overview.viewAll')}
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          {isLoading ? (
-            <div className="space-y-2.5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : stats?.recentOrders && stats.recentOrders.length > 0 ? (
-            <div className="space-y-2.5">
-              {stats.recentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3.5 shadow-sm transition-all duration-200 hover:border-white/20 hover:bg-white/10 hover:shadow-md sm:flex-row sm:items-center sm:justify-between dark:border-white/5 dark:bg-black/5 dark:hover:border-white/10 dark:hover:bg-black/10"
+              <div className="mt-6 border-t border-[#ECE8F7] pt-4">
+                <button
+                  onClick={() => navigate(withBase('/dashboard/unpaid-balances'))}
+                  className={ADMIN_LINK_CLASS}
                 >
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="flex-shrink-0">
-                      <span className="font-mono font-semibold text-sm text-foreground">
-                        #{order.order_number || order.id.slice(0, 8)}
-                      </span>
-                    </div>
-                    <div className="flex-shrink-0 text-xs text-muted-foreground font-medium">
-                      {new Date(order.created_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </div>
-                    <div className="flex-1 min-w-0 truncate">
-                      <p className="text-sm font-medium truncate text-foreground">
-                        {order.customer_name || order.customer_email}
+                  {t('overview.viewAll')}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </GlassCard>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <GlassCard className={cn(ADMIN_CARD_CLASS, 'h-full')}>
+              <div className="mb-6 flex items-center justify-between gap-4">
+                <h2 className={ADMIN_SECTION_TITLE}>{t('overview.recentOrders')}</h2>
+                <button
+                  onClick={() => navigate(withBase('/dashboard/orders'))}
+                  className={ADMIN_LINK_CLASS}
+                >
+                  {t('overview.viewAll')}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+              {isDetailsLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <Skeleton key={index} className="h-14 w-full rounded-[12px]" />
+                  ))}
+                </div>
+              ) : stats?.recentOrders && stats.recentOrders.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-[#ECE8F7]">
+                        <TableHead className="text-[13px] font-medium text-[#6B7280]">
+                          {t('orders.order')}
+                        </TableHead>
+                        <TableHead className="text-[13px] font-medium text-[#6B7280]">
+                          {t('overview.company')}
+                        </TableHead>
+                        <TableHead className="text-[13px] font-medium text-[#6B7280]">
+                          {t('orders.status')}
+                        </TableHead>
+                        <TableHead className="text-right text-[13px] font-medium text-[#6B7280]">
+                          {t('orders.total')}
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {stats.recentOrders.map((order) => (
+                        <TableRow key={order.id} className="border-[#F2EFF9]">
+                          <TableCell className="py-4 font-mono text-sm font-semibold text-[#1A1A2E]">
+                            #{order.order_number || order.id.slice(0, 8)}
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <div>
+                              <p className="text-sm font-medium text-[#1A1A2E]">
+                                {order.customer_name || order.customer_email}
+                              </p>
+                              <p className="mt-1 text-[13px] text-[#6B7280]">
+                                {new Date(order.created_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <OrderStatusBadge
+                              status={order.status}
+                              className={
+                                isProcessingStatus(order.status)
+                                  ? 'border-transparent bg-[rgba(108,99,168,0.15)] text-[#6C63A8]'
+                                  : undefined
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="py-4 text-right text-sm font-semibold text-[#1A1A2E]">
+                            {formatCurrency(order.total, 'EUR')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="flex h-[320px] items-center justify-center rounded-[12px] bg-[#FAFAFC] text-sm text-[#6B7280]">
+                  {t('overview.noRecentOrders')}
+                </div>
+              )}
+            </GlassCard>
+
+            <GlassCard className={cn(ADMIN_CARD_CLASS, 'h-full')}>
+              <div className="space-y-8">
+                <section>
+                  <div className="mb-5 flex items-center justify-between gap-4">
+                    <div>
+                      <h2 className={ADMIN_SECTION_TITLE}>{t('overview.topCategoriesShort')}</h2>
+                      <p className={ADMIN_SUBLABEL_CLASS}>
+                        {formatCurrency(totalTopCategoryRevenue, 'EUR')}
                       </p>
                     </div>
-                    <div className="flex-shrink-0">
-                      <OrderStatusBadge status={order.status} />
+                  </div>
+                  {isDetailsLoading ? (
+                    <div className="space-y-3">
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <Skeleton key={index} className="h-16 w-full rounded-[12px]" />
+                      ))}
                     </div>
-                  </div>
-                  <div className="flex-shrink-0 text-left sm:ml-4 sm:text-right">
-                    <p className="font-semibold text-sm text-foreground">{formatCurrency(order.total, 'EUR')}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 dark:border-white/5 rounded-lg">
-              <p className="text-sm">{t('overview.noRecentOrders')}</p>
-            </div>
-          )}
-        </GlassCard>
+                  ) : topCategories.length > 0 ? (
+                    <div className="space-y-4">
+                      {topCategories.map((category, index) => {
+                        const percentage =
+                          totalTopCategoryRevenue > 0
+                            ? (category.revenue / totalTopCategoryRevenue) * 100
+                            : 0
+                        const dotOpacity = 1 - index * 0.18
 
-        {/* Low Stock Alert */}
-        <GlassCard className="border border-white/10 dark:border-white/5">
-          <div className="mb-5 pb-4 border-b border-white/10 dark:border-white/5">
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="relative">
-                <Bell className="w-5 h-5 text-muted-foreground" />
-                {stats && stats.lowStockCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full border border-white/20"></span>
-                )}
+                        return (
+                          <div key={category.name} className="space-y-2">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span
+                                  className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                                  style={{ backgroundColor: `rgba(108, 99, 168, ${Math.max(dotOpacity, 0.4)})` }}
+                                />
+                                <p className="truncate text-sm font-medium text-[#1A1A2E]">
+                                  {category.name}
+                                </p>
+                              </div>
+                              <span className="text-sm font-semibold text-[#1A1A2E]">
+                                {percentage.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-[#F3F1FA]">
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${percentage}%`,
+                                  backgroundColor: `rgba(108, 99, 168, ${Math.max(dotOpacity, 0.55)})`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-[12px] bg-[#FAFAFC] px-4 py-12 text-center text-sm text-[#6B7280]">
+                      {t('overview.noRevenueDataThisMonth')}
+                    </div>
+                  )}
+                </section>
+
+                <section className="border-t border-[#ECE8F7] pt-8">
+                  <h2 className={ADMIN_SECTION_TITLE}>{t('overview.lowStockProducts')}</h2>
+                  <div className="mt-5">
+                    {isDetailsLoading ? (
+                      <div className="space-y-3">
+                        {Array.from({ length: 3 }).map((_, index) => (
+                          <Skeleton key={index} className="h-16 w-full rounded-[12px]" />
+                        ))}
+                      </div>
+                    ) : lowStockPreview.length > 0 ? (
+                      <>
+                        <div className="space-y-3">
+                          {lowStockPreview.map((product) => (
+                            <div
+                              key={product.id}
+                              className="flex items-center justify-between gap-4 rounded-[12px] bg-[#F8F7FC] px-4 py-3"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-[#1A1A2E]">
+                                  {product.name}
+                                </p>
+                                <p className="mt-1 text-[13px] text-[#6B7280]">SKU: {product.sku}</p>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className="border-orange-200 bg-orange-50 text-xs font-medium text-orange-500"
+                              >
+                                {t('overview.onlyLeft', { count: product.stock })}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-5 border-t border-[#ECE8F7] pt-4">
+                          <button
+                            onClick={() => navigate(`${withBase('/dashboard/products')}?filter=low-stock`)}
+                            className={ADMIN_LINK_CLASS}
+                          >
+                            {t('overview.viewAllProducts')}
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-[12px] bg-[#FAFAFC] px-4 py-12 text-center text-sm text-[#6B7280]">
+                        {t('overview.allProductsSufficientStock')}
+                      </div>
+                    )}
+                  </div>
+                </section>
               </div>
-              <h2 className="text-xl font-semibold">{t('overview.lowStockProducts')}</h2>
-            </div>
-            
-            {/* Stock Status Bubbles - Real Data */}
-            {stats && !isLoading && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* In Stock - Green (quantity >= 10) */}
-                {stats.stockStatusCounts.inStock > 0 && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 shadow-sm hover:bg-green-500/15 transition-colors">
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm"></div>
-                    <span className="text-xs font-semibold text-green-700 dark:text-green-400">
-                      {t('products.inStock')}: {stats.stockStatusCounts.inStock}
-                    </span>
-                  </div>
-                )}
-                
-                {/* Low Stock - Orange (1-9) */}
-                {stats.stockStatusCounts.lowStock > 0 && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 shadow-sm hover:bg-orange-500/15 transition-colors">
-                    <div className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-sm"></div>
-                    <span className="text-xs font-semibold text-orange-700 dark:text-orange-400">
-                      {t('products.lowStock')}: {stats.stockStatusCounts.lowStock}
-                    </span>
-                  </div>
-                )}
-                
-                {/* Out of Stock - Red (0) */}
-                {stats.stockStatusCounts.outOfStock > 0 && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 shadow-sm hover:bg-red-500/15 transition-colors">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm"></div>
-                    <span className="text-xs font-semibold text-red-700 dark:text-red-400">
-                      {t('products.outOfStock')}: {stats.stockStatusCounts.outOfStock}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+            </GlassCard>
           </div>
-          {isLoading ? (
-            <div className="space-y-2.5">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : stats && stats.lowStockCount > 0 ? (
-            <>
-              <p className="text-base font-semibold text-foreground mb-5 px-1">
-                {t('overview.productsLowOnStock', { count: stats.lowStockCount })}
-              </p>
-              <div className="space-y-2.5 mb-5">
-                {stats.lowStockProducts
-                  .sort((a, b) => a.stock - b.stock)
-                  .slice(0, 5)
-                  .map((product) => {
-                    const imageUrl = product.main_image || (product.images && product.images.length > 0 ? product.images[0] : null)
-                    return (
-                      <div
-                        key={product.id}
-                        className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/5 p-3.5 shadow-sm transition-all duration-200 hover:border-white/20 hover:bg-white/10 hover:shadow-md sm:flex-row sm:items-center dark:border-white/5 dark:bg-black/5 dark:hover:border-white/10 dark:hover:bg-black/10"
-                      >
-                        <div className="flex-shrink-0 w-11 h-11 rounded-md bg-muted/50 flex items-center justify-center overflow-hidden border border-white/10 dark:border-white/5 shadow-sm">
-                          {imageUrl ? (
-                            <img
-                              src={imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none'
-                                e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                              }}
-                            />
-                          ) : null}
-                          <ImageIcon className={`w-5 h-5 text-muted-foreground ${imageUrl ? 'hidden' : ''}`} />
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard
+              title={t('overview.totalRevenue')}
+              value={topStats ? formatCurrency(topStats.totalRevenue, 'EUR') : '—'}
+              subtitle={topStats ? `€${topStats.thisMonthRevenue.toFixed(2)} ${t('overview.thisMonth')}` : undefined}
+              icon={DollarSign}
+              color="text-green-500"
+              change={revenueChange}
+            />
+            <StatCard
+              title={t('overview.totalOrders')}
+              value={topStats?.totalOrders.toString() || '—'}
+              subtitle={topStats ? `${topStats.thisMonthOrders} ${t('overview.thisMonth')}` : undefined}
+              icon={ShoppingCart}
+              color="text-blue-500"
+              change={ordersChange}
+            />
+
+            <GlassCard hover className="relative overflow-hidden">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground mb-1">{t('overview.unpaidBalance')}</p>
+                  {isTopLoading || unpaidLoading ? (
+                    <Skeleton className="h-10 w-32 mb-2" />
+                  ) : (
+                    <p className="text-3xl font-bold mb-1">
+                      {unpaidData ? formatCurrency(unpaidData.unpaidBalance, 'EUR') : '€0.00'}
+                    </p>
+                  )}
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {unpaidData?.unpaidOrdersCount === 1
+                      ? `1 ${t('overview.orderAwaitingPayment')}`
+                      : `${unpaidData?.unpaidOrdersCount || 0} ${t('overview.ordersAwaitingPayment')}`}
+                  </p>
+                  {unpaidData && unpaidData.unpaidOrdersCount > 0 && (
+                    <button
+                      onClick={() => navigate(`${withBase('/dashboard/orders')}?filter=pending`)}
+                      className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
+                    >
+                      {t('overview.viewPendingOrders')}
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="p-3 rounded-lg bg-white/10 dark:bg-black/10">
+                  <CreditCard
+                    className={`w-6 h-6 ${
+                      unpaidData && unpaidData.unpaidBalance > 0 ? 'text-amber-500' : 'text-green-500'
+                    }`}
+                  />
+                </div>
+              </div>
+            </GlassCard>
+
+            <StatCard
+              title={t('overview.productsInCatalog')}
+              value={topStats?.totalProducts.toString() || '—'}
+              subtitle={
+                topStats && topStats.lowStockCount > 0
+                  ? `${topStats.lowStockCount} ${t('overview.lowStock')}`
+                  : t('overview.allStocked')
+              }
+              icon={Package}
+              color={topStats && topStats.lowStockCount > 0 ? 'text-red-500' : 'text-amber-500'}
+            />
+          </div>
+
+          <Suspense
+            fallback={
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <GlassCard><Skeleton className="h-64 w-full" /></GlassCard>
+                  <GlassCard><Skeleton className="h-64 w-full" /></GlassCard>
+                </div>
+                <GlassCard className="p-6"><Skeleton className="h-96 w-full rounded-lg" /></GlassCard>
+              </div>
+            }
+          >
+            <OverviewChartsSection stats={stats} isLoading={isDetailsLoading} />
+          </Suspense>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <GlassCard className="border border-white/10 dark:border-white/5">
+              <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/10 dark:border-white/5">
+                <h2 className="text-xl font-semibold">{t('overview.recentOrders')}</h2>
+                <button
+                  onClick={() => navigate(withBase('/dashboard/orders'))}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-white/5 dark:hover:bg-black/5"
+                >
+                  {t('overview.viewAll')}
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+              {isLoading ? (
+                <div className="space-y-2.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : stats?.recentOrders && stats.recentOrders.length > 0 ? (
+                <div className="space-y-2.5">
+                  {stats.recentOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3.5 shadow-sm transition-all duration-200 hover:border-white/20 hover:bg-white/10 hover:shadow-md sm:flex-row sm:items-center sm:justify-between dark:border-white/5 dark:bg-black/5 dark:hover:border-white/10 dark:hover:bg-black/10"
+                    >
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className="flex-shrink-0">
+                          <span className="font-mono font-semibold text-sm text-foreground">
+                            #{order.order_number || order.id.slice(0, 8)}
+                          </span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm truncate text-foreground mb-0.5">{product.name}</p>
-                          <p className="text-xs text-muted-foreground font-medium">SKU: {product.sku}</p>
+                        <div className="flex-shrink-0 text-xs text-muted-foreground font-medium">
+                          {new Date(order.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
                         </div>
-                        <div className="flex-shrink-0 self-start sm:self-auto">
-                          <Badge 
-                            variant="outline" 
+                        <div className="flex-1 min-w-0 truncate">
+                          <p className="text-sm font-medium truncate text-foreground">
+                            {order.customer_name || order.customer_email}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <OrderStatusBadge status={order.status} />
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-left sm:ml-4 sm:text-right">
+                        <p className="font-semibold text-sm text-foreground">
+                          {formatCurrency(order.total, 'EUR')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 dark:border-white/5 rounded-lg">
+                  <p className="text-sm">{t('overview.noRecentOrders')}</p>
+                </div>
+              )}
+            </GlassCard>
+
+            <GlassCard className="border border-white/10 dark:border-white/5">
+              <div className="mb-5 pb-4 border-b border-white/10 dark:border-white/5">
+                <h2 className="text-xl font-semibold">{t('overview.lowStockProducts')}</h2>
+              </div>
+              {isLoading ? (
+                <div className="space-y-2.5">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : stats && stats.lowStockCount > 0 ? (
+                <>
+                  <p className="text-base font-semibold text-foreground mb-5 px-1">
+                    {t('overview.productsLowOnStock', { count: stats.lowStockCount })}
+                  </p>
+                  <div className="space-y-2.5 mb-5">
+                    {stats.lowStockProducts
+                      .sort((a, b) => a.stock - b.stock)
+                      .slice(0, 5)
+                      .map((product) => (
+                        <div
+                          key={product.id}
+                          className="flex items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/5 p-3.5 shadow-sm transition-all duration-200 hover:border-white/20 hover:bg-white/10 hover:shadow-md dark:border-white/5 dark:bg-black/5 dark:hover:border-white/10 dark:hover:bg-black/10"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm truncate text-foreground mb-0.5">
+                              {product.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground font-medium">SKU: {product.sku}</p>
+                          </div>
+                          <Badge
+                            variant="outline"
                             className="bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30 text-xs font-medium shadow-sm"
                           >
                             {t('overview.onlyLeft', { count: product.stock })}
                           </Badge>
                         </div>
-                      </div>
-                    )
-                  })}
-              </div>
-              <div className="flex justify-end pt-3 border-t border-white/10 dark:border-white/5">
-                <button
-                  onClick={() => navigate(`${withBase('/dashboard/products')}?filter=low-stock`)}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-white/5 dark:hover:bg-black/5"
-                >
-                  {t('overview.viewAllProducts')}
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center gap-2.5 py-12 text-muted-foreground border border-dashed border-white/10 dark:border-white/5 rounded-lg bg-white/5 dark:bg-black/5">
-              <Package className="w-4 h-4" />
-              <p className="text-sm font-medium">{t('overview.allProductsSufficientStock')}</p>
-            </div>
-          )}
-        </GlassCard>
-      </div>
+                      ))}
+                  </div>
+                  <div className="flex justify-end pt-3 border-t border-white/10 dark:border-white/5">
+                    <button
+                      onClick={() => navigate(`${withBase('/dashboard/products')}?filter=low-stock`)}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-white/5 dark:hover:bg-black/5"
+                    >
+                      {t('overview.viewAllProducts')}
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center gap-2.5 py-12 text-muted-foreground border border-dashed border-white/10 dark:border-white/5 rounded-lg bg-white/5 dark:bg-black/5">
+                  <Package className="w-4 h-4" />
+                  <p className="text-sm font-medium">{t('overview.allProductsSufficientStock')}</p>
+                </div>
+              )}
+            </GlassCard>
+          </div>
+        </>
+      )}
 
     </div>
   )
