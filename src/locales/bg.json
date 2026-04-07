@@ -755,6 +755,8 @@
       "noOrdersLast30Days": "Няма поръчки през последните 30 дни",
       "processingOrdersAlert": "{{count}} поръчка чака обработка",
       "processingOrdersAlert_plural": "{{count}} поръчки чакат обработка",
+      "outOfStockProducts": "{{count}} продукта без наличност",
+      "unpaidAlert": "Неплатени: {{amount}}",
       "topCategoriesByRevenue": "Топ категории по оборот",
       "topCategoriesShort": "Топ категории",
       "revenueDistributionDescription": "Разпределение на оборота по категории",

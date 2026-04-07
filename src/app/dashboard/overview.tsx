@@ -39,6 +39,9 @@ import {
   TrendingDown,
   ArrowRight,
   CreditCard,
+  Clock3,
+  AlertTriangle,
+  XCircle,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { trackEvent, AnalyticsEvents } from '@/lib/analytics'
@@ -132,7 +135,6 @@ interface ProductCategoryRow {
   sku?: string | null
 }
 
-const ADMIN_TEXT = '#1A1A2E'
 const ADMIN_SUBLABEL = '#6B7280'
 const ADMIN_CARD_CLASS =
   'rounded-[12px] border border-[#ECE8F7] bg-white p-6 shadow-[0_12px_32px_rgba(47,36,58,0.08)] backdrop-blur-none'
@@ -140,6 +142,8 @@ const ADMIN_SECTION_TITLE = 'text-[18px] font-semibold text-[#1A1A2E]'
 const ADMIN_SUBLABEL_CLASS = 'text-[13px] text-[#6B7280]'
 const ADMIN_LINK_CLASS =
   'inline-flex items-center gap-1 text-sm font-medium text-[#6C63A8] transition-colors hover:text-[#5b5492]'
+const ADMIN_KPI_ICON_WRAP_CLASS =
+  'relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-[14px] border border-[#D9D4EC] bg-[linear-gradient(180deg,#F8F6FC_0%,#EEEDF6_100%)] shadow-[0_10px_24px_rgba(108,99,168,0.18)]'
 
 function isProcessingStatus(status: string) {
   return ['new', 'draft', 'processing'].includes(status)
@@ -737,6 +741,46 @@ export function DashboardOverview() {
     [topCategories]
   )
 
+  const adminAlerts = useMemo(
+    () => [
+      {
+        key: 'processing',
+        count: stats?.processingOrdersCount ?? 0,
+        color: '#6C63A8',
+        label: t('overview.processingOrdersAlert', { count: stats?.processingOrdersCount ?? 0 }),
+        icon: Clock3,
+        onClick: () => navigate(`${withBase('/dashboard/orders')}?filter=processing`),
+      },
+      {
+        key: 'low-stock',
+        count: stats?.stockStatusCounts.lowStock ?? 0,
+        color: '#F59E0B',
+        label: t('overview.productsLowOnStock', { count: stats?.stockStatusCounts.lowStock ?? 0 }),
+        icon: AlertTriangle,
+        onClick: () => navigate(`${withBase('/dashboard/products')}?filter=low-stock`),
+      },
+      {
+        key: 'out-of-stock',
+        count: stats?.stockStatusCounts.outOfStock ?? 0,
+        color: '#EF4444',
+        label: t('overview.outOfStockProducts', { count: stats?.stockStatusCounts.outOfStock ?? 0 }),
+        icon: XCircle,
+        onClick: () => navigate(`${withBase('/dashboard/products')}?filter=out-of-stock`),
+      },
+      {
+        key: 'unpaid',
+        count: companyUnpaidData?.totalUnpaidAmount ?? 0,
+        color: '#6C63A8',
+        label: t('overview.unpaidAlert', {
+          amount: formatCurrency(companyUnpaidData?.totalUnpaidAmount ?? 0, 'EUR'),
+        }),
+        icon: CreditCard,
+        onClick: () => navigate(withBase('/dashboard/unpaid-balances')),
+      },
+    ],
+    [companyUnpaidData?.totalUnpaidAmount, navigate, stats?.processingOrdersCount, stats?.stockStatusCounts.lowStock, stats?.stockStatusCounts.outOfStock, t, withBase]
+  )
+
   const StatCard = ({
     title,
     value,
@@ -825,9 +869,7 @@ export function DashboardOverview() {
                     {topStats ? `€${topStats.thisMonthRevenue.toFixed(2)} ${t('overview.thisMonth')}` : ' '}
                   </p>
                 </div>
-                <div className="rounded-[12px] bg-white/10 p-3">
-                  <DollarSign className="h-6 w-6 text-white" />
-                </div>
+                <DollarSign className="h-5 w-5 text-white" />
               </div>
               {isTopLoading ? (
                 <Skeleton className="h-7 w-28 bg-white/10" />
@@ -861,8 +903,9 @@ export function DashboardOverview() {
                     {topStats ? `${topStats.thisMonthOrders} ${t('overview.thisMonth')}` : ' '}
                   </p>
                 </div>
-                <div className="rounded-[12px] bg-[rgba(108,99,168,0.12)] p-3">
-                  <ShoppingCart className="h-6 w-6 text-[#6C63A8]" />
+                <div className={ADMIN_KPI_ICON_WRAP_CLASS}>
+                  <span className="absolute inset-x-1 top-1 h-3 rounded-full bg-white/70 blur-sm" />
+                  <ShoppingCart className="relative z-10 h-5 w-5 text-[#6C63A8]" />
                 </div>
               </div>
               {isTopLoading ? (
@@ -896,8 +939,9 @@ export function DashboardOverview() {
                   )}
                   <p className={ADMIN_SUBLABEL_CLASS}>{t('overview.placedOrders')}</p>
                 </div>
-                <div className="rounded-[12px] bg-[rgba(108,99,168,0.12)] p-3">
-                  <Users className="h-6 w-6 text-[#6C63A8]" />
+                <div className={ADMIN_KPI_ICON_WRAP_CLASS}>
+                  <span className="absolute inset-x-1 top-1 h-3 rounded-full bg-white/70 blur-sm" />
+                  <Users className="relative z-10 h-5 w-5 text-[#6C63A8]" />
                 </div>
               </div>
             </GlassCard>
@@ -919,34 +963,49 @@ export function DashboardOverview() {
                       : t('overview.allStocked')}
                   </p>
                 </div>
-                <div className="rounded-[12px] bg-[rgba(108,99,168,0.12)] p-3">
-                  <Package className="h-6 w-6 text-[#6C63A8]" />
+                <div className={ADMIN_KPI_ICON_WRAP_CLASS}>
+                  <span className="absolute inset-x-1 top-1 h-3 rounded-full bg-white/70 blur-sm" />
+                  <Package className="relative z-10 h-5 w-5 text-[#6C63A8]" />
                 </div>
               </div>
             </GlassCard>
           </div>
 
-          {!isDetailsLoading && stats && stats.processingOrdersCount > 0 && (
-            <div
-              className="relative flex flex-col gap-3 overflow-hidden rounded-[18px] border border-[#E8E6EF] bg-white px-7 py-4 shadow-[0_10px_24px_rgba(26,26,46,0.05)] sm:flex-row sm:items-center sm:justify-between"
-            >
-              <span
-                aria-hidden="true"
-                className="absolute bottom-0 left-4 top-0 w-4 rounded-l-full border-l-4 border-[#6C63A8] border-t-4 border-b-4 border-[#6C63A8]/0"
-              />
-              <div className="relative flex items-center gap-3 pl-1">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#6C63A8]" />
-                <p className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: ADMIN_TEXT }}>
-                  {t('overview.processingOrdersAlert', { count: stats.processingOrdersCount })}
-                </p>
-              </div>
-              <button
-                onClick={() => navigate(`${withBase('/dashboard/orders')}?filter=processing`)}
-                className="relative inline-flex items-center gap-1 text-[15px] font-semibold text-[#6C63A8] transition-colors hover:text-[#5b5492]"
-              >
-                {t('overview.viewOrders')}
-                <ArrowRight className="h-4 w-4" />
-              </button>
+          {isDetailsLoading || companyUnpaidLoading ? (
+            <div className="flex flex-wrap gap-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-[52px] w-[220px] rounded-[10px]" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {adminAlerts.map((alert) => {
+                const isInactive = alert.count === 0
+                const Icon = alert.icon
+
+                return (
+                  <button
+                    key={alert.key}
+                    onClick={alert.onClick}
+                    className="flex h-[52px] items-center gap-[10px] rounded-[10px] border border-[#E5E7EB] bg-white px-4 py-3 text-left"
+                    style={{
+                      borderLeftWidth: '4px',
+                      borderLeftColor: isInactive ? '#E5E7EB' : alert.color,
+                    }}
+                  >
+                    <Icon
+                      className="h-4 w-4 flex-shrink-0"
+                      style={{ color: isInactive ? '#9CA3AF' : alert.color }}
+                    />
+                    <span
+                      className="whitespace-nowrap text-[13px] font-medium"
+                      style={{ color: isInactive ? '#9CA3AF' : '#1A1A2E' }}
+                    >
+                      {alert.label}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           )}
 

@@ -1092,6 +1092,8 @@
       "noOrdersLast30Days": "No orders in the last 30 days",
       "processingOrdersAlert": "{{count}} order is waiting for processing",
       "processingOrdersAlert_plural": "{{count}} orders are waiting for processing",
+      "outOfStockProducts": "{{count}} products out of stock",
+      "unpaidAlert": "Unpaid: {{amount}}",
       "topCategoriesByRevenue": "Top Categories by Revenue",
       "topCategoriesShort": "Top Categories",
       "revenueDistributionDescription": "Revenue distribution across product categories",
