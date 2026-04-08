@@ -27,9 +27,12 @@ export function useMutationUpdateClient() {
         .eq('role', 'company')
         .eq('tenant_id', tenantId)
         .select()
-        .single()
+        .maybeSingle()
 
       if (error) throw error
+      if (!client) {
+        throw new Error('Client profile could not be updated. Tenant admin profile update policy may be missing.')
+      }
       return client as Client
     },
     onSuccess: (data, variables) => {

@@ -278,6 +278,17 @@ create policy "tenant_profiles_update_own"
   using (tenant_id = public.current_tenant_id() and id = auth.uid())
   with check (tenant_id = public.current_tenant_id() and id = auth.uid());
 
+create policy "tenant_profiles_update_admin"
+  on public.profiles for update
+  using (
+    tenant_id = public.current_tenant_id()
+    and public.is_tenant_admin()
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+    and public.is_tenant_admin()
+  );
+
 -- Products policies
 create policy "tenant_products_select"
   on public.products for select

@@ -63,7 +63,7 @@ export function SettingsPage() {
   }, [location.hash, isAdmin])
 
   const handleCompanySubmit = async (data: CompanyFormData, logoUrl: string | null) => {
-    if (!user || !company || !tenantId) {
+    if (!user || !tenantId) {
       toast({
         title: t('settings.error'),
         description: t('settings.mustBeLoggedIn'),
@@ -75,34 +75,78 @@ export function SettingsPage() {
     setIsSaving(true)
     try {
       const slug = slugify(data.companyName)
+      const companyPayload = {
+        tenant_id: tenantId,
+        name: data.companyName,
+        slug,
+        logo_url: logoUrl,
+        eik_bulstat: data.eikBulstat,
+        vat_number: data.vatNumber,
+        phone: data.phone,
+        city: data.city,
+        address: data.address,
+        website: data.website || null,
+        mol: data.mol,
+        bank_name: data.bankName,
+        iban: data.iban,
+        bic: data.bic,
+      }
 
-      const { data: updatedCompany, error } = await supabase
-        .from('companies')
-        .update({
-          name: data.companyName,
-          slug,
-          logo_url: logoUrl,
-          eik_bulstat: data.eikBulstat,
-          vat_number: data.vatNumber,
-          phone: data.phone,
-          city: data.city,
-          address: data.address,
-          website: data.website || null,
-          // Invoice-related fields
-          mol: data.mol,
-          bank_name: data.bankName,
-          iban: data.iban,
-          bic: data.bic,
-        })
-        .eq('id', company.id)
+      let existingCompanyId = company?.id ?? profile?.company_id ?? null
+      let savedCompany = null as typeof company | null
+
+      if (existingCompanyId) {
+        const { data: updatedCompany, error } = await supabase
+          .from('companies')
+          .update(companyPayload)
+          .eq('id', existingCompanyId)
+          .eq('tenant_id', tenantId)
+          .select()
+          .maybeSingle()
+
+        if (error) throw error
+        savedCompany = updatedCompany
+      }
+
+      if (!savedCompany) {
+        const { data: createdCompany, error: createError } = await supabase
+          .from('companies')
+          .insert(companyPayload)
+          .select()
+          .single()
+
+        if (createError) throw createError
+        savedCompany = createdCompany
+        existingCompanyId = createdCompany.id
+      }
+
+      const profilePatch: Record<string, unknown> = {
+        tenant_id: tenantId,
+        company_id: existingCompanyId,
+        company_name: data.companyName,
+        phone: data.phone,
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(profilePatch)
+        .eq('id', user.id)
         .eq('tenant_id', tenantId)
-        .select()
-        .single()
 
-      if (error) throw error
+      if (profileError) {
+        console.warn('Failed to sync profile company fields after company save:', profileError)
+      }
 
       // Update company in store
-      useAuthStore.getState().setCompany(updatedCompany)
+      useAuthStore.getState().setCompany(savedCompany)
+      if (profile) {
+        useAuthStore.getState().setProfile({
+          ...profile,
+          company_id: existingCompanyId,
+          company_name: data.companyName,
+          phone: data.phone,
+        })
+      }
 
       toast({
         title: t('settings.success'),

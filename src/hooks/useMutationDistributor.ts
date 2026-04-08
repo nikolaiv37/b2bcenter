@@ -32,9 +32,12 @@ export function useMutationUpdateDistributor() {
         .eq('role', 'company') // Ensure we only update company-role profiles
         .eq('tenant_id', tenantId)
         .select()
-        .single()
+        .maybeSingle()
 
       if (error) throw error
+      if (!distributor) {
+        throw new Error('Distributor profile could not be updated. Tenant admin profile update policy may be missing.')
+      }
       return distributor as Distributor
     },
     onSuccess: (data) => {
@@ -112,5 +115,4 @@ export function useMutationCreateDistributor() {
     },
   })
 }
-
 

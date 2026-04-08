@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/authStore'
@@ -37,6 +37,7 @@ export function useAuth() {
   const { tenant, membership } = useTenant()
   const tenantId = tenant?.id ?? null
   const { withBase } = useTenantPath()
+  const lastSilentRefreshAt = useRef(0)
   // Keep ref in sync with profile
   useEffect(() => {
     authBootstrapState.currentProfile = profile
@@ -289,21 +290,29 @@ export function useAuth() {
    * If the profile doesn't exist, creates it automatically with role = 'company'.
    * Bulletproof error handling - RLS errors or other issues won't hang the app.
    */
-  const loadOrCreateProfile = async (user: User) => {
+  const loadOrCreateProfile = async (user: User, options?: { silent?: boolean }) => {
     const userTenantKey = `${user.id}:${tenantId ?? 'no-tenant'}`
+    const finishLoading = () => {
+      if (!options?.silent) {
+        setLoading(false)
+      }
+    }
+
     if (blockedUserTenantPairs.has(userTenantKey)) {
       setProfile(null)
       setCompany(null)
-      setLoading(false)
+      finishLoading()
       return
     }
 
     try {
-      setLoading(true)
+      if (!options?.silent) {
+        setLoading(true)
+      }
       if (!tenantId) {
         setProfile(null)
         setCompany(null)
-        setLoading(false)
+        finishLoading()
         return
       }
 
@@ -350,7 +359,7 @@ export function useAuth() {
             }
             setProfile(null)
             setCompany(null)
-            setLoading(false)
+            finishLoading()
             return
           }
 
@@ -402,7 +411,7 @@ export function useAuth() {
         })
         setProfile(null)
         setCompany(null)
-        setLoading(false)
+        finishLoading()
         return
       } else if (existingProfile) {
         blockedUserTenantPairs.delete(userTenantKey)
@@ -427,7 +436,7 @@ export function useAuth() {
           role: existingProfile.role,
         })
         
-        setLoading(false)
+        finishLoading()
         return
       }
       
@@ -494,7 +503,7 @@ export function useAuth() {
               role: profileToUse.role,
             })
 
-            setLoading(false)
+            finishLoading()
             return
           }
         }
@@ -503,7 +512,7 @@ export function useAuth() {
         // Don't throw - set profile to null and stop loading
         setProfile(null)
         setCompany(null)
-        setLoading(false)
+        finishLoading()
         return
       }
 
@@ -512,7 +521,7 @@ export function useAuth() {
         console.error('Profile insert returned no row; stopping auth bootstrap')
         setProfile(null)
         setCompany(null)
-        setLoading(false)
+        finishLoading()
         return
       }
 
@@ -536,7 +545,7 @@ export function useAuth() {
         role: createdProfile[0].role,
       })
       
-      setLoading(false)
+      finishLoading()
     } catch (error: unknown) {
       // Catch any unexpected errors (network issues, etc.)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -545,12 +554,59 @@ export function useAuth() {
       // Set profile to null and stop loading - don't hang
       setProfile(null)
       setCompany(null)
-      setLoading(false)
+      finishLoading()
     } finally {
       // Ensure loading is always set to false
-      setLoading(false)
+      finishLoading()
     }
   }
+
+  useEffect(() => {
+    if (!user || !tenantId) return
+
+    const refreshProfileSilently = () => {
+      if (document.visibilityState === 'hidden') return
+
+      const now = Date.now()
+      if (now - lastSilentRefreshAt.current < 5000) return
+      lastSilentRefreshAt.current = now
+
+      void loadOrCreateProfile(user, { silent: true })
+    }
+
+    window.addEventListener('focus', refreshProfileSilently)
+    document.addEventListener('visibilitychange', refreshProfileSilently)
+
+    return () => {
+      window.removeEventListener('focus', refreshProfileSilently)
+      document.removeEventListener('visibilitychange', refreshProfileSilently)
+    }
+  }, [tenantId, user])
+
+  useEffect(() => {
+    if (!user || !tenantId) return
+
+    const channel = supabase
+      .channel(`profile-${tenantId}-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          lastSilentRefreshAt.current = Date.now()
+          void loadOrCreateProfile(user, { silent: true })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [tenantId, user])
 
   // Sign out function — clears Supabase session then hard-redirects.
   // Optional `redirectTo` overrides the default login path (useful for passing

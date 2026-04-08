@@ -77,9 +77,9 @@ export function OrderRequestModal({
         .insert({
           tenant_id: tenantId,
           user_id: userId,
-          company_name: company?.name || profile?.full_name || 'Unknown Company',
+          company_name: company?.name || profile?.company_name || profile?.full_name || 'Unknown Company',
           email: user?.email || profile?.email || 'dev@example.com',
-          phone: null, // Can be added later
+          phone: company?.phone || profile?.phone || null,
           notes: notes.trim() || null,
           items: orderItems,
           total: total,
@@ -115,7 +115,7 @@ export function OrderRequestModal({
         entityId: String(data.id),
         metadata: {
           order_number: data.order_number,
-          company_name: company?.name || profile?.full_name || 'Unknown',
+          company_name: company?.name || profile?.company_name || profile?.full_name || 'Unknown',
         },
         targetAudience: 'admins',
       })
@@ -140,7 +140,7 @@ export function OrderRequestModal({
   })
 
   const total = getTotal()
-  const companyName = company?.name || profile?.full_name || 'Your Company'
+  const companyName = company?.name || profile?.company_name || profile?.full_name || 'Your Company'
   const userEmail = user?.email || profile?.email || ''
 
   return (
