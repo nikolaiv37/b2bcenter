@@ -264,23 +264,27 @@ export function AnalyticsPage() {
       
       // Also fetch from quotes table (this is the primary source in Eastern Europe B2B style)
       // For company users, quotes table uses user_id. For admin, show all.
-      let quotesQuery = supabase
-        .from('quotes')
-        .select('id, customer_name, user_id, company_name, email, items, subtotal, tax, shipping, total, status, created_at, updated_at')
-        .eq('tenant_id', tenantId)
+      const buildAnalyticsQuotesQuery = () => {
+        let query = supabase
+          .from('quotes')
+          .select('*')
+          .eq('tenant_id', tenantId)
 
-      // For company users, filter by user_id (TEXT field). For admin, show all quotes.
-      if (!isAdmin && user?.id) {
-        quotesQuery = quotesQuery.eq('user_id', user.id.toString())
+        if (!isAdmin && user?.id) {
+          query = query.eq('user_id', user.id.toString())
+        }
+
+        if (start) {
+          query = query.gte('created_at', start)
+        }
+
+        return query.lte('created_at', end).order('created_at', { ascending: false })
       }
 
-      if (start) {
-        quotesQuery = quotesQuery.gte('created_at', start)
-      }
-      quotesQuery = quotesQuery.lte('created_at', end)
+      const quotesResult = await buildAnalyticsQuotesQuery()
+      const quotesTableData = quotesResult.data as QuoteRow[] | null
+      const quotesError = quotesResult.error
 
-      const { data: quotesTableData, error: quotesError } = await quotesQuery.order('created_at', { ascending: false })
-      
       // Filter quotes - already filtered by user_id for company users, so use as-is
       const filteredQuotes = quotesTableData || []
       
@@ -295,7 +299,7 @@ export function AnalyticsPage() {
         quote_id: q.id ?? null,
         company_id: companyId || null,
         customer_id: q.user_id || '',
-        customer_email: q.email || '',
+        customer_email: q.customer_email || q.email || '',
         customer_name: q.customer_name || q.company_name || '',
         items: q.items || [],
         subtotal: parseFloat(String(q.subtotal || q.total || 0)),
@@ -548,13 +552,23 @@ export function AnalyticsPage() {
       
       if (!isAdmin && user?.id) {
         // Fetch user's own quotes (which are orders in this system)
-        const { data: myQuotes } = await supabase
-          .from('quotes')
-          .select('id, order_number, total, status, created_at')
-          .eq('user_id', user.id.toString())
-          .eq('tenant_id', tenantId)
-          .order('created_at', { ascending: false })
-          .limit(20)
+        const buildMyQuotesQuery = () =>
+          supabase
+            .from('quotes')
+            .select('*')
+            .eq('user_id', user.id.toString())
+            .eq('tenant_id', tenantId)
+            .order('created_at', { ascending: false })
+            .limit(20)
+
+        const myQuotesResult = await buildMyQuotesQuery()
+        const myQuotes = myQuotesResult.data as Array<{
+          id?: string | number | null
+          order_number?: number | string | null
+          total?: string | number | null
+          status?: string | null
+          created_at?: string | null
+        }> | null
 
         const myQuotesList = myQuotes || []
         
@@ -570,8 +584,13 @@ export function AnalyticsPage() {
         myRecentQuotes = myQuotesList.slice(0, 5).map((q) => ({
           id: String(q.id ?? ''),
           order_number:
-            q.order_number ??
-            (typeof q.id === 'number' ? q.id : parseInt(String(q.id ?? ''), 10) || undefined),
+            typeof q.order_number === 'number'
+              ? q.order_number
+              : q.order_number
+                ? parseInt(String(q.order_number), 10) || undefined
+                : typeof q.id === 'number'
+                  ? q.id
+                  : parseInt(String(q.id ?? ''), 10) || undefined,
           total: parseFloat(String(q.total || 0)),
           status: q.status || '',
           created_at: q.created_at || '',

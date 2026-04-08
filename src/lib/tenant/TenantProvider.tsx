@@ -205,7 +205,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         if (!isTimeoutError(error)) {
           console.error('Tenant refresh failed; keeping prior state:', error)
         }
-        if (shouldBlock) {
+
+        // During the first bootstrap, a slow membership lookup should not be
+        // treated as "no access". Keep the guard in loading state so the retry
+        // path can resolve the real membership instead of flashing the
+        // NoAccessPortal for a split second.
+        if (shouldBlock && !isTimeoutError(error)) {
           setMembershipChecked(true)
         }
       } finally {

@@ -149,6 +149,10 @@ function isProcessingStatus(status: string) {
   return ['new', 'draft', 'processing'].includes(status)
 }
 
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
 export function DashboardOverview() {
   const { t } = useTranslation()
   const { user, isAdmin } = useAuth()
@@ -536,47 +540,27 @@ export function DashboardOverview() {
       const productsMap = new Map<string, string>() // product_id -> category
       if (productIds.size > 0) {
         const productIdsArray = Array.from(productIds)
-        
-        // Convert string IDs to integers for the query (products table uses SERIAL/integer IDs)
-        const productIdsInt = productIdsArray
-          .map(id => {
-            const parsed = parseInt(id, 10)
-            return isNaN(parsed) ? null : parsed
-          })
-          .filter((id): id is number => id !== null)
-        
-        
-        if (productIdsInt.length > 0) {
-          // Try multiple query strategies to find products
-          // Strategy 1: Query by integer IDs
+        const productUuidIds = productIdsArray.filter(isUuidLike)
+
+        if (productUuidIds.length > 0) {
+          // Only query by product ID when the quote item ID looks like a UUID.
+          // Old imported quotes may still contain numeric product IDs, which will
+          // crash against the current UUID-based products.id column.
           let productsForCategories: ProductCategoryRow[] = []
-          
+
           const { data, error } = await supabase
             .from('products')
             .select('id, category')
-            .in('id', productIdsInt)
+            .in('id', productUuidIds)
             .eq('tenant_id', tenantId)
-          
+
           productsForCategories = (data as ProductCategoryRow[] | null) ?? []
-          
+
           if (error) {
             console.error('Error fetching products for categories (by ID):', error)
           }
-          
-          // Strategy 2: If no products found, try querying as strings (in case Supabase auto-converts)
-          if ((!productsForCategories || productsForCategories.length === 0) && productIdsInt.length > 0) {
-            const { data: dataStr, error: errorStr } = await supabase
-              .from('products')
-              .select('id, category')
-              .in('id', productIdsArray) // Try with original string array
-              .eq('tenant_id', tenantId)
-            
-            if (!errorStr && dataStr && dataStr.length > 0) {
-              productsForCategories = dataStr as ProductCategoryRow[]
-            }
-          }
-          
-          // Strategy 3: If no products found by ID, try by SKU (SKUs are permanent, IDs may change)
+
+          // If no products found by ID, try by SKU (SKUs are permanent, IDs may change)
           if ((!productsForCategories || productsForCategories.length === 0) && productSkus.size > 0) {
             const skusArray = Array.from(productSkus)
             const { data: productsBySku, error: errorBySku } = await supabase
@@ -605,18 +589,31 @@ export function DashboardOverview() {
               })
             }
           }
-          
+
           if (productsForCategories && productsForCategories.length > 0) {
             productsForCategories.forEach((p) => {
-              // Store both string and integer versions for lookup
               const productIdStr = String(p.id)
               const category = p.category || 'Uncategorized'
               productsMap.set(productIdStr, category)
-              // Also store the integer version as string
-              if (typeof p.id === 'number') {
-                productsMap.set(String(p.id), category)
+            })
+          }
+        } else if (productSkus.size > 0) {
+          const skusArray = Array.from(productSkus)
+          const { data: productsBySku, error: errorBySku } = await supabase
+            .from('products')
+            .select('id, category, sku')
+            .in('sku', skusArray)
+            .eq('tenant_id', tenantId)
+
+          if (!errorBySku && productsBySku && productsBySku.length > 0) {
+            productsBySku.forEach((p) => {
+              const category = p.category || 'Uncategorized'
+              if (p.sku) {
+                productsMap.set(p.sku, category)
               }
             })
+          } else if (errorBySku) {
+            console.error('Error fetching products for categories (by SKU):', errorBySku)
           }
         }
       }
