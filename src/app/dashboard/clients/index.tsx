@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { format, formatDistanceToNow } from 'date-fns'
+import { bg, enUS } from 'date-fns/locale'
 import { GlassCard } from '@/components/GlassCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,11 +65,20 @@ import {
 const ITEMS_PER_PAGE = 12
 
 export function ClientsPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { withBase } = useTenantPath()
   const { isAdmin } = useAuth()
   const { toast } = useToast()
+  const dateLocale = i18n.resolvedLanguage === 'bg' ? bg : enUS
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(i18n.resolvedLanguage === 'bg' ? 'bg-BG' : 'en-US', {
+        style: 'currency',
+        currency: 'EUR',
+      }),
+    [i18n.resolvedLanguage]
+  )
 
   const [searchQuery, setSearchQuery] = useState('')
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -401,7 +411,7 @@ export function ClientsPage() {
   const getJoinedAgo = (date?: string) => {
     if (!date) return null
     try {
-      return formatDistanceToNow(new Date(date), { addSuffix: true })
+      return formatDistanceToNow(new Date(date), { addSuffix: true, locale: dateLocale })
     } catch {
       return null
     }
@@ -714,7 +724,9 @@ export function ClientsPage() {
                           <Tooltip content={joinedAgo || ''} side="top">
                             <span className="text-xs font-medium text-foreground/80 tabular-nums cursor-default">
                               {client.created_at
-                                ? format(new Date(client.created_at), 'MMM d, yyyy')
+                                ? format(new Date(client.created_at), 'MMM d, yyyy', {
+                                    locale: dateLocale,
+                                  })
                                 : '—'}
                             </span>
                           </Tooltip>
@@ -756,7 +768,7 @@ export function ClientsPage() {
                             }`}
                           >
                             {hasUnpaid
-                              ? `€${unpaidAmount.toFixed(2)}`
+                              ? currencyFormatter.format(unpaidAmount)
                               : t('distributors.noUnpaid')}
                           </span>
                         </div>
