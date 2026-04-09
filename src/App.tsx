@@ -29,6 +29,7 @@ const ProductsPage = lazy(() => import('@/app/dashboard/products').then((m) => (
 const ProductDetailPage = lazy(() => import('@/app/dashboard/products/[sku]/page').then((m) => ({ default: m.ProductDetailPage })))
 const WishlistPage = lazy(() => import('@/app/dashboard/wishlist').then((m) => ({ default: m.WishlistPage })))
 const OrdersPage = lazy(() => import('@/app/dashboard/orders').then((m) => ({ default: m.OrdersPage })))
+const OrderTemplatesPage = lazy(() => import('@/app/dashboard/order-templates').then((m) => ({ default: m.OrderTemplatesPage })))
 const QuotesPage = lazy(() => import('@/app/dashboard/quotes').then((m) => ({ default: m.QuotesPage })))
 const CSVImportPage = lazy(() => import('@/app/dashboard/csv-import').then((m) => ({ default: m.CSVImportPage })))
 const SettingsPage = lazy(() => import('@/app/dashboard/settings').then((m) => ({ default: m.SettingsPage })))
@@ -167,6 +168,7 @@ function App() {
                   <Route path="products/:sku" element={<Suspense fallback={<PageLoader />}><ProductDetailPage /></Suspense>} />
                   <Route path="wishlist" element={<Suspense fallback={<PageLoader />}><WishlistPage /></Suspense>} />
                   <Route path="orders" element={<Suspense fallback={<PageLoader />}><OrdersPage /></Suspense>} />
+                  <Route path="order-templates" element={<Suspense fallback={<PageLoader />}><OrderTemplatesPage /></Suspense>} />
                   <Route path="complaints" element={<Suspense fallback={<PageLoader />}><ComplaintsPage /></Suspense>} />
                   <Route path="quotes" element={<Suspense fallback={<PageLoader />}><QuotesPage /></Suspense>} />
                   <Route path="csv-import" element={<Suspense fallback={<PageLoader />}><CSVImportPage /></Suspense>} />

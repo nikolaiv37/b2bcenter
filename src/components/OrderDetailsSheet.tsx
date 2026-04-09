@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils'
 import {
   Mail,
   Copy,
+  Save,
   Printer,
   Building2,
   Phone,
@@ -80,6 +81,8 @@ interface OrderDetailsSheetProps {
   order: Order
   open: boolean
   onOpenChange: (open: boolean) => void
+  onReorder?: () => void
+  onSaveAsTemplate?: () => void
 }
 
 function formatOrderDate(dateString: string): string {
@@ -145,6 +148,8 @@ export function OrderDetailsSheet({
   order,
   open,
   onOpenChange,
+  onReorder,
+  onSaveAsTemplate,
 }: OrderDetailsSheetProps) {
   const { t } = useTranslation()
   const { company, profile } = useAuth()
@@ -519,10 +524,28 @@ export function OrderDetailsSheet({
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => handleAction('duplicate')}
+              onClick={() => {
+                if (onReorder) {
+                  onReorder()
+                  return
+                }
+                handleAction('duplicate')
+              }}
             >
               <Copy className="w-4 h-4 mr-2" />
-              {t('orders.duplicateAsNewOrder')}
+              {t('orders.orderAgain')}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                if (onSaveAsTemplate) {
+                  onSaveAsTemplate()
+                }
+              }}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {t('templates.saveAsTemplate')}
             </Button>
             <Button
               variant="outline"

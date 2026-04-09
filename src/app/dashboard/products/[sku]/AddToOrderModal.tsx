@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label'
 import { useTranslation } from 'react-i18next'
 import { ShoppingCart, Plus, Minus, Loader2, Percent } from 'lucide-react'
 import { formatPrice as formatPriceUtil } from '@/lib/utils'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 interface AddToOrderModalProps {
   product: Product
@@ -41,9 +42,15 @@ export function AddToOrderModal({ product, open, onClose }: AddToOrderModalProps
   const { hasDiscount, commissionRate } = useCommissionRate()
   const [quantity, setQuantity] = useState(1)
   const [isAdding, setIsAdding] = useState(false)
+  const [mode, setMode] = useState<'normal' | 'backorder'>('normal')
 
   const maxQuantity = product.quantity ?? 0
   const isOutOfStock = maxQuantity === 0
+  const exceedsStock = quantity > maxQuantity
+  const isBackorderMode = mode === 'backorder'
+  const canUseNormalMode = !isOutOfStock
+  const canSubmitAsNormal = canUseNormalMode && quantity > 0 && quantity <= maxQuantity
+  const requiresBackorder = isOutOfStock || exceedsStock
   
   // Use adjusted_price if available, otherwise fall back to weboffer_price
   const unitPrice = product.adjusted_price ?? product.weboffer_price ?? 0
@@ -61,25 +68,27 @@ export function AddToOrderModal({ product, open, onClose }: AddToOrderModalProps
   const handleQuantityChange = (delta: number) => {
     setQuantity((prev) => {
       const newQty = prev + delta
-      return Math.max(1, Math.min(newQty, maxQuantity))
+      return Math.max(1, newQty)
     })
   }
 
   // Handle add to cart
   const handleAddToOrder = async () => {
-    if (isOutOfStock) {
+    if (quantity <= 0) {
       toast({
-        title: t('products.outOfStockToast'),
-        description: t('products.outOfStockDescription'),
+        title: t('products.invalidQuantity'),
+        description: t('products.invalidBackorderQuantityDescription'),
         variant: 'destructive',
       })
       return
     }
 
-    if (quantity <= 0 || quantity > maxQuantity) {
+    if (!isBackorderMode && !canSubmitAsNormal) {
       toast({
-        title: t('products.invalidQuantity'),
-        description: t('products.invalidQuantityDescription', { max: maxQuantity }),
+        title: t('products.backorderModeRequiredTitle'),
+        description: isOutOfStock
+          ? t('products.stockZeroBackorderRequired')
+          : t('products.backorderModeRequiredDescription', { max: maxQuantity }),
         variant: 'destructive',
       })
       return
@@ -88,16 +97,21 @@ export function AddToOrderModal({ product, open, onClose }: AddToOrderModalProps
     setIsAdding(true)
     
     // Add to cart (this creates a draft order line)
-    const result = addItem(product, quantity, 'buyer')
+    const result = addItem(product, quantity, 'buyer', {
+      is_backorder: isBackorderMode,
+    })
     
     setIsAdding(false)
 
     if (result.success) {
       toast({
-        title: t('products.addedToOrder'),
-        description: t('products.addedToOrderDescription', { count: quantity, name: product.name }),
+        title: isBackorderMode ? t('products.addedAsBackorder') : t('products.addedToOrder'),
+        description: isBackorderMode
+          ? t('products.addedAsBackorderDescription', { count: quantity, name: product.name })
+          : t('products.addedToOrderDescription', { count: quantity, name: product.name }),
       })
       setQuantity(1) // Reset quantity
+      setMode('normal')
       onClose()
     } else {
       toast({
@@ -110,7 +124,7 @@ export function AddToOrderModal({ product, open, onClose }: AddToOrderModalProps
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="flex max-h-[90vh] max-w-md flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShoppingCart className="w-5 h-5" />
@@ -121,135 +135,187 @@ export function AddToOrderModal({ product, open, onClose }: AddToOrderModalProps
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4">
-          {/* Product Info */}
-          <div className="flex gap-4 p-4 bg-muted/50 rounded-lg">
-            {product.main_image || product.images?.[0] ? (
-              <img
-                src={product.main_image || product.images?.[0]}
-                alt={product.name}
-                className="w-20 h-20 rounded object-cover flex-shrink-0"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                <ShoppingCart className="w-8 h-8 text-muted-foreground" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h4 className="font-semibold line-clamp-2 mb-1">{product.name}</h4>
-              <p className="text-xs text-muted-foreground font-mono mb-1">
-                SKU: {product.sku}
-              </p>
-              <div className="flex items-center gap-2">
-                <p className="text-lg font-bold text-primary">
-                  {formatPrice(unitPrice)}
+        <div className="mt-4 flex-1 overflow-y-auto pr-1">
+          <div className="space-y-6">
+            {/* Product Info */}
+            <div className="flex gap-4 p-4 bg-muted/50 rounded-lg">
+              {product.main_image || product.images?.[0] ? (
+                <img
+                  src={product.main_image || product.images?.[0]}
+                  alt={product.name}
+                  className="w-20 h-20 rounded object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                  <ShoppingCart className="w-8 h-8 text-muted-foreground" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold line-clamp-2 mb-1">{product.name}</h4>
+                <p className="text-xs text-muted-foreground font-mono mb-1">
+                  SKU: {product.sku}
                 </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg font-bold text-primary">
+                    {formatPrice(unitPrice)}
+                  </p>
+                  {hasCommissionDiscount && (
+                    <Badge 
+                      variant="secondary" 
+                      className="gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                    >
+                      <Percent className="w-2.5 h-2.5" />
+                      {Math.round(commissionRate * 100)}% OFF
+                    </Badge>
+                  )}
+                </div>
                 {hasCommissionDiscount && (
-                  <Badge 
-                    variant="secondary" 
-                    className="gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                  >
-                    <Percent className="w-2.5 h-2.5" />
-                    {Math.round(commissionRate * 100)}% OFF
-                  </Badge>
+                  <p className="text-sm text-muted-foreground line-through">
+                    {formatPrice(basePrice)}
+                  </p>
                 )}
               </div>
-              {hasCommissionDiscount && (
-                <p className="text-sm text-muted-foreground line-through">
-                  {formatPrice(basePrice)}
-                </p>
-              )}
             </div>
-          </div>
 
-          {/* Quantity Selection */}
-          <div>
-            <Label htmlFor="quantity">Quantity</Label>
-            <div className="flex items-center gap-3 mt-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleQuantityChange(-1)}
-                disabled={quantity <= 1 || isOutOfStock}
-                className="h-10 w-10"
+            {/* Mode Selection */}
+            <div className="space-y-3">
+              <Label>{t('products.fulfillmentMode')}</Label>
+              <RadioGroup
+                value={mode}
+                onValueChange={(value) => setMode(value as 'normal' | 'backorder')}
+                className="gap-3"
               >
-                <Minus className="w-4 h-4" />
-              </Button>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                max={maxQuantity}
-                value={quantity}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 1
-                  setQuantity(Math.max(1, Math.min(val, maxQuantity)))
-                }}
-                className="text-center text-lg font-semibold h-10"
-                disabled={isOutOfStock}
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleQuantityChange(1)}
-                disabled={quantity >= maxQuantity || isOutOfStock}
-                className="h-10 w-10"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
+                <label
+                  className={`flex items-start gap-3 rounded-lg border p-3 ${
+                    mode === 'normal' ? 'border-primary bg-primary/5' : 'border-border'
+                  } ${!canUseNormalMode ? 'opacity-60' : ''}`}
+                >
+                  <RadioGroupItem
+                    value="normal"
+                    id="fulfillment-normal"
+                    disabled={!canUseNormalMode}
+                    className="mt-1"
+                  />
+                  <div className="space-y-1">
+                    <p className="font-medium">{t('products.normalOrderMode')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t('products.normalOrderModeDescription', { max: maxQuantity })}
+                    </p>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-start gap-3 rounded-lg border p-3 ${
+                    mode === 'backorder' ? 'border-primary bg-primary/5' : 'border-border'
+                  }`}
+                >
+                  <RadioGroupItem value="backorder" id="fulfillment-backorder" className="mt-1" />
+                  <div className="space-y-1">
+                    <p className="font-medium">{t('products.backorderMode')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t('products.backorderModeDescription')}
+                    </p>
+                  </div>
+                </label>
+              </RadioGroup>
             </div>
-            {!isOutOfStock && (
+
+            {/* Quantity Selection */}
+            <div>
+              <Label htmlFor="quantity">Quantity</Label>
+              <div className="flex items-center gap-3 mt-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleQuantityChange(-1)}
+                  disabled={quantity <= 1}
+                  className="h-10 w-10"
+                >
+                  <Minus className="w-4 h-4" />
+                </Button>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 1
+                    setQuantity(Math.max(1, val))
+                  }}
+                  className="text-center text-lg font-semibold h-10"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleQuantityChange(1)}
+                  className="h-10 w-10"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground mt-2">
-                {maxQuantity > 0
-                  ? `${maxQuantity} available in stock`
-                  : 'Out of stock'}
+                {isOutOfStock
+                  ? t('products.stockUnavailableRequestHint')
+                  : t('products.stockAvailableCount', { count: maxQuantity })}
               </p>
-            )}
-          </div>
-
-          {/* Total */}
-          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-            <span className="font-semibold">Total</span>
-            <span className="text-2xl font-bold text-primary">
-              {formatPrice(total)}
-            </span>
-          </div>
-
-          {/* Info Message */}
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <p className="text-sm text-blue-900 dark:text-blue-200">
-              This will be added to your draft order. You can review and submit it later from your cart.
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-              disabled={isAdding}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddToOrder}
-              disabled={isOutOfStock || isAdding}
-              className="flex-1"
-            >
-              {isAdding ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('products.adding')}
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  {t('products.addToOrder')}
-                </>
+              {requiresBackorder && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+                  {isOutOfStock
+                    ? t('products.stockZeroBackorderRequired')
+                    : t('products.backorderRequiredForQuantity', {
+                        requested: quantity,
+                        max: maxQuantity,
+                      })}
+                </div>
               )}
-            </Button>
+            </div>
+
+            {/* Total */}
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <span className="font-semibold">Total</span>
+              <span className="text-2xl font-bold text-primary">
+                {formatPrice(total)}
+              </span>
+            </div>
+
+            {/* Info Message */}
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/20">
+              <p className="text-sm text-blue-900 dark:text-blue-200">
+                {isBackorderMode
+                  ? t('products.backorderDraftOrderInfo')
+                  : t('products.draftOrderInfo')}
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-4 flex gap-3 border-t pt-4">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="flex-1"
+            disabled={isAdding}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAddToOrder}
+            disabled={isAdding || (!isBackorderMode && !canSubmitAsNormal)}
+            className="flex-1"
+          >
+            {isAdding ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {t('products.adding')}
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                {isBackorderMode ? t('products.addAsBackorder') : t('products.addToOrder')}
+              </>
+            )}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

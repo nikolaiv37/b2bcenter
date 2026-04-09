@@ -129,6 +129,7 @@ export interface QuoteItem {
   quantity: number
   unit_price: number
   total: number
+  is_backorder?: boolean
 }
 
 // New order workflow statuses
@@ -151,6 +152,7 @@ export interface Quote {
   notes?: string
   customer_email?: string
   customer_name?: string
+  has_backorder_items?: boolean
   created_at: string
   updated_at: string
 }
@@ -211,6 +213,7 @@ export interface Order {
   payment_status?: 'pending' | 'paid' | 'failed' | 'refunded'
   tracking_number?: string
   notes?: string
+  has_backorder_items?: boolean
   created_at: string
   updated_at: string
   shipped_at?: string
@@ -229,6 +232,7 @@ export interface CartItem {
   quantity: number
   price: number
   total: number
+  is_backorder?: boolean
 }
 
 export interface DashboardStats {

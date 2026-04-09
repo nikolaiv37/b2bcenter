@@ -405,10 +405,9 @@ export function ProductDetailPage() {
                 size="lg"
                 className="w-full text-lg py-6"
                 onClick={() => setAddToOrderOpen(true)}
-                disabled={isOutOfStock}
               >
                 <ShoppingCart className="w-5 h-5 mr-2" />
-                {t('products.addToOrder')}
+                {isOutOfStock ? t('products.requestBackorder') : t('products.addToOrder')}
               </Button>
               <Button
                 variant="outline"

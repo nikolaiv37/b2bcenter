@@ -1,4 +1,5 @@
 import { useCartStore } from '@/stores/cartStore'
+import { useTranslation } from 'react-i18next'
 import {
   Sheet,
   SheetContent,
@@ -19,6 +20,7 @@ interface CartDrawerProps {
 }
 
 export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerProps) {
+  const { t } = useTranslation()
   const { items, updateQuantity, removeItem, getTotal, getItemCount } = useCartStore()
   const { hasDiscount, commissionRate } = useCommissionRate()
 
@@ -33,9 +35,11 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
 
     // Get max quantity from stock
     const maxQuantity = item.product.quantity ?? 0
-    const finalQuantity = Math.min(newQuantity, maxQuantity)
+    const finalQuantity = item.is_backorder ? newQuantity : Math.min(newQuantity, maxQuantity)
 
-    updateQuantity(productId, finalQuantity, 'buyer')
+    updateQuantity(productId, finalQuantity, 'buyer', {
+      is_backorder: item.is_backorder,
+    })
   }
 
   const total = getTotal()
@@ -87,6 +91,7 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
                 const product = item.product
                 const maxQuantity = product.quantity ?? 0
                 const image = product.main_image || product.images?.[0]
+                const isBackorder = item.is_backorder ?? false
 
                 return (
                   <div
@@ -120,6 +125,11 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
                         <div className="text-sm font-bold text-primary">
                           {formatPrice(item.price)} each
                         </div>
+                        {isBackorder && (
+                          <Badge variant="outline" className="text-[10px] font-semibold">
+                            {t('cart.backorderBadge')}
+                          </Badge>
+                        )}
                         {hasItemDiscount(item) && (
                           <Badge 
                             variant="secondary" 
@@ -150,7 +160,7 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => handleQuantityChange(product.id, item.quantity + 1)}
-                          disabled={item.quantity >= maxQuantity}
+                          disabled={!isBackorder && item.quantity >= maxQuantity}
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
@@ -163,9 +173,14 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                      {item.quantity >= maxQuantity && maxQuantity > 0 && (
+                      {!isBackorder && item.quantity >= maxQuantity && maxQuantity > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Max stock: {maxQuantity}
+                        </p>
+                      )}
+                      {isBackorder && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t('cart.backorderLineHint')}
                         </p>
                       )}
                     </div>

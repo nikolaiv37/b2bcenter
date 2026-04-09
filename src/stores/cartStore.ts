@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Product, CartItem } from '@/types'
 
+interface CartLineOptions {
+  is_backorder?: boolean
+}
+
 /**
  * Get the effective price for a product.
  * Uses adjusted_price if available (for commission discounts), otherwise weboffer_price.
@@ -13,12 +17,22 @@ function getEffectivePrice(product: Product): number {
 
 interface CartState {
   items: CartItem[]
-  addItem: (product: Product, quantity: number, userRole?: 'admin' | 'sales' | 'buyer' | 'company') => {
+  addItem: (
+    product: Product,
+    quantity: number,
+    userRole?: 'admin' | 'sales' | 'buyer' | 'company',
+    options?: CartLineOptions,
+  ) => {
     success: boolean
     message?: string
   }
   removeItem: (productId: string) => void
-  updateQuantity: (productId: string, quantity: number, userRole?: 'admin' | 'sales' | 'buyer' | 'company') => {
+  updateQuantity: (
+    productId: string,
+    quantity: number,
+    userRole?: 'admin' | 'sales' | 'buyer' | 'company',
+    options?: CartLineOptions,
+  ) => {
     success: boolean
     message?: string
   }
@@ -32,11 +46,13 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
 
-      addItem: (product, quantity, _userRole) => {
+      addItem: (product, quantity, _userRole, options) => {
         void _userRole
         // Validate stock (use quantity field)
         const stock = product.quantity ?? 0
-        if (quantity > stock) {
+        const isBackorder = options?.is_backorder ?? false
+
+        if (!isBackorder && quantity > stock) {
           return {
             success: false,
             message: `Only ${stock} units available in stock`,
@@ -57,8 +73,11 @@ export const useCartStore = create<CartState>()(
 
         if (existingItemIndex > -1) {
           // Update existing item
+          const existingItem = items[existingItemIndex]
+          const nextIsBackorder = existingItem.is_backorder || isBackorder
           const newQuantity = items[existingItemIndex].quantity + quantity
-          if (newQuantity > stock) {
+
+          if (!nextIsBackorder && newQuantity > stock) {
             return {
               success: false,
               message: `Only ${stock} units available in stock`,
@@ -74,6 +93,7 @@ export const useCartStore = create<CartState>()(
             quantity: newQuantity,
             price: unitPrice,
             total: unitPrice * newQuantity,
+            is_backorder: nextIsBackorder,
           }
 
           set({ items: updatedItems })
@@ -85,6 +105,7 @@ export const useCartStore = create<CartState>()(
             quantity,
             price: unitPrice,
             total: unitPrice * quantity,
+            is_backorder: isBackorder,
           }
 
           set({ items: [...items, newItem] })
@@ -99,7 +120,7 @@ export const useCartStore = create<CartState>()(
         }))
       },
 
-      updateQuantity: (productId, quantity, _userRole) => {
+      updateQuantity: (productId, quantity, _userRole, options) => {
         void _userRole
         const items = get().items
         const itemIndex = items.findIndex((item) => item.product.id === productId)
@@ -120,7 +141,9 @@ export const useCartStore = create<CartState>()(
 
         // Validate stock (use quantity field)
         const stock = item.product.quantity ?? 0
-        if (quantity > stock) {
+        const nextIsBackorder = options?.is_backorder ?? item.is_backorder ?? false
+
+        if (!nextIsBackorder && quantity > stock) {
           return {
             success: false,
             message: `Only ${stock} units available in stock`,
@@ -135,6 +158,7 @@ export const useCartStore = create<CartState>()(
           quantity,
           price: unitPrice,
           total: unitPrice * quantity,
+          is_backorder: nextIsBackorder,
         }
 
         set({ items: updatedItems })

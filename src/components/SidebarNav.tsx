@@ -50,6 +50,12 @@ const mainNavItemsConfig = [
     icon: FileText,
     badge: 0, // TODO: Calculate from orders with awaiting_payment status
   },
+  {
+    titleKey: 'nav.orderTemplates',
+    href: '/dashboard/order-templates',
+    icon: FileText,
+    companyOnly: true,
+  },
   // Admin-only: Clients (Distributors), shown under Orders in main navigation
   {
     titleKey: 'nav.distributors',
@@ -126,7 +132,16 @@ export function SidebarNav({ mobile = false, onNavigate }: SidebarNavProps) {
 
   // Translate navigation items
   const mainNavItems = mainNavItemsConfig
-    .filter((item) => !(item as { adminOnly?: boolean }).adminOnly || isAdmin)
+    .filter((item) => {
+      const navItem = item as { adminOnly?: boolean; companyOnly?: boolean }
+      if (navItem.adminOnly && !isAdmin) {
+        return false
+      }
+      if (navItem.companyOnly && isAdmin) {
+        return false
+      }
+      return true
+    })
     .map((item) => ({
       ...item,
       title: t(item.titleKey),

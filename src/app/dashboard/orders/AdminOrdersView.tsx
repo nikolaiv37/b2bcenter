@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/use-toast'
 import { Eye, Search, Building2, X } from 'lucide-react'
 import { SHIPPING_METHOD_CONFIG } from '@/types'
@@ -46,6 +47,7 @@ interface OrderItem {
   unit_price: number
   total: number
   image_url?: string
+  is_backorder?: boolean
 }
 
 interface Order {
@@ -60,6 +62,7 @@ interface Order {
   internal_notes?: string
   items: OrderItem[]
   total: number
+  has_backorder_items?: boolean
   shipping_method: 'warehouse_pickup' | 'transport_company' | 'dropshipping' | 'shop_delivery'
   status: 'processing' | 'awaiting_payment' | 'shipped' | 'completed' | 'rejected'
   created_at: string
@@ -77,6 +80,7 @@ interface QuoteRow {
   internal_notes?: string | null
   items?: unknown
   total?: number | string | null
+  has_backorder_items?: boolean | null
   shipping_method?: string | null
   status?: string | null
   created_at?: string
@@ -158,6 +162,9 @@ function isThisMonth(dateString: string): boolean {
   )
 }
 
+const BACKORDER_BADGE_CLASSNAME =
+  'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+
 export function AdminOrdersView() {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -167,6 +174,7 @@ export function AdminOrdersView() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [companyFilter, setCompanyFilter] = useState<string>('all')
+  const [backorderFilter, setBackorderFilter] = useState<string>('all')
   const [shippingFilter, setShippingFilter] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState<string>('all')
   const { toast } = useToast()
@@ -201,7 +209,7 @@ export function AdminOrdersView() {
       // quotes internal_notes migration yet.
       const withInternalNotes = await supabase
         .from('quotes')
-        .select('id, order_number, user_id, company_name, email, phone, notes, items, total, shipping_method, status, created_at, updated_at, internal_notes')
+        .select('id, order_number, user_id, company_name, email, phone, notes, items, total, has_backorder_items, shipping_method, status, created_at, updated_at, internal_notes')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
 
@@ -213,7 +221,7 @@ export function AdminOrdersView() {
 
         const withoutInternalNotes = await supabase
           .from('quotes')
-          .select('id, order_number, user_id, company_name, email, phone, notes, items, total, shipping_method, status, created_at, updated_at')
+          .select('id, order_number, user_id, company_name, email, phone, notes, items, total, has_backorder_items, shipping_method, status, created_at, updated_at')
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false })
 
@@ -282,6 +290,7 @@ export function AdminOrdersView() {
             internal_notes: quote.internal_notes || '',
             items: Array.isArray(quote.items) ? (quote.items as OrderItem[]) : [],
             total: Number(quote.total ?? 0),
+            has_backorder_items: Boolean(quote.has_backorder_items),
             shipping_method:
               quote.shipping_method === 'warehouse_pickup' ||
               quote.shipping_method === 'transport_company' ||
@@ -357,14 +366,14 @@ export function AdminOrdersView() {
       }
 
       toast({
-        title: 'Status updated',
-        description: 'The order status has been updated.',
+        title: t('adminOrders.statusUpdated'),
+        description: t('adminOrders.statusUpdatedDescription'),
       })
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error updating status',
-        description: error.message || 'Failed to update order status.',
+        title: t('adminOrders.errorUpdatingStatus'),
+        description: error.message || t('adminOrders.errorUpdatingStatusDescription'),
         variant: 'destructive',
       })
     },
@@ -387,14 +396,14 @@ export function AdminOrdersView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-orders'] })
       toast({
-        title: 'Notes updated',
-        description: 'Internal notes have been saved.',
+        title: t('adminOrders.notesUpdated'),
+        description: t('adminOrders.notesUpdatedDescription'),
       })
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error updating notes',
-        description: error.message || 'Failed to update internal notes.',
+        title: t('adminOrders.errorUpdatingNotes'),
+        description: error.message || t('adminOrders.errorUpdatingNotesDescription'),
         variant: 'destructive',
       })
     },
@@ -452,6 +461,13 @@ export function AdminOrdersView() {
       )
     }
 
+    // Backorder filter
+    if (backorderFilter === 'backorder') {
+      filtered = filtered.filter((order) => order.has_backorder_items)
+    } else if (backorderFilter === 'standard') {
+      filtered = filtered.filter((order) => !order.has_backorder_items)
+    }
+
     // Shipping method filter
     if (shippingFilter !== 'all') {
       filtered = filtered.filter((order) => order.shipping_method === shippingFilter)
@@ -467,7 +483,7 @@ export function AdminOrdersView() {
     }
 
     return filtered
-  }, [orders, searchQuery, statusFilter, companyFilter, shippingFilter, dateFilter])
+  }, [orders, searchQuery, statusFilter, companyFilter, backorderFilter, shippingFilter, dateFilter])
 
   const handleViewDetails = (order: Order) => {
     setSelectedOrder(order)
@@ -566,7 +582,7 @@ export function AdminOrdersView() {
               />
             </div>
 
-            {/* Company + Status + Shipping + Date filters */}
+            {/* Company + Status + Backorder + Shipping + Date filters */}
             <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
               {/* Company Filter */}
               <div className="relative">
@@ -622,6 +638,18 @@ export function AdminOrdersView() {
                   <SelectItem value="shipped">{t('adminOrders.shipped')}</SelectItem>
                   <SelectItem value="completed">{t('adminOrders.completedSent')}</SelectItem>
                   <SelectItem value="rejected">{t('adminOrders.rejected')}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Backorder Filter */}
+              <Select value={backorderFilter} onValueChange={setBackorderFilter}>
+                <SelectTrigger className="w-full sm:w-[190px]">
+                  <SelectValue placeholder={t('adminOrders.backorderFilter')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('adminOrders.allOrderTypes')}</SelectItem>
+                  <SelectItem value="standard">{t('adminOrders.standardOrders')}</SelectItem>
+                  <SelectItem value="backorder">{t('adminOrders.backorderRequests')}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -683,7 +711,7 @@ export function AdminOrdersView() {
                   <TableCell colSpan={8} className="text-center py-8">
                     <div className="flex flex-col items-center gap-2">
                       <p className="text-muted-foreground">{t('orders.noOrdersFound')}</p>
-                      {searchQuery || statusFilter !== 'all' || companyFilter !== 'all' || shippingFilter !== 'all' || dateFilter !== 'all' ? (
+                      {searchQuery || statusFilter !== 'all' || companyFilter !== 'all' || backorderFilter !== 'all' || shippingFilter !== 'all' || dateFilter !== 'all' ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -691,6 +719,7 @@ export function AdminOrdersView() {
                             setSearchQuery('')
                             setStatusFilter('all')
                             setCompanyFilter('all')
+                            setBackorderFilter('all')
                             setShippingFilter('all')
                             setDateFilter('all')
                             // Clear URL params
@@ -719,7 +748,17 @@ export function AdminOrdersView() {
                       {formatOrderDate(order.created_at)}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{order.company_name}</div>
+                      <div className="space-y-1">
+                        <div className="font-medium">{order.company_name}</div>
+                        {order.has_backorder_items && (
+                          <Badge
+                            variant="outline"
+                            className={cn('text-[10px] font-semibold', BACKORDER_BADGE_CLASSNAME)}
+                          >
+                            {t('adminOrders.backorderBadge')}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm">
@@ -759,7 +798,7 @@ export function AdminOrdersView() {
                         onClick={() => handleViewDetails(order)}
                       >
                         <Eye className="w-4 h-4 mr-2" />
-                        View Details
+                        {t('adminOrders.viewDetails')}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -815,7 +854,17 @@ export function AdminOrdersView() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">{t('orders.companyName')}</p>
-                    <p className="text-sm font-medium">{selectedOrder.company_name}</p>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{selectedOrder.company_name}</p>
+                      {selectedOrder.has_backorder_items && (
+                        <Badge
+                          variant="outline"
+                          className={cn('text-[10px] font-semibold', BACKORDER_BADGE_CLASSNAME)}
+                        >
+                          {t('adminOrders.backorderBadge')}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">{t('general.date')}</p>
@@ -863,6 +912,17 @@ export function AdminOrdersView() {
                             <p className="text-sm text-muted-foreground font-mono">
                               {t('products.sku')}: {item.sku}
                             </p>
+                            {item.is_backorder && (
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'mt-2 text-[10px] font-semibold',
+                                  BACKORDER_BADGE_CLASSNAME
+                                )}
+                              >
+                                {t('adminOrders.backorderBadge')}
+                              </Badge>
+                            )}
                             <p className="text-sm text-muted-foreground">
                               {formatPrice(item.unit_price)} × {item.quantity}
                             </p>
@@ -885,7 +945,9 @@ export function AdminOrdersView() {
                 {/* Customer Notes */}
                 {selectedOrder.notes && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Customer Notes</p>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      {t('adminOrders.customerNotes')}
+                    </p>
                     <p className="text-sm whitespace-pre-wrap">{selectedOrder.notes}</p>
                   </div>
                 )}
@@ -903,7 +965,7 @@ export function AdminOrdersView() {
                 {/* Internal Notes (Admin Only) */}
                 {supportsInternalNotes ? (
                   <div>
-                    <Label htmlFor="internal-notes">Internal Notes</Label>
+                    <Label htmlFor="internal-notes">{t('adminOrders.internalNotes')}</Label>
                     <Textarea
                       id="internal-notes"
                       value={selectedOrder.internal_notes || ''}
@@ -916,17 +978,17 @@ export function AdminOrdersView() {
                           handleInternalNotesChange(e.target.value)
                         }
                       }}
-                      placeholder="Add internal notes about this order (only visible to admins)..."
+                      placeholder={t('adminOrders.internalNotesPlaceholder')}
                       rows={4}
                       className="mt-2"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      These notes are only visible to admins and will not be shown to the customer.
+                      {t('adminOrders.internalNotesHint')}
                     </p>
                   </div>
                 ) : (
                   <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                    Internal notes are not available for this tenant yet (missing `quotes.internal_notes` migration).
+                    {t('adminOrders.internalNotesUnavailable')}
                   </div>
                 )}
 

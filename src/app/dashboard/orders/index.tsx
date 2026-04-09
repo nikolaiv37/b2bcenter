@@ -40,6 +40,7 @@ import {
   FileText,
   Mail,
   Copy,
+  Save,
   Loader2,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
@@ -48,6 +49,8 @@ import { ShippingMethodBadge } from '@/components/ShippingMethodBadge'
 import type { ProformaInvoicePDFProps } from '@/components/ProformaInvoicePDF'
 import { Company } from '@/types'
 import { useToast } from '@/components/ui/use-toast'
+import { useOrderSourceCartLoader } from '@/lib/orderSourceCart'
+import { SaveOrderTemplateDialog } from '@/features/order-templates/SaveOrderTemplateDialog'
 
 // Order status types - new simplified workflow
 type OrderStatus =
@@ -338,9 +341,12 @@ function CompanyOrdersView() {
   const { toast } = useToast()
   const { workspaceId: tenantId } = useAppContext()
   const { withBase } = useTenantPath()
+  const { replaceCartWithSource } = useOrderSourceCartLoader()
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [templateDialogOrder, setTemplateDialogOrder] = useState<Order | null>(null)
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [shippingFilter, setShippingFilter] = useState<string>('all')
@@ -513,6 +519,58 @@ function CompanyOrdersView() {
     }),
     [orders],
   )
+
+  const handleReorder = async (order: Order) => {
+    try {
+      const result = await replaceCartWithSource(order.items, {
+        confirmReplace: () => window.confirm(t('orders.reorderReplaceCartConfirm')),
+      })
+
+      if (result.cancelled) {
+        return
+      }
+
+      const issueCount =
+        result.missingSkus.length +
+        result.unavailableSkus.length +
+        result.adjustedQuantities.length
+
+      if (result.addedCount === 0) {
+        toast({
+          title: t('orders.orderAgain'),
+          description: t('orders.reorderNothingAvailable'),
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const description =
+        issueCount === 0
+          ? t('orders.reorderLoaded', { count: result.addedCount })
+          : t('orders.reorderPartiallyLoaded', {
+              count: result.addedCount,
+              missing: result.missingSkus.length,
+              unavailable: result.unavailableSkus.length,
+              adjusted: result.adjustedQuantities.length,
+            })
+
+      toast({
+        title: t('orders.orderAgain'),
+        description,
+      })
+    } catch (error) {
+      toast({
+        title: t('settings.error'),
+        description: error instanceof Error ? error.message : t('orders.reorderFailed'),
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const openSaveTemplateDialog = (order: Order) => {
+    setTemplateDialogOrder(order)
+    setTemplateDialogOpen(true)
+  }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -708,14 +766,17 @@ function CompanyOrdersView() {
     }
   }
 
-  const handleOrderAction = (_order: Order, action: string) => {
+  const handleOrderAction = async (order: Order, action: string) => {
     // TODO: Implement per-order actions (duplicate, send email, etc.)
     switch (action) {
       case 'duplicate':
-        // TODO: Duplicate order logic
+        await handleReorder(order)
         break
       case 'proforma':
         // TODO: Generate proforma invoice
+        break
+      case 'save_template':
+        openSaveTemplateDialog(order)
         break
       case 'send_email':
         // TODO: Send email
@@ -993,14 +1054,14 @@ function CompanyOrdersView() {
                     <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
+                        size="sm"
                         onClick={() => {
                           setSelectedOrder(order)
                           setDetailsOpen(true)
                         }}
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-4 w-4 mr-2" />
+                        {t('orders.viewDetails')}
                       </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1017,7 +1078,13 @@ function CompanyOrdersView() {
                             onClick={() => handleOrderAction(order, 'duplicate')}
                           >
                             <Copy className="w-4 h-4 mr-2" />
-                            {t('orders.duplicateAsNewOrder')}
+                            {t('orders.orderAgain')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleOrderAction(order, 'save_template')}
+                          >
+                            <Save className="w-4 h-4 mr-2" />
+                            {t('templates.saveAsTemplate')}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleOrderAction(order, 'proforma')}
@@ -1049,8 +1116,25 @@ function CompanyOrdersView() {
           order={selectedOrder}
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
+          onReorder={() => {
+            void handleReorder(selectedOrder)
+          }}
+          onSaveAsTemplate={() => {
+            openSaveTemplateDialog(selectedOrder)
+          }}
         />
       )}
+
+      <SaveOrderTemplateDialog
+        order={templateDialogOrder}
+        open={templateDialogOpen}
+        onOpenChange={(open) => {
+          setTemplateDialogOpen(open)
+          if (!open) {
+            setTemplateDialogOrder(null)
+          }
+        }}
+      />
 
     </div>
   )
