@@ -322,6 +322,7 @@
       "addToOrder": "Добави в Поръчка",
       "requestBackorder": "Заявка / Backorder",
       "quickAdd1Pc": "Бързо добавяне 1 бр.",
+      "adminViewOnly": "Само преглед (админ)",
       "onlyLeft": "Остават само {{count}}",
       "outOfStockToast": "Изчерпано",
       "outOfStockDescription": "Този продукт в момента е изчерпан.",

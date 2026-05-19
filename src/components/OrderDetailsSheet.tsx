@@ -521,20 +521,23 @@ export function OrderDetailsSheet({
               </Button>
             )}
             {/* Other actions - visible for all users */}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                if (onReorder) {
-                  onReorder()
-                  return
-                }
-                handleAction('duplicate')
-              }}
-            >
-              <Copy className="w-4 h-4 mr-2" />
-              {t('orders.orderAgain')}
-            </Button>
+            {/* Reorder — hidden for admins */}
+            {isCompanyUser && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  if (onReorder) {
+                    onReorder()
+                    return
+                  }
+                  handleAction('duplicate')
+                }}
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                {t('orders.orderAgain')}
+              </Button>
+            )}
             <Button
               variant="outline"
               className="w-full"

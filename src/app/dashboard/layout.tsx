@@ -181,25 +181,27 @@ export function DashboardLayout() {
                 {/* Vertical Divider */}
                 <div className="hidden h-6 w-px bg-gray-200 dark:bg-gray-700 md:block"></div>
 
-                {/* Cart Icon */}
-                <div className="order-3 md:order-none">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative h-9 w-9 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    onClick={() => setCartOpen(true)}
-                  >
-                    <ShoppingCart className="h-5 w-5" />
-                    {cartItemCount > 0 && (
-                      <Badge
-                        variant="destructive"
-                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                      >
-                        {cartItemCount > 99 ? '99+' : cartItemCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </div>
+                {/* Cart Icon — hidden for admins */}
+                {!isAdmin && (
+                  <div className="order-3 md:order-none">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative h-9 w-9 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      onClick={() => setCartOpen(true)}
+                    >
+                      <ShoppingCart className="h-5 w-5" />
+                      {cartItemCount > 0 && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                        >
+                          {cartItemCount > 99 ? '99+' : cartItemCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </div>
+                )}
 
                 {/* Vertical Divider */}
                 <div className="hidden h-6 w-px bg-gray-200 dark:bg-gray-700 md:block"></div>
@@ -327,31 +329,34 @@ export function DashboardLayout() {
         </main>
       </div>
 
-      {/* Cart Drawer */}
-      <CartDrawer
-        open={cartOpen}
-        onOpenChange={setCartOpen}
-        onRequestQuote={() => {
-          setCartOpen(false)
-          setQuoteModalOpen(true)
-        }}
-      />
+      {/* Cart Drawer — hidden for admins */}
+      {!isAdmin && (
+        <CartDrawer
+          open={cartOpen}
+          onOpenChange={setCartOpen}
+          onRequestQuote={() => {
+            setCartOpen(false)
+            setQuoteModalOpen(true)
+          }}
+        />
+      )}
 
-      {/* Order Request Modal */}
-      <OrderRequestModal
-        open={quoteModalOpen}
-        onClose={() => setQuoteModalOpen(false)}
-        onSuccess={(orderId) => {
-          setQuoteModalOpen(false)
-          setCartOpen(false)
-          // Redirect to orders page with new order highlight
-          if (orderId) {
-            navigate(`${withBase('/dashboard/orders')}?newOrder=${orderId}`)
-          } else {
-            navigate(withBase('/dashboard/orders'))
-          }
-        }}
-      />
+      {/* Order Request Modal — hidden for admins */}
+      {!isAdmin && (
+        <OrderRequestModal
+          open={quoteModalOpen}
+          onClose={() => setQuoteModalOpen(false)}
+          onSuccess={(orderId) => {
+            setQuoteModalOpen(false)
+            setCartOpen(false)
+            if (orderId) {
+              navigate(`${withBase('/dashboard/orders')}?newOrder=${orderId}`)
+            } else {
+              navigate(withBase('/dashboard/orders'))
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

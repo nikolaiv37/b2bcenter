@@ -10,6 +10,7 @@ import { useCartStore } from '@/stores/cartStore'
 import { useWishlist } from '@/hooks/useWishlist'
 import { useQueryProductBySku } from '@/hooks/useQueryProducts'
 import { useCommissionRate } from '@/hooks/useCommissionRate'
+import { useAppContext } from '@/lib/app/AppContext'
 import {
   Package,
   ChevronLeft,
@@ -21,6 +22,7 @@ import {
   ChevronRight as ChevronRightIcon,
   Heart,
   Percent,
+  Eye,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn, formatPrice as formatPriceUtil } from '@/lib/utils'
@@ -53,6 +55,8 @@ export function ProductDetailPage() {
   const { addItem } = useCartStore()
   const { isInWishlist, toggleWishlist } = useWishlist()
   const { hasDiscount, commissionRate } = useCommissionRate()
+  const { currentAccount } = useAppContext()
+  const isAdmin = currentAccount.isAdmin
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [addToOrderOpen, setAddToOrderOpen] = useState(false)
   const [isPulsing, setIsPulsing] = useState(false)
@@ -399,27 +403,42 @@ export function ProductDetailPage() {
               )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-3 pt-4 border-t">
-              <Button
-                size="lg"
-                className="w-full text-lg py-6"
-                onClick={() => setAddToOrderOpen(true)}
-              >
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                {isOutOfStock ? t('products.requestBackorder') : t('products.addToOrder')}
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full"
-                onClick={handleQuickAdd}
-                disabled={isOutOfStock}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {t('products.quickAdd1Pc')}
-              </Button>
-            </div>
+            {/* Action Buttons — hidden for admins */}
+            {!isAdmin && (
+              <div className="space-y-3 pt-4 border-t">
+                <Button
+                  size="lg"
+                  className="w-full text-lg py-6"
+                  onClick={() => setAddToOrderOpen(true)}
+                >
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  {isOutOfStock ? t('products.requestBackorder') : t('products.addToOrder')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  onClick={handleQuickAdd}
+                  disabled={isOutOfStock}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t('products.quickAdd1Pc')}
+                </Button>
+              </div>
+            )}
+            {isAdmin && (
+              <div className="space-y-3 pt-4 border-t">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full text-lg py-6"
+                  onClick={() => setAddToOrderOpen(true)}
+                >
+                  <Eye className="w-5 h-5 mr-2" />
+                  {t('products.viewDetails')}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -484,12 +503,14 @@ export function ProductDetailPage() {
         </GlassCard>
       </div>
 
-      {/* Add to Order Modal */}
-      <AddToOrderModal
-        product={product}
-        open={addToOrderOpen}
-        onClose={() => setAddToOrderOpen(false)}
-      />
+      {/* Add to Order Modal — hidden for admins */}
+      {!isAdmin && (
+        <AddToOrderModal
+          product={product}
+          open={addToOrderOpen}
+          onClose={() => setAddToOrderOpen(false)}
+        />
+      )}
     </>
   )
 }

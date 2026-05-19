@@ -85,6 +85,7 @@ function isUnavailableAvailability(value: string | undefined | null): boolean {
 export function ProductGridCard({
   product,
   onQuickView,
+  isAdmin = false,
 }: ProductGridCardProps) {
   const { t } = useTranslation()
   const [localQuantity, setLocalQuantity] = useState(1)
@@ -326,8 +327,26 @@ export function ProductGridCard({
           </p>
         )}
 
-        {/* Quantity Input & Add to Cart */}
-        {isPurchasable ? (
+        {/* Quantity Input & Add to Cart — hidden for admins */}
+        {isAdmin ? (
+          <div 
+            className="mt-auto min-h-[118px] pt-3 border-t border-border/50"
+            onClick={handleStopPropagation}
+            onMouseDown={handleStopPropagation}
+            data-no-navigate
+          >
+            <Link
+              to={detailUrl}
+              className="flex items-center justify-center gap-2 w-full h-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              onClick={(e) => {
+                e.stopPropagation()
+              }}
+            >
+              <Eye className="w-4 h-4" />
+              {t('products.viewDetails')}
+            </Link>
+          </div>
+        ) : isPurchasable ? (
           <div 
             className="mt-auto min-h-[118px] pt-3 border-t border-border/50 space-y-2"
             onClick={handleStopPropagation}

@@ -10,12 +10,13 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Package, ChevronLeft, ChevronRight, ShoppingCart, ExternalLink, Percent } from 'lucide-react'
+import { Package, ChevronLeft, ChevronRight, ShoppingCart, ExternalLink, Percent, Eye } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useCartStore } from '@/stores/cartStore'
 import { useToast } from '@/components/ui/use-toast'
 import { useCommissionRate } from '@/hooks/useCommissionRate'
+import { useAppContext } from '@/lib/app/AppContext'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { HtmlContent } from '@/components/HtmlContent'
 
@@ -44,6 +45,8 @@ export function ProductQuickViewModal({
   const { toast } = useToast()
   const { hasDiscount, commissionRate } = useCommissionRate()
   const { withBase } = useTenantPath()
+  const { currentAccount } = useAppContext()
+  const isAdmin = currentAccount.isAdmin
 
   if (!product) return null
 
@@ -269,16 +272,28 @@ export function ProductQuickViewModal({
               )}
             </div>
 
-            {/* Actions */}
+            {/* Actions — hidden for admins */}
             <div className="flex gap-2 pt-4 border-t">
-              <Button 
-                className="flex-1" 
-                disabled={isOutOfStock}
-                onClick={handleAddToCart}
-              >
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                {t('cart.addToCart')}
-              </Button>
+              {!isAdmin && (
+                <Button 
+                  className="flex-1" 
+                  disabled={isOutOfStock}
+                  onClick={handleAddToCart}
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  {t('cart.addToCart')}
+                </Button>
+              )}
+              {isAdmin && (
+                <Button 
+                  className="flex-1" 
+                  variant="outline"
+                  disabled
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  {t('products.adminViewOnly')}
+                </Button>
+              )}
               {hasSku && (
                 <Link to={detailUrl} onClick={onClose}>
                   <Button variant="outline">

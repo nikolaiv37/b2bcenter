@@ -320,6 +320,7 @@
       "addToOrder": "Add to Order",
       "requestBackorder": "Request / Backorder",
       "quickAdd1Pc": "Quick Add 1 pc",
+      "adminViewOnly": "View only (admin)",
       "onlyLeft": "Only {{count}} left",
       "outOfStockToast": "Out of Stock",
       "outOfStockDescription": "This product is currently out of stock.",

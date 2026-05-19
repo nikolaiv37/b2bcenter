@@ -25,11 +25,15 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
    - Real errors shown on failure; no success toast on failure.
    - **Deploy needed:** `supabase functions deploy deactivate-client`
 
-3. Remove cart/add-to-cart UI and logic from admin profile
-   - Admin users should not see add-to-cart buttons.
-   - Admin users should not see cart drawer/order request flow.
-   - Product list, product cards, quick view, and product detail pages should be admin-safe.
-   - Company/client users should keep cart and order flow.
+3. ~~Remove cart/add-to-cart UI and logic from admin profile~~ ✅ DONE
+   - Cart icon + badge hidden from header for admins.
+   - CartDrawer and OrderRequestModal not rendered for admins.
+   - ProductGridCard: quantity selector + Add to Cart replaced with "View details" link for admins.
+   - Product detail page: "Add to Order" and "Quick Add 1pc" buttons hidden for admins, replaced with "View only" button. AddToOrderModal not rendered.
+   - ProductQuickViewModal: "Add to Cart" button replaced with "View only (admin)" for admins.
+   - Orders page: already separates AdminOrdersView and CompanyOrdersView; reorder functionality only in CompanyOrdersView.
+   - OrderDetailsSheet: "Order Again" button hidden for admins (uses `isCompanyUser` check).
+   - Company/client users retain full cart/order flow.
 
 4. Hide Econt functionality from client profiles
    - Econt should be visible/usable only for admin.
