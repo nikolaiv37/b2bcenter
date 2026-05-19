@@ -93,7 +93,6 @@ export function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [selectedManufacturer, setSelectedManufacturer] = useState<string>('all')
-  const [selectedAvailability, setSelectedAvailability] = useState<string>('all')
   const [stockFilter, setStockFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -168,11 +167,6 @@ export function ProductsPage() {
       query = query.eq('manufacturer', selectedManufacturer)
     }
 
-    // Availability filter
-    if (selectedAvailability !== 'all') {
-      query = query.eq('availability', selectedAvailability)
-    }
-
     // Stock filter
     if (stockFilter === 'in-stock') {
       query = query.gt('quantity', 0)
@@ -215,12 +209,11 @@ export function ProductsPage() {
       searchQuery,
       selectedCategory,
       selectedManufacturer,
-      selectedAvailability,
       stockFilter,
       currentPage,
-      categoriesData, // Include categories in key since buildBaseQuery depends on it
+      categoriesData,
       profile?.id,
-      profile?.commission_rate, // Include commission rate to refetch when it changes
+      profile?.commission_rate,
     ],
     queryFn: async () => {
       if (!tenantId) return []
@@ -250,10 +243,11 @@ export function ProductsPage() {
     searchQuery,
     selectedCategory,
     selectedManufacturer,
-    selectedAvailability,
     stockFilter,
     1,
     categoriesData,
+    profile?.id,
+    profile?.commission_rate,
   ])
 
   // Fetch total count with same filters (using normalized category_id)
@@ -266,36 +260,29 @@ export function ProductsPage() {
       searchQuery,
       selectedCategory,
       selectedManufacturer,
-      selectedAvailability,
       stockFilter,
-      categoriesData, // Include categories data in query key since we use it for hierarchy
+      categoriesData,
     ],
     queryFn: async () => {
       if (!tenantId) return 0
-      // Build count query - use head: true to get only count
       let countQuery = supabase.from('products').select('*', { count: 'exact', head: true })
         .eq('tenant_id', tenantId)
 
-      // Apply same filters as data query
       if (searchQuery) {
         countQuery = countQuery.or(
           `name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`
         )
       }
-      
-      // Category filter using normalized category_id
+
       if (selectedCategory !== 'all') {
         const categoryIds = getCategoryIdsForFilter(selectedCategory, categoriesData)
         if (categoryIds.length > 0) {
           countQuery = countQuery.in('category_id', categoryIds)
         }
       }
-      
+
       if (selectedManufacturer !== 'all') {
         countQuery = countQuery.eq('manufacturer', selectedManufacturer)
-      }
-      if (selectedAvailability !== 'all') {
-        countQuery = countQuery.eq('availability', selectedAvailability)
       }
       if (stockFilter === 'in-stock') {
         countQuery = countQuery.gt('quantity', 0)
@@ -313,33 +300,25 @@ export function ProductsPage() {
     enabled: !!tenantId,
   })
 
-  // Fetch filter options (manufacturers, availability) from products
-  const { data: filterOptions } = useQuery({
-    queryKey: ['workspace', 'products', 'filter-options'],
+  // Fetch manufacturer filter options from ALL products (no limit — single column, small payload)
+  const { data: manufacturers = [] } = useQuery({
+    queryKey: ['workspace', 'products', 'manufacturer-options', tenantId],
     queryFn: async () => {
-      if (!tenantId) return { manufacturers: [], availabilityOptions: [] }
+      if (!tenantId) return [] as string[]
       const { data, error } = await supabase
         .from('products')
-        .select('manufacturer, availability')
+        .select('manufacturer')
         .eq('tenant_id', tenantId)
-        .limit(10000) // Get enough to extract unique values
 
       if (error) throw error
 
-      const manufacturers = Array.from(
+      return Array.from(
         new Set(data.map((p) => p.manufacturer).filter(Boolean))
       ).sort() as string[]
-      const availabilityOptions = Array.from(
-        new Set(data.map((p) => p.availability).filter(Boolean))
-      ).sort() as string[]
-
-      return { manufacturers, availabilityOptions }
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
     enabled: !!tenantId,
   })
-
-  const { manufacturers = [], availabilityOptions = [] } = filterOptions || {}
 
   // Calculate paginated products for display
   const paginatedProducts = useMemo(() => {
@@ -370,7 +349,7 @@ export function ProductsPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedCategory, selectedManufacturer, selectedAvailability, stockFilter])
+  }, [searchQuery, selectedCategory, selectedManufacturer, stockFilter])
 
   const deleteMutation = useMutation({
     mutationFn: async (productId: string | number) => {
@@ -385,7 +364,7 @@ export function ProductsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspace', 'products'] })
       queryClient.invalidateQueries({ queryKey: ['workspace', 'products', 'count'] })
-      queryClient.invalidateQueries({ queryKey: ['workspace', 'products', 'filter-options'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'products', 'manufacturer-options'] })
       toast({
         title: t('products.productDeleted'),
         description: t('products.productRemoved'),
@@ -423,7 +402,6 @@ export function ProductsPage() {
     setSearchQuery('')
     setSelectedCategory('all')
     setSelectedManufacturer('all')
-    setSelectedAvailability('all')
     setStockFilter('all')
     setCurrentPage(1)
   }
@@ -432,7 +410,6 @@ export function ProductsPage() {
     searchQuery ||
     selectedCategory !== 'all' ||
     selectedManufacturer !== 'all' ||
-    selectedAvailability !== 'all' ||
     stockFilter !== 'all'
 
   return (
@@ -463,7 +440,7 @@ export function ProductsPage() {
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Select
               value={selectedCategory}
               onValueChange={(value) => {
@@ -499,26 +476,6 @@ export function ProductsPage() {
                 {manufacturers.map((man) => (
                   <SelectItem key={man} value={man}>
                     {man}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={selectedAvailability}
-              onValueChange={(value) => {
-                setSelectedAvailability(value)
-                setCurrentPage(1)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t('products.availability')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('products.allAvailability')}</SelectItem>
-                {availabilityOptions.map((avail) => (
-                  <SelectItem key={avail} value={avail}>
-                    {avail}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -585,17 +542,6 @@ export function ProductsPage() {
                   {t('products.manufacturer')}: {selectedManufacturer}
                   <button
                     onClick={() => setSelectedManufacturer('all')}
-                    className="ml-1 hover:text-destructive"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              )}
-              {selectedAvailability !== 'all' && (
-                <Badge variant="secondary" className="gap-1">
-                  {selectedAvailability}
-                  <button
-                    onClick={() => setSelectedAvailability('all')}
                     className="ml-1 hover:text-destructive"
                   >
                     <X className="w-3 h-3" />

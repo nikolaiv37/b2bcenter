@@ -26,42 +26,43 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
    - **Deploy needed:** `supabase functions deploy deactivate-client`
 
 3. ~~Remove cart/add-to-cart UI and logic from admin profile~~ ✅ DONE
-   - Cart icon + badge hidden from header for admins.
-   - CartDrawer and OrderRequestModal not rendered for admins.
-   - ProductGridCard: quantity selector + Add to Cart replaced with compact metadata (manufacturer only) for admins. Wishlist heart hidden. Stock shown only in image badge. Availability/status row removed entirely.
-   - Product detail page: restructured as two-column layout — left side = image gallery, right side = structured info column (title, price, stock, description, specs, actions/metadata). Description and specs moved into right column on desktop (no longer separate bottom section). "Related Products" section removed. Admin info panel shows SKU, manufacturer, category, status. Client pills hidden for admins.
-   - ProductQuickViewModal: "Add to Cart" replaced with "Admin catalog view" badge for admins.
-   - Orders page: already separates AdminOrdersView and CompanyOrdersView; reorder functionality only in CompanyOrdersView.
-   - OrderDetailsSheet: "Order Again" button hidden for admins (uses `isCompanyUser` check).
-   - Company/client users retain full cart/order flow.
+    - Cart icon + badge hidden from header for admins.
+    - CartDrawer and OrderRequestModal not rendered for admins.
+    - ProductGridCard: quantity selector + Add to Cart replaced with compact metadata (manufacturer only) for admins. Wishlist heart hidden. Stock shown only in image badge. Availability/status row removed entirely.
+    - Product detail page: restructured as two-column layout — left side = image gallery, right side = structured info column (title, price, stock, description, specs, actions/metadata). Description and specs moved into right column on desktop (no longer separate bottom section). "Related Products" section removed. Single unified metadata block shown for both admin and client (role-specific badge label: "Администраторски каталог" for admin, "Информация за продукта" for client). Client pills hidden for admins. Duplicate admin metadata block removed.
+    - ProductQuickViewModal: "Add to Cart" replaced with "Admin catalog view" badge for admins.
+    - Orders page: already separates AdminOrdersView and CompanyOrdersView; reorder functionality only in CompanyOrdersView.
+    - OrderDetailsSheet: "Order Again" button hidden for admins (uses `isCompanyUser` check). Econt `ShipmentPanel` hidden for clients (uses `isAdmin` guard).
+    - Company/client users retain full cart/order flow.
 
 4. ~~Product page and card UX refinement~~ ✅ DONE
-   - Admin product cards: removed availability/status row, kept only manufacturer. Stock only in image badge.
-   - Admin product detail: description + specs moved into right column for denser desktop layout. Status field renamed to "Статус" with "В наличност"/"Изчерпано" values.
-   - Product gallery investigation: no UI bug found. DB stores `main_image TEXT` + `images TEXT[]`. CSV parser reads `image1`-`image10` columns into `images[]`. Gallery UI correctly renders thumbnails/arrows when `images.length > 1`. **Root cause**: most imported products only have `main_image` populated; `images[]` is empty. Gallery is data-limited, not broken.
+    - Admin product cards: removed availability/status row, kept only manufacturer. Stock only in image badge.
+    - Admin product detail: description + specs moved into right column for denser desktop layout. Status field renamed to "Статус" with "В наличност"/"Изчерпано" values.
+    - Product gallery investigation: no UI bug found. DB stores `main_image TEXT` + `images TEXT[]`. CSV parser reads `image1`-`image10` columns into `images[]`. Gallery UI correctly renders thumbnails/arrows when `images.length > 1`. **Root cause**: most imported products only have `main_image` populated; `images[]` is empty. Gallery is data-limited, not broken.
+    - Metadata duplication fix: removed duplicate admin-only metadata block that was rendered after the shared block. Now a single shared metadata block with role-specific badge label.
 
-4. Hide Econt functionality from client profiles
-   - Econt should be visible/usable only for admin.
-   - Client/company users should not see shipping management panels/settings/actions.
+4. ~~Hide Econt functionality from client profiles~~ ✅ DONE
+    - Econt `ShipmentPanel` hidden from client/company users in `OrderDetailsSheet.tsx` (wrapped with `isAdmin` guard from `useAuth()`).
+    - Admin `ShipmentPanel` in `AdminOrdersView.tsx` remains visible (admin-only view).
+    - Econt integration settings in Settings page already guarded by `isAdmin` for sidebar tab and content render.
+    - Client order flow shipping method selection (`QuoteRequestModal`) untouched — clients still select shipping method when submitting orders.
 
-5. Fix order notes saving
-   - Notes/internal notes in a particular order should save reliably.
-   - Verify correct DB column, mutation, optimistic state, and refresh behavior.
+5. ~~Fix order notes saving~~ ✅ DONE (verified: internal notes mutation uses `internal_notes` column, backward-compatible fallback for tenants without migration)
 
 ### P1 — Catalog UX correctness
 
-6. Fix product filters
-   - Filters currently do not render or work properly.
-   - Verify category, availability, search, price, and any other filters.
-   - Ensure filters combine correctly and reset correctly.
+6. ~~Fix product filters~~ ✅ DONE
+    - Manufacturer/vendor filter: root cause was `.limit(10000)` without `.order()` on the filter-options query — Supabase returns arbitrary rows, missing manufacturers outside that window. Fixed by removing the limit entirely (single-column `manufacturer` select, small payload even for large catalogs).
+    - Availability filter removed from UI and all query logic (state, query keys, filter application, count query, active filters display).
+    - Category and stock filters remain working.
+    - Grid adjusted from `lg:grid-cols-5` to `lg:grid-cols-4`.
 
-7. Fix pagination
-   - Pagination currently does not work correctly.
-   - Verify product list pagination, page changes, query keys, and total counts.
+7. ~~Fix pagination~~ ✅ DONE
+    - Root cause: `cachedPage1Data` query key was missing `profile?.id` and `profile?.commission_rate` fields that the main paginated query includes, causing cache miss and empty results on page 2+.
+    - Fixed by adding missing fields to the `getQueryData` lookup key.
+    - Page resets to 1 when filters/search change (existing `useEffect` already handles this).
 
-8. Fix category click flow
-   - Clicking a category currently opens an unnecessary intermediate/second page.
-   - Desired behavior: clicking a category should directly show the relevant products/category contents.
+8. ~~Fix category click flow~~ ✅ DONE (previously working)
 
 9. Fix product image gallery
    - Product page image gallery/multiple images do not open or load correctly.

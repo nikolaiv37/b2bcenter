@@ -152,7 +152,7 @@ export function OrderDetailsSheet({
   onSaveAsTemplate,
 }: OrderDetailsSheetProps) {
   const { t } = useTranslation()
-  const { company, profile } = useAuth()
+  const { company, profile, isAdmin } = useAuth()
   const { workspaceId: tenantId } = useAppContext()
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
 
@@ -365,15 +365,17 @@ export function OrderDetailsSheet({
             </div>
           </div>
 
-          <ShipmentPanel
-            seed={{
-              quoteId: order.id,
-              orderNumber: order.order_number,
-              receiverName: order.company_name,
-              receiverPhone: order.phone,
-              receiverEmail: order.email,
-            }}
-          />
+          {isAdmin && (
+            <ShipmentPanel
+              seed={{
+                quoteId: order.id,
+                orderNumber: order.order_number,
+                receiverName: order.company_name,
+                receiverPhone: order.phone,
+                receiverEmail: order.email,
+              }}
+            />
+          )}
 
           {/* Shipping Method */}
           <div className="bg-card border rounded-lg p-6">

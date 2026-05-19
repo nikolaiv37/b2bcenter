@@ -377,82 +377,38 @@ export function ProductDetailPage() {
             {/* Divider */}
             <div className="h-px bg-border/50" />
 
-            {/* Short Description / Full Description for clients */}
-            {product.description && (
-              <div>
-                <h3 className="text-sm font-semibold mb-2">{t('products.description')}</h3>
-                <div className={cn(
-                  "text-sm leading-relaxed",
-                  !isAdmin && "max-h-48 overflow-y-auto"
-                )}>
-                  <HtmlContent html={product.description} />
-                </div>
+            {/* Metadata block — shared for admin and client */}
+            <div className="space-y-3 pt-3 border-t">
+              <div className="flex items-center gap-2 text-sm">
+                <Badge variant="secondary" className="text-xs font-medium">
+                  {isAdmin ? t('products.adminCatalog') : t('products.productInfo')}
+                </Badge>
               </div>
-            )}
-
-            {/* Specs Table */}
-            {(product.model || product.weight || product.transportational_weight || product.date_expected || product.specs) && (
-              <div>
-                <h3 className="text-sm font-semibold mb-2">{t('products.specifications')}</h3>
-                <div className="space-y-1.5 text-sm">
-                  {product.model && (
-                    <div className="flex justify-between py-1.5 border-b border-border/30">
-                      <span className="text-muted-foreground">{t('products.model')}</span>
-                      <span className="font-medium">{product.model}</span>
-                    </div>
-                  )}
-                  {product.weight && (
-                    <div className="flex justify-between py-1.5 border-b border-border/30">
-                      <span className="text-muted-foreground">{t('products.weight')}</span>
-                      <span className="font-medium">{product.weight} kg</span>
-                    </div>
-                  )}
-                  {product.transportational_weight && (
-                    <div className="flex justify-between py-1.5 border-b border-border/30">
-                      <span className="text-muted-foreground">{t('products.shippingWeight')}</span>
-                      <span className="font-medium">{product.transportational_weight} kg</span>
-                    </div>
-                  )}
-                  {product.date_expected && (
-                    <div className="flex justify-between py-1.5 border-b border-border/30">
-                      <span className="text-muted-foreground">{t('products.expectedDate')}</span>
-                      <span className="font-medium">{product.date_expected}</span>
-                    </div>
-                  )}
-                  {product.specs && typeof product.specs === 'object' && (
-                    <>
-                      {Object.entries(product.specs).map(([key, value]) => (
-                        <div key={key} className="flex justify-between py-1.5 border-b border-border/30">
-                          <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
-                          <span className="font-medium">{String(value)}</span>
-                        </div>
-                      ))}
-                    </>
-                  )}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground">{t('products.sku')}</span>
+                  <p className="font-mono font-medium">{product.sku}</p>
                 </div>
-              </div>
-            )}
-
-            {/* Category & Manufacturer Chips — clients only */}
-            {!isAdmin && (
-              <div className="flex flex-wrap gap-2">
-                {product.category && (
-                  <Badge variant="outline" className="text-xs px-2.5 py-1">
-                    {product.category}
-                  </Badge>
-                )}
                 {product.manufacturer && (
-                  <Badge variant="outline" className="text-xs px-2.5 py-1">
-                    {product.manufacturer}
-                  </Badge>
+                  <div>
+                    <span className="text-muted-foreground">{t('products.manufacturer')}</span>
+                    <p className="font-medium truncate">{product.manufacturer}</p>
+                  </div>
                 )}
-                {product.availability && (
-                  <Badge variant="outline" className="text-xs px-2.5 py-1">
-                    {product.availability}
-                  </Badge>
+                {product.category && (
+                  <div>
+                    <span className="text-muted-foreground">{t('products.category')}</span>
+                    <p className="font-medium truncate">{product.category}</p>
+                  </div>
                 )}
+                <div>
+                  <span className="text-muted-foreground">{t('products.status')}</span>
+                  <p className="font-medium">
+                    {isOutOfStock ? t('products.outOfStock') : t('products.inStock')}
+                  </p>
+                </div>
               </div>
-            )}
+            </div>
 
             {/* Buyer action buttons — hidden for admins */}
             {!isAdmin && (
@@ -477,39 +433,55 @@ export function ProductDetailPage() {
               </div>
             )}
 
-            {/* Admin info panel */}
-            {isAdmin && (
-              <div className="pt-3 border-t space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Badge variant="secondary" className="text-xs font-medium">
-                    {t('products.adminCatalog')}
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">{t('products.sku')}</span>
-                    <p className="font-mono font-medium">{product.sku}</p>
-                  </div>
-                  {product.manufacturer && (
-                    <div>
-                      <span className="text-muted-foreground">{t('products.manufacturer')}</span>
-                      <p className="font-medium truncate">{product.manufacturer}</p>
+            {/* Description Card — GlassCard styling */}
+            {product.description && (
+              <GlassCard className="p-5">
+                <h2 className="text-xl font-bold mb-3">{t('products.description')}</h2>
+                <HtmlContent html={product.description} className="text-sm leading-relaxed" />
+              </GlassCard>
+            )}
+
+            {/* Specs Card — GlassCard styling */}
+            {(product.model || product.weight || product.transportational_weight || product.date_expected || product.specs) && (
+              <GlassCard className="p-5">
+                <h2 className="text-xl font-bold mb-3">{t('products.specifications')}</h2>
+                <div className="space-y-2">
+                  {product.model && (
+                    <div className="flex justify-between py-2 border-b border-border/50">
+                      <span className="text-muted-foreground">{t('products.model')}</span>
+                      <span className="font-medium">{product.model}</span>
                     </div>
                   )}
-                  {product.category && (
-                    <div>
-                      <span className="text-muted-foreground">{t('products.category')}</span>
-                      <p className="font-medium truncate">{product.category}</p>
+                  {product.weight && (
+                    <div className="flex justify-between py-2 border-b border-border/50">
+                      <span className="text-muted-foreground">{t('products.weight')}</span>
+                      <span className="font-medium">{product.weight} kg</span>
                     </div>
                   )}
-                  <div>
-                    <span className="text-muted-foreground">{t('products.status')}</span>
-                    <p className="font-medium">
-                      {isOutOfStock ? t('products.outOfStock') : t('products.inStock')}
-                    </p>
-                  </div>
+                  {product.transportational_weight && (
+                    <div className="flex justify-between py-2 border-b border-border/50">
+                      <span className="text-muted-foreground">{t('products.shippingWeight')}</span>
+                      <span className="font-medium">{product.transportational_weight} kg</span>
+                    </div>
+                  )}
+                  {product.date_expected && (
+                    <div className="flex justify-between py-2 border-b border-border/50">
+                      <span className="text-muted-foreground">{t('products.expectedDate')}</span>
+                      <span className="font-medium">{product.date_expected}</span>
+                    </div>
+                  )}
+                  {product.specs && typeof product.specs === 'object' && (
+                    <>
+                      {Object.entries(product.specs).map(([key, value]) => (
+                        <div key={key} className="flex justify-between py-2 border-b border-border/50">
+                          <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+                          <span className="font-medium">{String(value)}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
-              </div>
+              </GlassCard>
             )}
           </div>
         </div>

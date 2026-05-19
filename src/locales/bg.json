@@ -326,6 +326,7 @@
       "quickAdd1Pc": "Бързо добавяне 1 бр.",
       "adminViewOnly": "Само преглед (админ)",
       "adminCatalog": "Администраторски каталог",
+      "productInfo": "Информация за продукта",
       "onlyLeft": "Остават само {{count}}",
       "outOfStockToast": "Изчерпано",
       "outOfStockDescription": "Този продукт в момента е изчерпан.",

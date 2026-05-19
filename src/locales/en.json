@@ -323,6 +323,7 @@
       "quickAdd1Pc": "Quick Add 1 pc",
       "adminViewOnly": "View only (admin)",
       "adminCatalog": "Admin catalog view",
+      "productInfo": "Product information",
       "onlyLeft": "Only {{count}} left",
       "outOfStockToast": "Out of Stock",
       "outOfStockDescription": "This product is currently out of stock.",
