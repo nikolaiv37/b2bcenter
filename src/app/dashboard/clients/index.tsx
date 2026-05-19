@@ -29,16 +29,13 @@ import {
 import { Tooltip } from '@/components/ui/tooltip'
 import { useToast } from '@/components/ui/use-toast'
 import { useAuth } from '@/hooks/useAuth'
-import { useQueryClients, useQueryInvitations } from '@/hooks/useQueryClients'
+import { useQueryClients } from '@/hooks/useQueryClients'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import {
   useMutationUpdateClient,
   useMutationDeleteClient,
 } from '@/hooks/useMutationClient'
-import {
-  useMutationInviteClient,
-  useMutationResendInvite,
-} from '@/hooks/useMutationInviteClient'
+import { useMutationCreateClient } from '@/hooks/useMutationCreateClient'
 import { Client } from '@/types'
 import {
   Users,
@@ -54,12 +51,10 @@ import {
   ShoppingBag,
   UserPlus,
   Sparkles,
-  Send,
-  Copy,
   Clock,
-  RotateCcw,
-  Phone,
   MapPin,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 
 const ITEMS_PER_PAGE = 12
@@ -90,26 +85,26 @@ export function ClientsPage() {
     'joinDateDesc' | 'joinDateAsc' | 'commissionDesc' | 'commissionAsc'
   >('joinDateDesc')
 
-  // Invite modal state
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
-  const [inviteForm, setInviteForm] = useState({
+  // Add client modal state (new manual creation flow)
+  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false)
+  const [addClientForm, setAddClientForm] = useState({
     email: '',
     company_name: '',
     commission_rate: 0,
-    phone: '',
-    address: '',
+    password: '',
+    confirmPassword: '',
   })
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const [editForm, setEditForm] = useState({
     commission_rate: 0,
   })
 
   const { data: clients, isLoading, error } = useQueryClients()
-  const { data: invitations } = useQueryInvitations()
   const updateMutation = useMutationUpdateClient()
   const deleteMutation = useMutationDeleteClient()
-  const inviteMutation = useMutationInviteClient()
-  const resendMutation = useMutationResendInvite()
+  const createMutation = useMutationCreateClient()
 
   const filteredClients = useMemo(() => {
     if (!clients) return []
@@ -239,17 +234,26 @@ export function ClientsPage() {
     }
   }
 
-  const handleInviteSubmit = async () => {
-    if (!inviteForm.email.trim()) {
+  const handleAddClientSubmit = async () => {
+    if (!addClientForm.email.trim()) {
       toast({
         title: t('distributors.error'),
-        description: t('distributors.inviteEmailRequired'),
+        description: t('distributors.addClientEmailRequired'),
         variant: 'destructive',
       })
       return
     }
 
-    if (inviteForm.commission_rate < 0 || inviteForm.commission_rate > 50) {
+    if (!addClientForm.company_name.trim()) {
+      toast({
+        title: t('distributors.error'),
+        description: t('distributors.addClientCompanyRequired'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (addClientForm.commission_rate < 0 || addClientForm.commission_rate > 50) {
       toast({
         title: t('distributors.error'),
         description: t('distributors.commissionRateError'),
@@ -258,80 +262,45 @@ export function ClientsPage() {
       return
     }
 
+    if (addClientForm.password.length < 6) {
+      toast({
+        title: t('distributors.error'),
+        description: t('distributors.addClientPasswordMinLength'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (addClientForm.password !== addClientForm.confirmPassword) {
+      toast({
+        title: t('distributors.error'),
+        description: t('distributors.addClientPasswordMismatch'),
+        variant: 'destructive',
+      })
+      return
+    }
+
     try {
-      const result = await inviteMutation.mutateAsync({
-        email: inviteForm.email.trim(),
-        company_name: inviteForm.company_name.trim() || undefined,
-        commission_rate: inviteForm.commission_rate || undefined,
-        phone: inviteForm.phone.trim() || undefined,
-        address: inviteForm.address.trim() || undefined,
+      await createMutation.mutateAsync({
+        email: addClientForm.email.trim(),
+        company_name: addClientForm.company_name.trim(),
+        commission_rate: addClientForm.commission_rate,
+        password: addClientForm.password,
       })
 
-      if (result?.email_sent === false) {
-        // Invite record created but email wasn't sent (rate limit or existing user)
-        toast({
-          title: t('distributors.inviteSuccess'),
-          description: t('distributors.inviteNoEmail', { email: inviteForm.email }),
-        })
-      } else {
-        toast({
-          title: t('distributors.inviteSuccess'),
-          description: t('distributors.inviteSuccessDesc', { email: inviteForm.email }),
-        })
-      }
+      toast({
+        title: t('distributors.success'),
+        description: t('distributors.addClientSuccess', { email: addClientForm.email }),
+      })
 
-      setIsInviteModalOpen(false)
-      setInviteForm({ email: '', company_name: '', commission_rate: 0, phone: '', address: '' })
-
-      // Log token for dev convenience
-      if (result?.invitation?.token) {
-        console.info('[Dev] Invite token:', result.invitation.token)
-        console.info('[Dev] Invite link:', `${window.location.origin}/auth/accept-invite?token=${result.invitation.token}`)
-      }
+      setIsAddClientModalOpen(false)
+      setAddClientForm({ email: '', company_name: '', commission_rate: 0, password: '', confirmPassword: '' })
+      setShowPassword(false)
+      setShowConfirmPassword(false)
     } catch (err) {
       toast({
         title: t('distributors.error'),
-        description: err instanceof Error ? err.message : t('distributors.inviteError'),
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleResendInvite = async (client: Client) => {
-    try {
-      await resendMutation.mutateAsync({
-        email: client.email!,
-        company_name: client.company_name || undefined,
-      })
-      toast({
-        title: t('distributors.inviteResent'),
-        description: t('distributors.inviteResentDesc', { email: client.email }),
-      })
-    } catch (err) {
-      toast({
-        title: t('distributors.error'),
-        description: err instanceof Error ? err.message : t('distributors.inviteError'),
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleCopyInviteLink = (client: Client) => {
-    // Find the invitation token for this client's email
-    const invitation = invitations?.find(
-      (inv: { email: string }) => inv.email.toLowerCase() === client.email?.toLowerCase()
-    )
-    if (invitation?.token) {
-      const link = `${window.location.origin}/auth/accept-invite?token=${invitation.token}`
-      navigator.clipboard.writeText(link)
-      toast({
-        title: t('distributors.linkCopied'),
-        description: t('distributors.linkCopiedDesc'),
-      })
-    } else {
-      toast({
-        title: t('distributors.error'),
-        description: t('distributors.noTokenFound'),
+        description: err instanceof Error ? err.message : t('distributors.addClientError'),
         variant: 'destructive',
       })
     }
@@ -435,11 +404,11 @@ export function ClientsPage() {
           </div>
         </div>
         <Button
-          onClick={() => setIsInviteModalOpen(true)}
+          onClick={() => setIsAddClientModalOpen(true)}
           className="w-full gap-2 rounded-full bg-sky-600 px-5 text-white shadow-md hover:bg-sky-700 sm:w-auto"
         >
           <UserPlus className="w-4 h-4" />
-          {t('distributors.inviteClient')}
+          {t('distributors.addClient')}
         </Button>
       </div>
 
@@ -611,10 +580,10 @@ export function ClientsPage() {
                       <Button
                         variant="outline"
                         className="mt-2 gap-2 rounded-full px-5 border-sky-500/30 text-sky-700 dark:text-sky-300 hover:bg-sky-500/10 hover:border-sky-500/50"
-                        onClick={() => setIsInviteModalOpen(true)}
+                        onClick={() => setIsAddClientModalOpen(true)}
                       >
                         <UserPlus className="w-4 h-4" />
-                        {t('distributors.inviteCta')}
+                        {t('distributors.addClient')}
                       </Button>
                     )}
                   </div>
@@ -788,56 +757,25 @@ export function ClientsPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-1.5">
-                          {isClientInvited(client) ? (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 rounded-full px-3 opacity-80 group-hover:opacity-100 transition-opacity text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-900/20"
-                                onClick={() => handleResendInvite(client)}
-                                disabled={resendMutation.isPending}
-                              >
-                                {resendMutation.isPending ? (
-                                  <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                                )}
-                                <span>{t('distributors.resendInvite')}</span>
-                              </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 rounded-full px-3 opacity-80 group-hover:opacity-100 transition-opacity text-xs"
+                            onClick={() => handleEdit(client)}
+                          >
+                            <Edit className="w-3.5 h-3.5 mr-1" />
+                            <span>{t('general.edit')}</span>
+                          </Button>
 
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 rounded-full px-3 opacity-80 group-hover:opacity-100 transition-opacity text-xs"
-                                onClick={() => handleCopyInviteLink(client)}
-                              >
-                                <Copy className="w-3.5 h-3.5 mr-1" />
-                                <span>{t('distributors.copyLink')}</span>
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 rounded-full px-3 opacity-80 group-hover:opacity-100 transition-opacity text-xs"
-                                onClick={() => handleEdit(client)}
-                              >
-                                <Edit className="w-3.5 h-3.5 mr-1" />
-                                <span>{t('general.edit')}</span>
-                              </Button>
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 rounded-full px-3 opacity-80 group-hover:opacity-100 transition-opacity text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                onClick={() => handleDeleteClick(client)}
-                              >
-                                <Trash2 className="w-3.5 h-3.5 mr-1" />
-                                <span>{t('general.delete')}</span>
-                              </Button>
-                            </>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 rounded-full px-3 opacity-80 group-hover:opacity-100 transition-opacity text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            onClick={() => handleDeleteClick(client)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                            <span>{t('general.delete')}</span>
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -980,33 +918,33 @@ export function ClientsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Invite Client Modal */}
-      <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
+      {/* Add Client Modal (manual creation) */}
+      <Dialog open={isAddClientModalOpen} onOpenChange={setIsAddClientModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Send className="w-5 h-5 text-sky-500" />
-              {t('distributors.inviteClient')}
+              <UserPlus className="w-5 h-5 text-sky-500" />
+              {t('distributors.addClient')}
             </DialogTitle>
             <DialogDescription>
-              {t('distributors.inviteClientDesc')}
+              {t('distributors.addClientDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-5 py-4">
             {/* Email field */}
             <div className="space-y-2">
-              <Label htmlFor="invite_email" className="text-sm font-medium">
-                {t('distributors.inviteEmailLabel')} <span className="text-red-500">*</span>
+              <Label htmlFor="add_client_email" className="text-sm font-medium">
+                {t('distributors.addClientEmailLabel')} <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  id="invite_email"
+                  id="add_client_email"
                   type="email"
-                  placeholder={t('distributors.inviteEmailPlaceholder')}
-                  value={inviteForm.email}
+                  placeholder={t('distributors.addClientEmailPlaceholder')}
+                  value={addClientForm.email}
                   onChange={(e) =>
-                    setInviteForm((prev) => ({ ...prev, email: e.target.value }))
+                    setAddClientForm((prev) => ({ ...prev, email: e.target.value }))
                   }
                   className="pl-10 h-11"
                 />
@@ -1015,28 +953,28 @@ export function ClientsPage() {
 
             {/* Company name field */}
             <div className="space-y-2">
-              <Label htmlFor="invite_company" className="text-sm font-medium">
-                {t('distributors.inviteCompanyLabel')}
+              <Label htmlFor="add_client_company" className="text-sm font-medium">
+                {t('distributors.addClientCompanyLabel')} <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="invite_company"
-                type="text"
-                placeholder={t('distributors.inviteCompanyPlaceholder')}
-                value={inviteForm.company_name}
-                onChange={(e) =>
-                  setInviteForm((prev) => ({ ...prev, company_name: e.target.value }))
-                }
-                className="h-11"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('distributors.inviteCompanyHelp')}
-              </p>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  id="add_client_company"
+                  type="text"
+                  placeholder={t('distributors.addClientCompanyPlaceholder')}
+                  value={addClientForm.company_name}
+                  onChange={(e) =>
+                    setAddClientForm((prev) => ({ ...prev, company_name: e.target.value }))
+                  }
+                  className="pl-10 h-11"
+                />
+              </div>
             </div>
 
             {/* Commission rate field */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Label htmlFor="invite_commission" className="text-sm font-medium">
+                <Label htmlFor="add_client_commission" className="text-sm font-medium">
                   {t('distributors.commissionRateLabel')}
                 </Label>
                 <Tooltip content={t('distributors.commissionRateTooltip')} side="top">
@@ -1047,14 +985,14 @@ export function ClientsPage() {
               </div>
               <div className="relative">
                 <Input
-                  id="invite_commission"
+                  id="add_client_commission"
                   type="number"
                   min="0"
                   max="50"
                   step="0.5"
-                  value={inviteForm.commission_rate}
+                  value={addClientForm.commission_rate}
                   onChange={(e) =>
-                    setInviteForm((prev) => ({
+                    setAddClientForm((prev) => ({
                       ...prev,
                       commission_rate: parseFloat(e.target.value) || 0,
                     }))
@@ -1070,61 +1008,76 @@ export function ClientsPage() {
               </p>
             </div>
 
-            {/* Phone field */}
+            {/* Temporary password field */}
             <div className="space-y-2">
-              <Label htmlFor="invite_phone" className="text-sm font-medium">
-                {t('distributors.invitePhoneLabel')}
+              <Label htmlFor="add_client_password" className="text-sm font-medium">
+                {t('distributors.addClientPasswordLabel')} <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  id="invite_phone"
-                  type="tel"
-                  placeholder={t('distributors.invitePhonePlaceholder')}
-                  value={inviteForm.phone}
+                  id="add_client_password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder={t('distributors.addClientPasswordPlaceholder')}
+                  value={addClientForm.password}
                   onChange={(e) =>
-                    setInviteForm((prev) => ({ ...prev, phone: e.target.value }))
+                    setAddClientForm((prev) => ({ ...prev, password: e.target.value }))
                   }
-                  className="pl-10 h-11"
+                  className="pr-10 h-11"
                 />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                {t('distributors.addClientPasswordHelp')}
+              </p>
             </div>
 
-            {/* Address field */}
+            {/* Confirm password field */}
             <div className="space-y-2">
-              <Label htmlFor="invite_address" className="text-sm font-medium">
-                {t('distributors.inviteAddressLabel')}
+              <Label htmlFor="add_client_confirm_password" className="text-sm font-medium">
+                {t('distributors.addClientConfirmPasswordLabel')} <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  id="invite_address"
-                  type="text"
-                  placeholder={t('distributors.inviteAddressPlaceholder')}
-                  value={inviteForm.address}
+                  id="add_client_confirm_password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder={t('distributors.addClientConfirmPasswordPlaceholder')}
+                  value={addClientForm.confirmPassword}
                   onChange={(e) =>
-                    setInviteForm((prev) => ({ ...prev, address: e.target.value }))
+                    setAddClientForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
                   }
-                  className="pl-10 h-11"
+                  className="pr-10 h-11"
                 />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsInviteModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsAddClientModalOpen(false)}>
               {t('general.cancel')}
             </Button>
             <Button
-              onClick={handleInviteSubmit}
-              disabled={inviteMutation.isPending || !inviteForm.email.trim()}
+              onClick={handleAddClientSubmit}
+              disabled={createMutation.isPending || !addClientForm.email.trim() || !addClientForm.company_name.trim() || !addClientForm.password}
               className="gap-2 bg-sky-600 hover:bg-sky-700"
             >
-              {inviteMutation.isPending ? (
+              {createMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Send className="w-4 h-4" />
+                <UserPlus className="w-4 h-4" />
               )}
-              {t('distributors.sendInvite')}
+              {t('distributors.addClientSubmit')}
             </Button>
           </DialogFooter>
         </DialogContent>
