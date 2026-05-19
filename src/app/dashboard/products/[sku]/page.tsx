@@ -295,45 +295,44 @@ export function ProductDetailPage() {
           </div>
 
           {/* Right Side - Product Info */}
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Product Name */}
             <div>
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <h1 className="text-4xl font-bold flex-1">{product.name}</h1>
-            {/* Wishlist — hidden for admins */}
-            {!isAdmin && product.sku && (
-              <TooltipProvider>
-                <Tooltip content={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}>
-                  <button
-                    onClick={handleWishlistToggle}
-                    className={cn(
-                      'p-3 rounded-full transition-all duration-200 flex-shrink-0',
-                      'hover:scale-110 active:scale-95',
-                      inWishlist
-                        ? 'bg-red-500 text-white shadow-lg hover:bg-red-600'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
-                      isPulsing && 'animate-pulse'
-                    )}
-                    aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-                  >
-                    <Heart
-                      className={cn(
-                        'w-6 h-6 transition-all duration-200',
-                        inWishlist && 'fill-current'
-                      )}
-                    />
-                  </button>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+              <div className="flex items-start justify-between gap-4 mb-1">
+                <h1 className="text-3xl font-bold flex-1 leading-tight">{product.name}</h1>
+                {/* Wishlist — hidden for admins */}
+                {!isAdmin && product.sku && (
+                  <TooltipProvider>
+                    <Tooltip content={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}>
+                      <button
+                        onClick={handleWishlistToggle}
+                        className={cn(
+                          'p-2.5 rounded-full transition-all duration-200 flex-shrink-0',
+                          'hover:scale-110 active:scale-95',
+                          inWishlist
+                            ? 'bg-red-500 text-white shadow-lg hover:bg-red-600'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
+                          isPulsing && 'animate-pulse'
+                        )}
+                        aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                      >
+                        <Heart
+                          className={cn(
+                            'w-5 h-5 transition-all duration-200',
+                            inWishlist && 'fill-current'
+                          )}
+                        />
+                      </button>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
-              <p className="text-sm text-muted-foreground font-mono">SKU: {product.sku}</p>
             </div>
 
             {/* Price */}
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-5xl font-bold text-primary">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="text-4xl font-bold text-primary">
                   {formatPrice(displayPrice)}
                 </div>
                 {hasCommissionDiscount && (
@@ -346,15 +345,13 @@ export function ProductDetailPage() {
                   </Badge>
                 )}
               </div>
-              {/* Show base wholesale price as strikethrough when commission discount applies */}
               {hasCommissionDiscount && (
-                <div className="text-xl text-muted-foreground line-through">
+                <div className="text-lg text-muted-foreground line-through">
                   {formatPrice(product.weboffer_price)}
                 </div>
               )}
-              {/* Show retail price strikethrough only if no commission discount and retail > wholesale */}
               {!hasCommissionDiscount && product.retail_price && product.retail_price > (product.weboffer_price || 0) && (
-                <div className="text-xl text-muted-foreground line-through">
+                <div className="text-lg text-muted-foreground line-through">
                   {formatPrice(product.retail_price)}
                 </div>
               )}
@@ -363,42 +360,94 @@ export function ProductDetailPage() {
             {/* Stock Badge */}
             <div>
               {isOutOfStock ? (
-                <Badge variant="destructive" className="text-base px-4 py-2">
+                <Badge variant="destructive" className="text-sm px-3 py-1.5">
                   {t('products.outOfStock')}
                 </Badge>
               ) : isLowStock ? (
-                <Badge variant="secondary" className="text-base px-4 py-2 bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/50">
+                <Badge variant="secondary" className="text-sm px-3 py-1.5 bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/50">
                   {t('products.onlyLeft', { count: quantity })}
                 </Badge>
               ) : (
-                <Badge variant="default" className="text-base px-4 py-2 bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/50">
+                <Badge variant="default" className="text-sm px-3 py-1.5 bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/50">
                   {t('products.inStock')}
                 </Badge>
               )}
             </div>
 
-            {/* Short Description */}
+            {/* Divider */}
+            <div className="h-px bg-border/50" />
+
+            {/* Short Description / Full Description for clients */}
             {product.description && (
-              <div className="line-clamp-[8] overflow-hidden">
-                <HtmlContent html={product.description} className="leading-relaxed" />
+              <div>
+                <h3 className="text-sm font-semibold mb-2">{t('products.description')}</h3>
+                <div className={cn(
+                  "text-sm leading-relaxed",
+                  !isAdmin && "max-h-48 overflow-y-auto"
+                )}>
+                  <HtmlContent html={product.description} />
+                </div>
               </div>
             )}
 
-            {/* Category & Manufacturer Chips — hidden for admins (shown in admin info panel) */}
+            {/* Specs Table */}
+            {(product.model || product.weight || product.transportational_weight || product.date_expected || product.specs) && (
+              <div>
+                <h3 className="text-sm font-semibold mb-2">{t('products.specifications')}</h3>
+                <div className="space-y-1.5 text-sm">
+                  {product.model && (
+                    <div className="flex justify-between py-1.5 border-b border-border/30">
+                      <span className="text-muted-foreground">{t('products.model')}</span>
+                      <span className="font-medium">{product.model}</span>
+                    </div>
+                  )}
+                  {product.weight && (
+                    <div className="flex justify-between py-1.5 border-b border-border/30">
+                      <span className="text-muted-foreground">{t('products.weight')}</span>
+                      <span className="font-medium">{product.weight} kg</span>
+                    </div>
+                  )}
+                  {product.transportational_weight && (
+                    <div className="flex justify-between py-1.5 border-b border-border/30">
+                      <span className="text-muted-foreground">{t('products.shippingWeight')}</span>
+                      <span className="font-medium">{product.transportational_weight} kg</span>
+                    </div>
+                  )}
+                  {product.date_expected && (
+                    <div className="flex justify-between py-1.5 border-b border-border/30">
+                      <span className="text-muted-foreground">{t('products.expectedDate')}</span>
+                      <span className="font-medium">{product.date_expected}</span>
+                    </div>
+                  )}
+                  {product.specs && typeof product.specs === 'object' && (
+                    <>
+                      {Object.entries(product.specs).map(([key, value]) => (
+                        <div key={key} className="flex justify-between py-1.5 border-b border-border/30">
+                          <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+                          <span className="font-medium">{String(value)}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Category & Manufacturer Chips — clients only */}
             {!isAdmin && (
               <div className="flex flex-wrap gap-2">
                 {product.category && (
-                  <Badge variant="outline" className="text-sm px-3 py-1.5">
+                  <Badge variant="outline" className="text-xs px-2.5 py-1">
                     {product.category}
                   </Badge>
                 )}
                 {product.manufacturer && (
-                  <Badge variant="outline" className="text-sm px-3 py-1.5">
+                  <Badge variant="outline" className="text-xs px-2.5 py-1">
                     {product.manufacturer}
                   </Badge>
                 )}
                 {product.availability && (
-                  <Badge variant="outline" className="text-sm px-3 py-1.5">
+                  <Badge variant="outline" className="text-xs px-2.5 py-1">
                     {product.availability}
                   </Badge>
                 )}
@@ -407,18 +456,17 @@ export function ProductDetailPage() {
 
             {/* Buyer action buttons — hidden for admins */}
             {!isAdmin && (
-              <div className="space-y-3 pt-4 border-t">
+              <div className="space-y-2 pt-3 border-t">
                 <Button
                   size="lg"
-                  className="w-full text-lg py-6"
+                  className="w-full"
                   onClick={() => setAddToOrderOpen(true)}
                 >
-                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  <ShoppingCart className="w-4 h-4 mr-2" />
                   {isOutOfStock ? t('products.requestBackorder') : t('products.addToOrder')}
                 </Button>
                 <Button
                   variant="outline"
-                  size="lg"
                   className="w-full"
                   onClick={handleQuickAdd}
                   disabled={isOutOfStock}
@@ -428,9 +476,10 @@ export function ProductDetailPage() {
                 </Button>
               </div>
             )}
+
             {/* Admin info panel */}
             {isAdmin && (
-              <div className="pt-4 border-t space-y-3">
+              <div className="pt-3 border-t space-y-3">
                 <div className="flex items-center gap-2 text-sm">
                   <Badge variant="secondary" className="text-xs font-medium">
                     {t('products.adminCatalog')}
@@ -453,70 +502,16 @@ export function ProductDetailPage() {
                       <p className="font-medium truncate">{product.category}</p>
                     </div>
                   )}
-                  {product.availability && (
-                    <div>
-                      <span className="text-muted-foreground">{t('products.availability')}</span>
-                      <p className="font-medium truncate">{product.availability}</p>
-                    </div>
-                  )}
+                  <div>
+                    <span className="text-muted-foreground">{t('products.status')}</span>
+                    <p className="font-medium">
+                      {isOutOfStock ? t('products.outOfStock') : t('products.inStock')}
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
           </div>
-        </div>
-
-        {/* Bottom Section - Full Description & Specs */}
-        <div className="grid lg:grid-cols-2 gap-8 mt-12">
-          {/* Full Description */}
-          {product.description && (
-            <GlassCard>
-              <h2 className="text-2xl font-bold mb-4">{t('products.description')}</h2>
-              <HtmlContent html={product.description} />
-            </GlassCard>
-          )}
-
-          {/* Specs Table */}
-          {(product.model || product.weight || product.transportational_weight || product.date_expected || product.specs) && (
-            <GlassCard>
-              <h2 className="text-2xl font-bold mb-4">{t('products.specifications')}</h2>
-              <div className="space-y-3">
-                {product.model && (
-                  <div className="flex justify-between py-2 border-b border-border/50">
-                    <span className="text-muted-foreground">{t('products.model')}</span>
-                    <span className="font-medium">{product.model}</span>
-                  </div>
-                )}
-                {product.weight && (
-                  <div className="flex justify-between py-2 border-b border-border/50">
-                    <span className="text-muted-foreground">{t('products.weight')}</span>
-                    <span className="font-medium">{product.weight} kg</span>
-                  </div>
-                )}
-                {product.transportational_weight && (
-                  <div className="flex justify-between py-2 border-b border-border/50">
-                    <span className="text-muted-foreground">{t('products.shippingWeight')}</span>
-                    <span className="font-medium">{product.transportational_weight} kg</span>
-                  </div>
-                )}
-                {product.date_expected && (
-                  <div className="flex justify-between py-2 border-b border-border/50">
-                    <span className="text-muted-foreground">{t('products.expectedDate')}</span>
-                    <span className="font-medium">{product.date_expected}</span>
-                  </div>
-                )}
-                {product.specs && typeof product.specs === 'object' && (
-                  <>
-                    {Object.entries(product.specs).map(([key, value]) => (
-                      <div key={key} className="flex justify-between py-2 border-b border-border/50">
-                        <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
-                        <span className="font-medium">{String(value)}</span>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            </GlassCard>
-          )}
         </div>
       </div>
 

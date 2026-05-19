@@ -380,6 +380,7 @@
       "products": "{{count}} products",
       "searchProducts": "Search products...",
       "stock": "Stock",
+      "status": "Status",
       "clear": "Clear",
       "active": "Active:",
       "noCategoriesFound": "No categories found",

@@ -28,12 +28,17 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
 3. ~~Remove cart/add-to-cart UI and logic from admin profile~~ ✅ DONE
    - Cart icon + badge hidden from header for admins.
    - CartDrawer and OrderRequestModal not rendered for admins.
-   - ProductGridCard: quantity selector + Add to Cart replaced with compact metadata (manufacturer, availability) for admins. Wishlist heart hidden. Stock shown only in image badge (no duplicate row).
-   - Product detail page: buyer action buttons hidden for admins, replaced with admin info panel (SKU, manufacturer, category, availability). Wishlist heart hidden. AddToOrderModal not rendered. Category/vendor/status pills hidden for admins (shown in admin panel instead). "Related Products" section removed completely. Stock shown once as badge near price.
+   - ProductGridCard: quantity selector + Add to Cart replaced with compact metadata (manufacturer only) for admins. Wishlist heart hidden. Stock shown only in image badge. Availability/status row removed entirely.
+   - Product detail page: restructured as two-column layout — left side = image gallery, right side = structured info column (title, price, stock, description, specs, actions/metadata). Description and specs moved into right column on desktop (no longer separate bottom section). "Related Products" section removed. Admin info panel shows SKU, manufacturer, category, status. Client pills hidden for admins.
    - ProductQuickViewModal: "Add to Cart" replaced with "Admin catalog view" badge for admins.
    - Orders page: already separates AdminOrdersView and CompanyOrdersView; reorder functionality only in CompanyOrdersView.
    - OrderDetailsSheet: "Order Again" button hidden for admins (uses `isCompanyUser` check).
    - Company/client users retain full cart/order flow.
+
+4. ~~Product page and card UX refinement~~ ✅ DONE
+   - Admin product cards: removed availability/status row, kept only manufacturer. Stock only in image badge.
+   - Admin product detail: description + specs moved into right column for denser desktop layout. Status field renamed to "Статус" with "В наличност"/"Изчерпано" values.
+   - Product gallery investigation: no UI bug found. DB stores `main_image TEXT` + `images TEXT[]`. CSV parser reads `image1`-`image10` columns into `images[]`. Gallery UI correctly renders thumbnails/arrows when `images.length > 1`. **Root cause**: most imported products only have `main_image` populated; `images[]` is empty. Gallery is data-limited, not broken.
 
 4. Hide Econt functionality from client profiles
    - Econt should be visible/usable only for admin.

@@ -320,8 +320,8 @@ export function ProductGridCard({
           )}
         </div>
 
-        {/* Availability */}
-        {showAvailabilityText && (
+        {/* Availability — hidden for admins */}
+        {!isAdmin && showAvailabilityText && (
           <p className="text-xs text-muted-foreground mb-3">
             {product.availability}
           </p>
@@ -334,12 +334,6 @@ export function ProductGridCard({
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">{t('products.manufacturer')}</span>
                 <span className="font-medium truncate ml-2 text-right">{product.manufacturer}</span>
-              </div>
-            )}
-            {showAvailabilityText && product.availability && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{t('products.availability')}</span>
-                <span className="font-medium truncate ml-2 text-right">{product.availability}</span>
               </div>
             )}
           </div>
