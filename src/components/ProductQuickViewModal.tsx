@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Package, ChevronLeft, ChevronRight, ShoppingCart, ExternalLink, Percent, Eye } from 'lucide-react'
+import { Package, ChevronLeft, ChevronRight, ShoppingCart, ExternalLink, Percent } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useCartStore } from '@/stores/cartStore'
@@ -272,7 +272,7 @@ export function ProductQuickViewModal({
               )}
             </div>
 
-            {/* Actions — hidden for admins */}
+            {/* Actions */}
             <div className="flex gap-2 pt-4 border-t">
               {!isAdmin && (
                 <Button 
@@ -285,14 +285,9 @@ export function ProductQuickViewModal({
                 </Button>
               )}
               {isAdmin && (
-                <Button 
-                  className="flex-1" 
-                  variant="outline"
-                  disabled
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  {t('products.adminViewOnly')}
-                </Button>
+                <Badge variant="secondary" className="flex-1 justify-center py-2 text-xs font-medium">
+                  {t('products.adminCatalog')}
+                </Badge>
               )}
               {hasSku && (
                 <Link to={detailUrl} onClick={onClose}>

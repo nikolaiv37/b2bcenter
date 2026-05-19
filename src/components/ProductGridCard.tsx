@@ -100,6 +100,7 @@ export function ProductGridCard({
   const mainImage = product.main_image || product.images?.[0]
   const hasImages = product.images && product.images.length > 0
   const isOutOfStock = quantity === 0
+  const isLowStock = quantity > 0 && quantity <= 10
   const isAvailabilityUnavailable = isUnavailableAvailability(product.availability)
   const isPurchasable = !isOutOfStock && !isAvailabilityUnavailable
   const showAvailabilityText = isInformativeAvailability(product.availability) && !isAvailabilityUnavailable
@@ -205,8 +206,8 @@ export function ProductGridCard({
           </div>
         )}
 
-        {/* Wishlist heart button */}
-        {product.sku && (
+        {/* Wishlist heart button — hidden for admins */}
+        {!isAdmin && product.sku && (
           <div className="absolute top-2 right-2 z-10">
             <TooltipProvider>
               <Tooltip content={inWishlist ? t('wishlist.removeFromWishlist') : t('wishlist.addToWishlist')}>
@@ -327,24 +328,30 @@ export function ProductGridCard({
           </p>
         )}
 
-        {/* Quantity Input & Add to Cart — hidden for admins */}
+        {/* Admin metadata / Buyer cart actions */}
         {isAdmin ? (
-          <div 
-            className="mt-auto min-h-[118px] pt-3 border-t border-border/50"
-            onClick={handleStopPropagation}
-            onMouseDown={handleStopPropagation}
-            data-no-navigate
-          >
-            <Link
-              to={detailUrl}
-              className="flex items-center justify-center gap-2 w-full h-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              onClick={(e) => {
-                e.stopPropagation()
-              }}
-            >
-              <Eye className="w-4 h-4" />
-              {t('products.viewDetails')}
-            </Link>
+          <div className="mt-auto pt-3 border-t border-border/50 space-y-1.5">
+            {product.manufacturer && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{t('products.manufacturer')}</span>
+                <span className="font-medium truncate ml-2 text-right">{product.manufacturer}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{t('products.stock')}</span>
+              <span className={cn(
+                'font-medium tabular-nums',
+                isOutOfStock ? 'text-red-500' : isLowStock ? 'text-amber-500' : 'text-emerald-500'
+              )}>
+                {quantity} {t('general.units')}
+              </span>
+            </div>
+            {showAvailabilityText && product.availability && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{t('products.availability')}</span>
+                <span className="font-medium truncate ml-2 text-right">{product.availability}</span>
+              </div>
+            )}
           </div>
         ) : isPurchasable ? (
           <div 

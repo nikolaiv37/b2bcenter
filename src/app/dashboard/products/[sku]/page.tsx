@@ -22,7 +22,6 @@ import {
   ChevronRight as ChevronRightIcon,
   Heart,
   Percent,
-  Eye,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn, formatPrice as formatPriceUtil } from '@/lib/utils'
@@ -301,31 +300,32 @@ export function ProductDetailPage() {
             <div>
               <div className="flex items-start justify-between gap-4 mb-2">
                 <h1 className="text-4xl font-bold flex-1">{product.name}</h1>
-                {product.sku && (
-                  <TooltipProvider>
-                    <Tooltip content={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}>
-                      <button
-                        onClick={handleWishlistToggle}
-                        className={cn(
-                          'p-3 rounded-full transition-all duration-200 flex-shrink-0',
-                          'hover:scale-110 active:scale-95',
-                          inWishlist
-                            ? 'bg-red-500 text-white shadow-lg hover:bg-red-600'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
-                          isPulsing && 'animate-pulse'
-                        )}
-                        aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-                      >
-                        <Heart
-                          className={cn(
-                            'w-6 h-6 transition-all duration-200',
-                            inWishlist && 'fill-current'
-                          )}
-                        />
-                      </button>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+            {/* Wishlist — hidden for admins */}
+            {!isAdmin && product.sku && (
+              <TooltipProvider>
+                <Tooltip content={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}>
+                  <button
+                    onClick={handleWishlistToggle}
+                    className={cn(
+                      'p-3 rounded-full transition-all duration-200 flex-shrink-0',
+                      'hover:scale-110 active:scale-95',
+                      inWishlist
+                        ? 'bg-red-500 text-white shadow-lg hover:bg-red-600'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
+                      isPulsing && 'animate-pulse'
+                    )}
+                    aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                  >
+                    <Heart
+                      className={cn(
+                        'w-6 h-6 transition-all duration-200',
+                        inWishlist && 'fill-current'
+                      )}
+                    />
+                  </button>
+                </Tooltip>
+              </TooltipProvider>
+            )}
               </div>
               <p className="text-sm text-muted-foreground font-mono">SKU: {product.sku}</p>
             </div>
@@ -403,7 +403,7 @@ export function ProductDetailPage() {
               )}
             </div>
 
-            {/* Action Buttons — hidden for admins */}
+            {/* Buyer action buttons — hidden for admins */}
             {!isAdmin && (
               <div className="space-y-3 pt-4 border-t">
                 <Button
@@ -426,17 +426,41 @@ export function ProductDetailPage() {
                 </Button>
               </div>
             )}
+            {/* Admin info panel */}
             {isAdmin && (
-              <div className="space-y-3 pt-4 border-t">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full text-lg py-6"
-                  onClick={() => setAddToOrderOpen(true)}
-                >
-                  <Eye className="w-5 h-5 mr-2" />
-                  {t('products.viewDetails')}
-                </Button>
+              <div className="pt-4 border-t space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Badge variant="secondary" className="text-xs font-medium">
+                    {t('products.adminCatalog')}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">{t('products.sku')}</span>
+                    <p className="font-mono font-medium">{product.sku}</p>
+                  </div>
+                  {product.manufacturer && (
+                    <div>
+                      <span className="text-muted-foreground">{t('products.manufacturer')}</span>
+                      <p className="font-medium truncate">{product.manufacturer}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-muted-foreground">{t('products.stock')}</span>
+                    <p className={cn(
+                      'font-medium tabular-nums',
+                      isOutOfStock ? 'text-red-500' : isLowStock ? 'text-amber-500' : 'text-emerald-500'
+                    )}>
+                      {quantity} {t('general.units')}
+                    </p>
+                  </div>
+                  {product.category && (
+                    <div>
+                      <span className="text-muted-foreground">{t('products.category')}</span>
+                      <p className="font-medium truncate">{product.category}</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -28,9 +28,9 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
 3. ~~Remove cart/add-to-cart UI and logic from admin profile~~ ✅ DONE
    - Cart icon + badge hidden from header for admins.
    - CartDrawer and OrderRequestModal not rendered for admins.
-   - ProductGridCard: quantity selector + Add to Cart replaced with "View details" link for admins.
-   - Product detail page: "Add to Order" and "Quick Add 1pc" buttons hidden for admins, replaced with "View only" button. AddToOrderModal not rendered.
-   - ProductQuickViewModal: "Add to Cart" button replaced with "View only (admin)" for admins.
+   - ProductGridCard: quantity selector + Add to Cart replaced with compact metadata (manufacturer, stock count, availability) for admins. Wishlist heart hidden for admins.
+   - Product detail page: buyer action buttons hidden for admins, replaced with admin info panel (SKU, manufacturer, stock, category). Wishlist heart hidden for admins. AddToOrderModal not rendered.
+   - ProductQuickViewModal: "Add to Cart" replaced with "Admin catalog view" badge for admins.
    - Orders page: already separates AdminOrdersView and CompanyOrdersView; reorder functionality only in CompanyOrdersView.
    - OrderDetailsSheet: "Order Again" button hidden for admins (uses `isCompanyUser` check).
    - Company/client users retain full cart/order flow.
