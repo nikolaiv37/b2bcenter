@@ -36,21 +36,16 @@ export function useMutationUpdateClient() {
       return client as Client
     },
     onSuccess: (data, variables) => {
-      // Invalidate client queries
       queryClient.invalidateQueries({ queryKey: ['workspace', 'clients'] })
       queryClient.invalidateQueries({ queryKey: ['workspace', 'clients', data.id] })
       queryClient.invalidateQueries({ queryKey: ['workspace', 'profiles'] })
       
-      // If commission_rate was updated, invalidate product queries and notify the user
       if (variables.commission_rate !== undefined) {
-        // Invalidate all product queries so adjusted prices are recalculated
         queryClient.invalidateQueries({ queryKey: ['workspace', 'products'] })
         queryClient.invalidateQueries({ queryKey: ['workspace', 'public-products'] })
         queryClient.invalidateQueries({ queryKey: ['workspace', 'product'] })
-        // Also invalidate quotes so they show updated pricing
         queryClient.invalidateQueries({ queryKey: ['workspace', 'quotes'] })
 
-        // Notify the affected company user about the commission change
         sendNotification({
           type: 'commission_changed',
           metadata: {
@@ -64,7 +59,7 @@ export function useMutationUpdateClient() {
   })
 }
 
-export function useMutationDeleteClient() {
+export function useMutationDeactivateClient() {
   const queryClient = useQueryClient()
   const { workspaceId: tenantId } = useAppContext()
 
@@ -73,14 +68,29 @@ export function useMutationDeleteClient() {
       if (!tenantId) {
         throw new Error('Missing tenant context')
       }
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', clientId)
-        .eq('role', 'company')
-        .eq('tenant_id', tenantId)
 
-      if (error) throw error
+      const { data: result, error } = await supabase.functions.invoke('deactivate-client', {
+        body: {
+          client_id: clientId,
+          tenant_id: tenantId,
+        },
+      })
+
+      if (error) {
+        let message = error.message || 'Failed to deactivate client'
+        try {
+          const ctx = (error as { context?: Response }).context
+          const body = ctx ? await ctx.json() : null
+          if (body?.error) message = body.error
+          else if (body?.message) message = body.message
+        } catch { /* non-JSON or no context, keep original message */ }
+        throw new Error(message)
+      }
+
+      if (result?.error) {
+        throw new Error(result.error)
+      }
+
       return clientId
     },
     onSuccess: () => {

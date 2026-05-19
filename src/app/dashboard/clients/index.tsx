@@ -33,7 +33,7 @@ import { useQueryClients } from '@/hooks/useQueryClients'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import {
   useMutationUpdateClient,
-  useMutationDeleteClient,
+  useMutationDeactivateClient,
 } from '@/hooks/useMutationClient'
 import { useMutationCreateClient } from '@/hooks/useMutationCreateClient'
 import { Client } from '@/types'
@@ -103,7 +103,7 @@ export function ClientsPage() {
 
   const { data: clients, isLoading, error } = useQueryClients()
   const updateMutation = useMutationUpdateClient()
-  const deleteMutation = useMutationDeleteClient()
+  const deactivateMutation = useMutationDeactivateClient()
   const createMutation = useMutationCreateClient()
 
   const filteredClients = useMemo(() => {
@@ -218,17 +218,17 @@ export function ClientsPage() {
     if (!deletingClient) return
 
     try {
-      await deleteMutation.mutateAsync(deletingClient.id)
+      await deactivateMutation.mutateAsync(deletingClient.id)
       toast({
         title: t('distributors.success'),
-        description: t('distributors.deleteSuccess'),
+        description: t('distributors.deactivateSuccess'),
       })
       setIsDeleteDialogOpen(false)
       setDeletingClient(null)
-    } catch {
+    } catch (err) {
       toast({
         title: t('distributors.error'),
-        description: t('distributors.deleteError'),
+        description: err instanceof Error ? err.message : t('distributors.deactivateError'),
         variant: 'destructive',
       })
     }
@@ -891,10 +891,10 @@ export function ClientsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <Trash2 className="w-5 h-5" />
-              {t('distributors.deleteConfirmTitle')}
+              {t('distributors.deactivateConfirmTitle')}
             </DialogTitle>
             <DialogDescription className="pt-2">
-              {t('distributors.deleteConfirmBody', {
+              {t('distributors.deactivateConfirmBody', {
                 name: deletingClient ? getCompanyName(deletingClient) : t('distributors.thisDistributor'),
               })}
             </DialogDescription>
@@ -906,10 +906,10 @@ export function ClientsPage() {
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
-              disabled={deleteMutation.isPending}
+              disabled={deactivateMutation.isPending}
               className="gap-2"
             >
-              {deleteMutation.isPending && (
+              {deactivateMutation.isPending && (
                 <Loader2 className="w-4 h-4 animate-spin" />
               )}
               {t('general.delete')}

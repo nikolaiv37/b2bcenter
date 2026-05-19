@@ -16,10 +16,14 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
    - Client can log in with the temporary password immediately.
    - **Deploy needed:** `supabase functions deploy create-client`
 
-2. Fix client deletion flow
-   - Admin should be able to delete/remove a client safely.
-   - Remove or deactivate related profile/company/membership records according to current schema rules.
-   - Avoid breaking historical orders if possible.
+2. ~~Fix client deletion flow~~ ✅ DONE
+   - Admin removes client access via Edge Function (`deactivate-client`).
+   - Deletes `tenant_memberships` row to revoke dashboard access.
+   - Profile, company, quotes, and orders remain intact for history.
+   - Edge Function validates caller is admin/owner, prevents self-deactivation and protecting other admins/owners.
+   - React Query cache invalidated immediately after success.
+   - Real errors shown on failure; no success toast on failure.
+   - **Deploy needed:** `supabase functions deploy deactivate-client`
 
 3. Remove cart/add-to-cart UI and logic from admin profile
    - Admin users should not see add-to-cart buttons.

@@ -1461,7 +1461,11 @@
       "linkCopiedDesc": "Invite link has been copied to your clipboard.",
       "noTokenFound": "No pending invitation found for this client.",
       "statusActive": "Active",
-      "statusInvited": "Invited"
+      "statusInvited": "Invited",
+      "deactivateConfirmTitle": "Remove Client Access",
+      "deactivateConfirmBody": "Are you sure you want to remove {{name}}'s access to this workspace? Their order and quote history will be preserved, but they will no longer be able to log in.",
+      "deactivateSuccess": "Client access removed successfully",
+      "deactivateError": "Failed to remove client access"
     },
     "clientSetup": {
       "title": "Complete Your Account",
