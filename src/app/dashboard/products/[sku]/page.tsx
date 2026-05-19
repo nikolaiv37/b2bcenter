@@ -384,24 +384,26 @@ export function ProductDetailPage() {
               </div>
             )}
 
-            {/* Category & Manufacturer Chips */}
-            <div className="flex flex-wrap gap-2">
-              {product.category && (
-                <Badge variant="outline" className="text-sm px-3 py-1.5">
-                  {product.category}
-                </Badge>
-              )}
-              {product.manufacturer && (
-                <Badge variant="outline" className="text-sm px-3 py-1.5">
-                  {product.manufacturer}
-                </Badge>
-              )}
-              {product.availability && (
-                <Badge variant="outline" className="text-sm px-3 py-1.5">
-                  {product.availability}
-                </Badge>
-              )}
-            </div>
+            {/* Category & Manufacturer Chips — hidden for admins (shown in admin info panel) */}
+            {!isAdmin && (
+              <div className="flex flex-wrap gap-2">
+                {product.category && (
+                  <Badge variant="outline" className="text-sm px-3 py-1.5">
+                    {product.category}
+                  </Badge>
+                )}
+                {product.manufacturer && (
+                  <Badge variant="outline" className="text-sm px-3 py-1.5">
+                    {product.manufacturer}
+                  </Badge>
+                )}
+                {product.availability && (
+                  <Badge variant="outline" className="text-sm px-3 py-1.5">
+                    {product.availability}
+                  </Badge>
+                )}
+              </div>
+            )}
 
             {/* Buyer action buttons — hidden for admins */}
             {!isAdmin && (
@@ -445,19 +447,16 @@ export function ProductDetailPage() {
                       <p className="font-medium truncate">{product.manufacturer}</p>
                     </div>
                   )}
-                  <div>
-                    <span className="text-muted-foreground">{t('products.stock')}</span>
-                    <p className={cn(
-                      'font-medium tabular-nums',
-                      isOutOfStock ? 'text-red-500' : isLowStock ? 'text-amber-500' : 'text-emerald-500'
-                    )}>
-                      {quantity} {t('general.units')}
-                    </p>
-                  </div>
                   {product.category && (
                     <div>
                       <span className="text-muted-foreground">{t('products.category')}</span>
                       <p className="font-medium truncate">{product.category}</p>
+                    </div>
+                  )}
+                  {product.availability && (
+                    <div>
+                      <span className="text-muted-foreground">{t('products.availability')}</span>
+                      <p className="font-medium truncate">{product.availability}</p>
                     </div>
                   )}
                 </div>
@@ -519,12 +518,6 @@ export function ProductDetailPage() {
             </GlassCard>
           )}
         </div>
-
-        {/* Related Products Placeholder */}
-        <GlassCard>
-          <h2 className="text-2xl font-bold mb-4">{t('products.relatedProducts')}</h2>
-          <p className="text-muted-foreground">{t('products.relatedProductsComingSoon')}</p>
-        </GlassCard>
       </div>
 
       {/* Add to Order Modal — hidden for admins */}

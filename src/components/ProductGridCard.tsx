@@ -100,7 +100,6 @@ export function ProductGridCard({
   const mainImage = product.main_image || product.images?.[0]
   const hasImages = product.images && product.images.length > 0
   const isOutOfStock = quantity === 0
-  const isLowStock = quantity > 0 && quantity <= 10
   const isAvailabilityUnavailable = isUnavailableAvailability(product.availability)
   const isPurchasable = !isOutOfStock && !isAvailabilityUnavailable
   const showAvailabilityText = isInformativeAvailability(product.availability) && !isAvailabilityUnavailable
@@ -337,15 +336,6 @@ export function ProductGridCard({
                 <span className="font-medium truncate ml-2 text-right">{product.manufacturer}</span>
               </div>
             )}
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">{t('products.stock')}</span>
-              <span className={cn(
-                'font-medium tabular-nums',
-                isOutOfStock ? 'text-red-500' : isLowStock ? 'text-amber-500' : 'text-emerald-500'
-              )}>
-                {quantity} {t('general.units')}
-              </span>
-            </div>
             {showAvailabilityText && product.availability && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">{t('products.availability')}</span>
