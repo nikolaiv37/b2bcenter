@@ -300,7 +300,8 @@ export function ProductsPage() {
     enabled: !!tenantId,
   })
 
-  // Fetch manufacturer filter options from ALL products (no limit — single column, small payload)
+  // Fetch manufacturer filter options from ALL products
+  // Note: PostgREST default limit is 1000 rows, so we must set a high explicit limit
   const { data: manufacturers = [] } = useQuery({
     queryKey: ['workspace', 'products', 'manufacturer-options', tenantId],
     queryFn: async () => {
@@ -309,6 +310,7 @@ export function ProductsPage() {
         .from('products')
         .select('manufacturer')
         .eq('tenant_id', tenantId)
+        .limit(100000) // Override PostgREST default limit of 1000
 
       if (error) throw error
 
