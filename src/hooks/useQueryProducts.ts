@@ -33,9 +33,10 @@ function applyCommissionToProducts(
 export function useQueryProducts(supplierId?: string) {
   const profile = useAuthStore((state) => state.profile)
   const { workspaceId: tenantId } = useAppContext()
+  const isAdmin = profile?.role === 'admin'
 
   return useQuery({
-    queryKey: ['workspace', 'products', supplierId, profile?.id, profile?.commission_rate],
+    queryKey: ['workspace', 'products', supplierId, profile?.id, profile?.commission_rate, isAdmin],
     queryFn: async () => {
       let query = supabase.from('products').select('*').order('created_at', { ascending: false })
 
@@ -45,6 +46,10 @@ export function useQueryProducts(supplierId?: string) {
 
       if (supplierId) {
         query = query.eq('supplier_id', supplierId)
+      }
+
+      if (!isAdmin) {
+        query = query.eq('is_visible', true)
       }
 
       const { data, error } = await query
@@ -62,6 +67,7 @@ export function useQueryProducts(supplierId?: string) {
 export function useQueryProduct(productId: string) {
   const profile = useAuthStore((state) => state.profile)
   const { workspaceId: tenantId } = useAppContext()
+  const isAdmin = profile?.role === 'admin'
 
   return useQuery({
     queryKey: ['workspace', 'product', productId, profile?.id, profile?.commission_rate],
@@ -74,6 +80,10 @@ export function useQueryProduct(productId: string) {
         .single()
 
       if (error) throw error
+
+      if (!isAdmin && data?.is_visible === false) {
+        return null
+      }
       
       // Apply commission-based pricing
       const products = applyCommissionToProducts([data as Product], profile?.role, profile?.commission_rate)
@@ -141,6 +151,7 @@ export function useQueryPublicProducts(companySlug: string, filters?: {
 export function useQueryProductBySku(sku: string) {
   const profile = useAuthStore((state) => state.profile)
   const { workspaceId: tenantId } = useAppContext()
+  const isAdmin = profile?.role === 'admin'
 
   return useQuery({
     queryKey: ['workspace', 'product', 'sku', sku, profile?.id, profile?.commission_rate],
@@ -160,6 +171,10 @@ export function useQueryProductBySku(sku: string) {
           return null
         }
         throw error
+      }
+
+      if (!isAdmin && data?.is_visible === false) {
+        return null
       }
 
       // Apply commission-based pricing

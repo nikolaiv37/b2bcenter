@@ -121,6 +121,7 @@ export function useOrderSourceCartLoader() {
         .select('*')
         .in('sku', uniqueSkus)
         .eq('tenant_id', tenantId)
+        .eq('is_visible', true)
 
       if (error) {
         throw error

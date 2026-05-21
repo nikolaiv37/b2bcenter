@@ -52,6 +52,13 @@ export const useCartStore = create<CartState>()(
         const stock = product.quantity ?? 0
         const isBackorder = options?.is_backorder ?? false
 
+        if (product.is_visible === false) {
+          return {
+            success: false,
+            message: 'This product is no longer available for ordering',
+          }
+        }
+
         if (!isBackorder && quantity > stock) {
           return {
             success: false,

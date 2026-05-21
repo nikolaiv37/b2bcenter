@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { useCategoryHierarchy } from '@/hooks/useCategoryHierarchy'
 import { GlassCard } from '@/components/GlassCard'
@@ -10,7 +10,9 @@ import { CategoryGrid, categoryToSlug } from '@/components/CategoryGrid'
 import { CategoryBreadcrumbs } from '@/components/CategoryBreadcrumbs'
 import { SubcategoryBubbles } from '@/components/SubcategoryBubbles'
 import { ProductGridCard } from '@/components/ProductGridCard'
+import { ProductListTable } from '@/components/ProductListTable'
 import { ProductQuickViewModal } from '@/components/ProductQuickViewModal'
+import { BulkProductCategoryMoveBar } from '@/components/BulkProductCategoryMoveBar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -22,13 +24,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useToast } from '@/components/ui/use-toast'
 import { useAuth } from '@/hooks/useAuth'
 import { Product } from '@/types'
-import { Search, X, ChevronLeft, ChevronRight, Grid3X3, Package } from 'lucide-react'
+import { Search, X, ChevronLeft, ChevronRight, Grid3X3, List, Package } from 'lucide-react'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 
 const ITEMS_PER_PAGE = 24
+type ProductLifecycleFilter = 'active' | 'archived' | 'all'
 
 export function CategoriesPage() {
   const { t } = useTranslation()
@@ -68,14 +70,29 @@ export function CategoriesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedManufacturer, setSelectedManufacturer] = useState<string>('all')
   const [stockFilter, setStockFilter] = useState<string>('all')
+  const [lifecycleFilter, setLifecycleFilter] = useState<ProductLifecycleFilter>('active')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false)
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   const { profile } = useAuth()
-  const { toast } = useToast()
-  const queryClient = useQueryClient()
   const isAdmin = profile?.role === 'admin'
+
+  const applyLifecycleFilter = <T,>(query: T): T => {
+    const productQuery = query as T & {
+      eq: (column: string, value: boolean) => T
+    }
+
+    if (!isAdmin || lifecycleFilter === 'active') {
+      return productQuery.eq('is_visible', true)
+    }
+    if (lifecycleFilter === 'archived') {
+      return productQuery.eq('is_visible', false)
+    }
+    return query
+  }
 
   // Fetch category hierarchy
   const { data: categoryHierarchy, isLoading: categoriesLoading } = useCategoryHierarchy()
@@ -224,6 +241,7 @@ export function CategoriesPage() {
       searchQuery,
       selectedManufacturer,
       stockFilter,
+      lifecycleFilter,
       currentPage,
     ],
     queryFn: async () => {
@@ -235,8 +253,7 @@ export function CategoriesPage() {
       // Category filter using category_id (normalized architecture)
       query = query.in('category_id', categoryIds)
 
-      // Only visible products
-      query = query.eq('is_visible', true)
+      query = applyLifecycleFilter(query)
 
       // Search filter
       if (searchQuery) {
@@ -275,16 +292,19 @@ export function CategoriesPage() {
 
   // Fetch manufacturers for filter (using normalized category_id)
   const { data: manufacturers = [] } = useQuery({
-    queryKey: ['workspace', 'category-manufacturers', categoryIds],
+    queryKey: ['workspace', 'category-manufacturers', categoryIds, isAdmin, lifecycleFilter],
     queryFn: async () => {
       if (!tenantId || categoryIds.length === 0) return []
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('manufacturer')
         .in('category_id', categoryIds)
-        .eq('is_visible', true)
         .eq('tenant_id', tenantId)
+
+      query = applyLifecycleFilter(query)
+
+      const { data, error } = await query
 
       if (error) throw error
       
@@ -301,34 +321,38 @@ export function CategoriesPage() {
   const totalCount = productsData?.count || 0
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (productId: string | number) => {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', productId)
-        .eq('tenant_id', tenantId)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workspace', 'category-products'] })
-      toast({ title: t('products.productDeleted'), description: t('products.productRemoved') })
-    },
-    onError: () => {
-      toast({ title: t('products.error'), description: t('products.failedToDelete'), variant: 'destructive' })
-    },
-  })
-
   // Handlers
   const handleQuickView = (product: Product) => {
     setSelectedProduct(product)
     setIsQuickViewOpen(true)
   }
 
-  const handleDelete = (product: Product) => {
-    if (confirm(t('products.deleteConfirm', { name: product.name }))) {
-      deleteMutation.mutate(product.id)
+  const toggleProductSelection = (product: Product) => {
+    if (!product.id) return
+    setSelectedProductIds((current) =>
+      current.includes(product.id)
+        ? current.filter((id) => id !== product.id)
+        : [...current, product.id]
+    )
+  }
+
+  const toggleAllVisibleProducts = () => {
+    const visibleIds = products.map((product) => product.id).filter(Boolean)
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedProductIds.includes(id))
+
+    setSelectedProductIds((current) => {
+      if (allVisibleSelected) {
+        return current.filter((id) => !visibleIds.includes(id))
+      }
+
+      return Array.from(new Set([...current, ...visibleIds]))
+    })
+  }
+
+  const handleViewModeChange = (mode: 'grid' | 'list') => {
+    setViewMode(mode)
+    if (mode === 'grid') {
+      setSelectedProductIds([])
     }
   }
 
@@ -336,10 +360,19 @@ export function CategoriesPage() {
     setSearchQuery('')
     setSelectedManufacturer('all')
     setStockFilter('all')
+    setLifecycleFilter('active')
     setCurrentPage(1)
   }
 
-  const hasActiveFilters = searchQuery || selectedManufacturer !== 'all' || stockFilter !== 'all'
+  const hasActiveFilters =
+    searchQuery ||
+    selectedManufacturer !== 'all' ||
+    stockFilter !== 'all' ||
+    (isAdmin && lifecycleFilter !== 'active')
+
+  useEffect(() => {
+    setSelectedProductIds([])
+  }, [decodedMainCategory, decodedSubCategory, viewAllProducts, searchQuery, selectedManufacturer, stockFilter, lifecycleFilter, currentPage])
 
   // Build breadcrumbs (using slugs for URLs)
   const breadcrumbs = useMemo(() => {
@@ -520,6 +553,21 @@ export function CategoriesPage() {
                   <SelectItem value="out-of-stock">{t('products.outOfStock')}</SelectItem>
                 </SelectContent>
               </Select>
+              {isAdmin && (
+                <Select
+                  value={lifecycleFilter}
+                  onValueChange={(value) => setLifecycleFilter(value as ProductLifecycleFilter)}
+                >
+                  <SelectTrigger className="w-full sm:w-[160px]">
+                    <SelectValue placeholder={t('products.lifecycleStatus')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">{t('products.activeProducts')}</SelectItem>
+                    <SelectItem value="archived">{t('products.archivedProducts')}</SelectItem>
+                    <SelectItem value="all">{t('products.allLifecycleProducts')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
               {hasActiveFilters && (
                 <Button variant="outline" onClick={clearFilters}>
                   <X className="w-4 h-4 mr-2" />
@@ -527,6 +575,35 @@ export function CategoriesPage() {
                 </Button>
               )}
             </div>
+
+            {isAdmin && (
+              <div className="flex justify-end border-t pt-3">
+                <div className="inline-flex rounded-md border bg-background p-1">
+                  <Button
+                    type="button"
+                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleViewModeChange('grid')}
+                    aria-pressed={viewMode === 'grid'}
+                    title={t('products.gridViewTitle')}
+                  >
+                    <Grid3X3 className="mr-2 h-4 w-4" />
+                    {t('products.gridView')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleViewModeChange('list')}
+                    aria-pressed={viewMode === 'list'}
+                    title={t('products.listViewTitle')}
+                  >
+                    <List className="mr-2 h-4 w-4" />
+                    {t('products.listView')}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Active filters */}
             {hasActiveFilters && (
@@ -556,10 +633,29 @@ export function CategoriesPage() {
                     </button>
                   </Badge>
                 )}
+                {isAdmin && lifecycleFilter !== 'active' && (
+                  <Badge variant="secondary" className="gap-1">
+                    {lifecycleFilter === 'archived'
+                      ? t('products.archivedProducts')
+                      : t('products.allLifecycleProducts')}
+                    <button onClick={() => setLifecycleFilter('active')} className="ml-1 hover:text-destructive">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                )}
               </div>
             )}
           </div>
         </GlassCard>
+
+        {isAdmin && viewMode === 'list' && (
+          <BulkProductCategoryMoveBar
+            selectedProductIds={selectedProductIds}
+            selectedProducts={products.filter((product) => selectedProductIds.includes(product.id))}
+            onClearSelection={() => setSelectedProductIds([])}
+            selectedCountLabel={t('products.selectedProductsCount', { count: selectedProductIds.length })}
+          />
+        )}
 
         {/* Products Grid */}
         {productsLoading ? (
@@ -577,17 +673,25 @@ export function CategoriesPage() {
           </div>
         ) : products.length > 0 ? (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <ProductGridCard
-                  key={product.id}
-                  product={product}
-                  onQuickView={handleQuickView}
-                  onDelete={isAdmin ? handleDelete : undefined}
-                  isAdmin={isAdmin}
-                />
-              ))}
-            </div>
+            {isAdmin && viewMode === 'list' ? (
+              <ProductListTable
+                products={products}
+                selectedProductIds={selectedProductIds}
+                onToggleProduct={toggleProductSelection}
+                onToggleAllVisible={toggleAllVisibleProducts}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {products.map((product) => (
+                  <ProductGridCard
+                    key={product.id}
+                    product={product}
+                    onQuickView={handleQuickView}
+                    isAdmin={isAdmin}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* Pagination */}
             {totalPages > 1 && (

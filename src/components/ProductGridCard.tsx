@@ -19,7 +19,6 @@ interface ProductGridCardProps {
   product: Product
   onQuickView: (product: Product) => void
   onEdit?: (product: Product) => void
-  onDelete?: (product: Product) => void
   isAdmin?: boolean
 }
 

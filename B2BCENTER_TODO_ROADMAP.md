@@ -91,7 +91,12 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
      - Categories that have subcategories are blocked. The admin must move/merge/delete the subcategories first.
      - No "Без категория" orphan product behavior. Category deletion never moves products to a hidden uncategorized bucket and never hard-deletes products.
    - The delete modal swaps title/body/CTA based on the live product and subcategory counts; the mutation re-verifies the counts server-side before deleting.
-   - Product deletion/archival is intentionally out of scope here and tracked as a separate future feature.
+   - Product-level category change: ✅ DONE. Admins can change one product's `category_id` from the product detail page without merging an entire category.
+   - Bulk product category move: ✅ DONE — moved to admin list/table view and UX-polished. Grid view is visual-only; list view is the admin management mode with current-page product selection and bulk category move on `/dashboard/products` and category product grids.
+   - Select-all applies only to visible/current-page products, not every product matching filters across pages.
+   - Product archive/deactivate workflow: ✅ DONE. Archive is reversible via `products.is_visible`; no hard delete was implemented. Archived products are hidden from client catalog/search/category/wishlist/order-source loading, while historical orders remain preserved.
+   - Bulk archive/restore: ✅ DONE from the admin list/table view.
+   - Hard delete remains future/not planned until a safe product/order-history audit exists.
 
 12. Reduce heavy initial/page loading
    - App and some pages have unnecessary heavy loading.

@@ -4,6 +4,14 @@ import { Helmet } from 'react-helmet-async'
 import { GlassCard } from '@/components/GlassCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { useCartStore } from '@/stores/cartStore'
@@ -22,6 +30,9 @@ import {
   ChevronRight as ChevronRightIcon,
   Heart,
   Percent,
+  Tags,
+  Archive,
+  RotateCcw,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn, formatPrice as formatPriceUtil } from '@/lib/utils'
@@ -29,6 +40,9 @@ import { AddToOrderModal } from './AddToOrderModal'
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { HtmlContent } from '@/components/HtmlContent'
+import { ChangeProductCategoryDialog } from '@/components/ChangeProductCategoryDialog'
+import { useCategoryOptions } from '@/hooks/useCategoryOptions'
+import { useMutationUpdateProductVisibility } from '@/hooks/useMutationProductVisibility'
 
 /**
  * Product Detail Page
@@ -58,10 +72,14 @@ export function ProductDetailPage() {
   const isAdmin = currentAccount.isAdmin
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [addToOrderOpen, setAddToOrderOpen] = useState(false)
+  const [changeCategoryOpen, setChangeCategoryOpen] = useState(false)
+  const [visibilityAction, setVisibilityAction] = useState<'archive' | 'restore' | null>(null)
   const [isPulsing, setIsPulsing] = useState(false)
+  const productVisibilityMutation = useMutationUpdateProductVisibility()
 
   // Fetch product by SKU using the new hook that applies commission pricing
   const { data: product, isLoading, error } = useQueryProductBySku(sku || '')
+  const { options: categoryOptions } = useCategoryOptions(!!product)
 
   // Handle 404 - product not found
   if (!isLoading && (!product || error)) {
@@ -129,10 +147,14 @@ export function ProductDetailPage() {
   const quantity = product.quantity ?? 0
   const isOutOfStock = quantity === 0
   const isLowStock = quantity > 0 && quantity < 20
+  const isArchived = product.is_visible === false
 
   // Use adjusted_price if available, otherwise fall back to weboffer_price
   const displayPrice = product.adjusted_price ?? product.weboffer_price
   const hasCommissionDiscount = hasDiscount && product.adjusted_price !== undefined && product.adjusted_price < product.weboffer_price
+  const productCategoryLabel =
+    categoryOptions.find((category) => category.id === product.category_id)?.label ||
+    product.category
 
   // Format price helper
   const formatPrice = (price: number | null | undefined): string => {
@@ -175,6 +197,29 @@ export function ProductDetailPage() {
           description: `${product.name} has been removed from your wishlist`,
         })
       }
+    }
+  }
+
+  const handleVisibilityUpdate = async () => {
+    if (!visibilityAction) return
+
+    const restoring = visibilityAction === 'restore'
+
+    try {
+      await productVisibilityMutation.mutateAsync({
+        productId: product.id,
+        sku: product.sku,
+        isVisible: restoring,
+      })
+      toast({
+        title: restoring ? t('products.productRestored') : t('products.productArchived'),
+      })
+      setVisibilityAction(null)
+    } catch {
+      toast({
+        title: restoring ? t('products.restoreProductError') : t('products.archiveProductError'),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -383,6 +428,19 @@ export function ProductDetailPage() {
                 <Badge variant="secondary" className="text-xs font-medium">
                   {isAdmin ? t('products.adminCatalog') : t('products.productInfo')}
                 </Badge>
+                {isAdmin && (
+                  <Badge
+                    variant={isArchived ? 'secondary' : 'outline'}
+                    className={cn(
+                      'text-xs font-medium',
+                      isArchived
+                        ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                        : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                    )}
+                  >
+                    {isArchived ? t('products.archived') : t('products.active')}
+                  </Badge>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
@@ -395,10 +453,10 @@ export function ProductDetailPage() {
                     <p className="font-medium truncate">{product.manufacturer}</p>
                   </div>
                 )}
-                {product.category && (
+                {productCategoryLabel && (
                   <div>
                     <span className="text-muted-foreground">{t('products.category')}</span>
-                    <p className="font-medium truncate">{product.category}</p>
+                    <p className="font-medium truncate">{productCategoryLabel}</p>
                   </div>
                 )}
                 <div>
@@ -408,10 +466,36 @@ export function ProductDetailPage() {
                   </p>
                 </div>
               </div>
+              {isAdmin && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setChangeCategoryOpen(true)}
+                  >
+                    <Tags className="mr-2 h-4 w-4" />
+                    {t('products.changeCategory')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVisibilityAction(isArchived ? 'restore' : 'archive')}
+                  >
+                    {isArchived ? (
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Archive className="mr-2 h-4 w-4" />
+                    )}
+                    {isArchived ? t('products.restoreProduct') : t('products.archiveProduct')}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Buyer action buttons — hidden for admins */}
-            {!isAdmin && (
+            {!isAdmin && !isArchived && (
               <div className="space-y-2 pt-3 border-t">
                 <Button
                   size="lg"
@@ -494,6 +578,47 @@ export function ProductDetailPage() {
           open={addToOrderOpen}
           onClose={() => setAddToOrderOpen(false)}
         />
+      )}
+      {isAdmin && (
+        <ChangeProductCategoryDialog
+          product={product}
+          open={changeCategoryOpen}
+          onOpenChange={setChangeCategoryOpen}
+        />
+      )}
+      {isAdmin && (
+        <Dialog open={visibilityAction !== null} onOpenChange={(open) => !open && setVisibilityAction(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {visibilityAction === 'restore' ? t('products.restoreProduct') : t('products.archiveProduct')}
+              </DialogTitle>
+              <DialogDescription>
+                {visibilityAction === 'restore'
+                  ? t('products.restoreProductConfirm')
+                  : t('products.archiveProductConfirm')}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setVisibilityAction(null)}
+                disabled={productVisibilityMutation.isPending}
+              >
+                {t('general.cancel')}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleVisibilityUpdate}
+                disabled={productVisibilityMutation.isPending}
+              >
+                {visibilityAction === 'restore' ? t('products.restoreProduct') : t('products.archiveProduct')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   )

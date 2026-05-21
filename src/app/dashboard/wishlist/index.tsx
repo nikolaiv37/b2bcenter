@@ -43,6 +43,7 @@ export function WishlistPage() {
         .select('*')
         .in('sku', wishlistSkus)
         .eq('tenant_id', tenantId)
+        .eq('is_visible', true)
 
       if (error) throw error
       return (data || []) as Product[]
