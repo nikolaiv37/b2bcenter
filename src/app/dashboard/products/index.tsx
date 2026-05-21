@@ -24,6 +24,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Product } from '@/types'
 import { Grid3X3, List, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { applyCommissionRate, shouldApplyCommission } from '@/lib/priceUtils'
+import { fetchManufacturerOptions } from '@/lib/manufacturers'
 
 const ITEMS_PER_PAGE = 24
 const INITIAL_LOAD_SIZE = 150 // Load 150 products initially for fast render
@@ -327,28 +328,23 @@ export function ProductsPage() {
     enabled: !!tenantId,
   })
 
-  // Fetch manufacturer filter options from ALL products
-  // Note: PostgREST default limit is 1000 rows, so we must set a high explicit limit
+  // Fetch manufacturer filter options from ALL products.
+  // Uses the shared paginated resolver so the list is never truncated by the
+  // server-side PostgREST row cap (the previous single-request approach only
+  // ever returned the first 1000 arbitrary rows).
+  const manufacturerVisibilityScope: boolean | null =
+    !isAdmin || lifecycleFilter === 'active'
+      ? true
+      : lifecycleFilter === 'archived'
+        ? false
+        : null
   const { data: manufacturers = [] } = useQuery({
-    queryKey: ['workspace', 'products', 'manufacturer-options', tenantId, isAdmin, lifecycleFilter],
-    queryFn: async () => {
-      if (!tenantId) return [] as string[]
-      let query = supabase
-        .from('products')
-        .select('manufacturer')
-        .eq('tenant_id', tenantId)
-        .limit(100000) // Override PostgREST default limit of 1000
-
-      query = applyLifecycleFilter(query)
-
-      const { data, error } = await query
-
-      if (error) throw error
-
-      return Array.from(
-        new Set(data.map((p) => p.manufacturer).filter(Boolean))
-      ).sort() as string[]
-    },
+    queryKey: ['workspace', 'products', 'manufacturer-options', tenantId, manufacturerVisibilityScope],
+    queryFn: () =>
+      fetchManufacturerOptions({
+        tenantId: tenantId as string,
+        isVisible: manufacturerVisibilityScope,
+      }),
     staleTime: 5 * 60 * 1000,
     enabled: !!tenantId,
   })
@@ -446,8 +442,12 @@ export function ProductsPage() {
     setSelectedProductIds([])
   }, [searchQuery, selectedCategory, selectedManufacturer, stockFilter, lifecycleFilter, currentPage])
 
+  // Reserve space at the bottom so the fixed bulk action bar never covers
+  // the last table rows / pagination while a selection is active.
+  const showBulkBar = isAdmin && viewMode === 'list' && selectedProductIds.length > 0
+
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${showBulkBar ? 'pb-28' : ''}`}>
       {/* Header */}
       <div>
         <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{t('products.title')}</h1>
@@ -473,100 +473,100 @@ export function ProductsPage() {
             />
           </div>
 
-          {/* Filters */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Select
-              value={selectedCategory}
-              onValueChange={(value) => {
-                setSelectedCategory(value)
-                setCurrentPage(1)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t('products.category')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('products.allCategories')}</SelectItem>
-                {categoriesData.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={selectedManufacturer}
-              onValueChange={(value) => {
-                setSelectedManufacturer(value)
-                setCurrentPage(1)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t('products.manufacturer')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('products.allManufacturers')}</SelectItem>
-                {manufacturers.map((man) => (
-                  <SelectItem key={man} value={man}>
-                    {man}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={stockFilter}
-              onValueChange={(value) => {
-                setStockFilter(value)
-                setCurrentPage(1)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t('products.stockLevel')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('products.allStock')}</SelectItem>
-                <SelectItem value="in-stock">{t('products.inStock')}</SelectItem>
-                <SelectItem value="low-stock">{t('products.lowStock')}</SelectItem>
-                <SelectItem value="out-of-stock">{t('products.outOfStock')}</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {isAdmin && (
+          {/* Filters + view toggle on one compact row */}
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-3">
               <Select
-                value={lifecycleFilter}
+                value={selectedCategory}
                 onValueChange={(value) => {
-                  setLifecycleFilter(value as ProductLifecycleFilter)
+                  setSelectedCategory(value)
                   setCurrentPage(1)
                 }}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('products.lifecycleStatus')} />
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder={t('products.categories')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">{t('products.activeProducts')}</SelectItem>
-                  <SelectItem value="archived">{t('products.archivedProducts')}</SelectItem>
-                  <SelectItem value="all">{t('products.allLifecycleProducts')}</SelectItem>
+                  <SelectItem value="all">{t('products.categories')}</SelectItem>
+                  {categoriesData.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.displayName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-            )}
 
-            {hasActiveFilters && (
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-                className="w-full"
+              <Select
+                value={selectedManufacturer}
+                onValueChange={(value) => {
+                  setSelectedManufacturer(value)
+                  setCurrentPage(1)
+                }}
               >
-                <X className="w-4 h-4 mr-2" />
-                {t('products.clearFilters')}
-              </Button>
-            )}
-          </div>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder={t('products.manufacturers')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('products.manufacturers')}</SelectItem>
+                  {manufacturers.map((man) => (
+                    <SelectItem key={man} value={man}>
+                      {man}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-          {isAdmin && (
-            <div className="flex justify-end border-t pt-3">
-              <div className="inline-flex rounded-md border bg-background p-1">
+              <Select
+                value={stockFilter}
+                onValueChange={(value) => {
+                  setStockFilter(value)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder={t('products.availability')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('products.availability')}</SelectItem>
+                  <SelectItem value="in-stock">{t('products.inStock')}</SelectItem>
+                  <SelectItem value="low-stock">{t('products.lowStock')}</SelectItem>
+                  <SelectItem value="out-of-stock">{t('products.outOfStock')}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {isAdmin && (
+                <Select
+                  value={lifecycleFilter}
+                  onValueChange={(value) => {
+                    setLifecycleFilter(value as ProductLifecycleFilter)
+                    setCurrentPage(1)
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-[160px]">
+                    <SelectValue placeholder={t('products.lifecycleStatus')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">{t('products.activeProducts')}</SelectItem>
+                    <SelectItem value="archived">{t('products.archivedProducts')}</SelectItem>
+                    <SelectItem value="all">{t('products.allLifecycleProducts')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  className="w-full sm:w-auto"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  {t('products.clearFilters')}
+                </Button>
+              )}
+            </div>
+
+            {isAdmin && (
+              <div className="inline-flex shrink-0 self-start rounded-md border bg-background p-1 lg:self-auto">
                 <Button
                   type="button"
                   variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -590,8 +590,8 @@ export function ProductsPage() {
                   {t('products.listView')}
                 </Button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Active Filters Display */}
           {hasActiveFilters && (

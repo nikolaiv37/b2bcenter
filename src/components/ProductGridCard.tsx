@@ -14,6 +14,7 @@ import { Eye, Package, ShoppingCart, Plus, Minus, Heart, Percent } from 'lucide-
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
+import { getProductManufacturer } from '@/lib/manufacturers'
 
 interface ProductGridCardProps {
   product: Product
@@ -329,10 +330,10 @@ export function ProductGridCard({
         {/* Admin metadata / Buyer cart actions */}
         {isAdmin ? (
           <div className="mt-auto pt-3 border-t border-border/50 space-y-1.5">
-            {product.manufacturer && (
+            {getProductManufacturer(product) && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">{t('products.manufacturer')}</span>
-                <span className="font-medium truncate ml-2 text-right">{product.manufacturer}</span>
+                <span className="font-medium truncate ml-2 text-right">{getProductManufacturer(product)}</span>
               </div>
             )}
           </div>

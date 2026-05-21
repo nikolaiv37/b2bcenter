@@ -16,6 +16,7 @@ import {
 import { formatPrice } from '@/lib/utils'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { useCategoryOptions } from '@/hooks/useCategoryOptions'
+import { getProductManufacturer } from '@/lib/manufacturers'
 
 interface ProductListTableProps {
   products: Product[]
@@ -116,7 +117,7 @@ export function ProductListTable({
               categoryOptions.find((category) => category.id === product.category_id)?.label ||
               product.category ||
               emptyValue
-            const manufacturer = product.manufacturer || emptyValue
+            const manufacturer = getProductManufacturer(product) ?? emptyValue
 
             return (
               <TableRow

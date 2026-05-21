@@ -28,6 +28,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Product } from '@/types'
 import { Search, X, ChevronLeft, ChevronRight, Grid3X3, List, Package } from 'lucide-react'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
+import { fetchManufacturerOptions } from '@/lib/manufacturers'
 
 const ITEMS_PER_PAGE = 24
 type ProductLifecycleFilter = 'active' | 'archived' | 'all'
@@ -290,30 +291,23 @@ export function CategoriesPage() {
     enabled: !!tenantId && categoryIds.length > 0,
   })
 
-  // Fetch manufacturers for filter (using normalized category_id)
+  // Fetch manufacturers for filter (using normalized category_id).
+  // Shares the paginated resolver with /dashboard/products so the option list
+  // is consistent and never truncated by the server-side row cap.
+  const manufacturerVisibilityScope: boolean | null =
+    !isAdmin || lifecycleFilter === 'active'
+      ? true
+      : lifecycleFilter === 'archived'
+        ? false
+        : null
   const { data: manufacturers = [] } = useQuery({
-    queryKey: ['workspace', 'category-manufacturers', categoryIds, isAdmin, lifecycleFilter],
-    queryFn: async () => {
-      if (!tenantId || categoryIds.length === 0) return []
-      
-      let query = supabase
-        .from('products')
-        .select('manufacturer')
-        .in('category_id', categoryIds)
-        .eq('tenant_id', tenantId)
-
-      query = applyLifecycleFilter(query)
-
-      const { data, error } = await query
-
-      if (error) throw error
-      
-      const uniqueManufacturers = Array.from(
-        new Set(data.map((p) => p.manufacturer).filter(Boolean))
-      ).sort() as string[]
-      
-      return uniqueManufacturers
-    },
+    queryKey: ['workspace', 'category-manufacturers', categoryIds, manufacturerVisibilityScope],
+    queryFn: () =>
+      fetchManufacturerOptions({
+        tenantId: tenantId as string,
+        categoryIds,
+        isVisible: manufacturerVisibilityScope,
+      }),
     enabled: !!tenantId && categoryIds.length > 0 && viewLevel === 'products',
   })
 
@@ -369,6 +363,9 @@ export function CategoriesPage() {
     selectedManufacturer !== 'all' ||
     stockFilter !== 'all' ||
     (isAdmin && lifecycleFilter !== 'active')
+
+  // Reserve bottom space for the fixed bulk action bar while a selection is active.
+  const showBulkBar = isAdmin && viewMode === 'list' && selectedProductIds.length > 0
 
   useEffect(() => {
     setSelectedProductIds([])
@@ -504,7 +501,7 @@ export function CategoriesPage() {
         ? `${t('categories.allProducts')} — ${selectedMainCategoryData!.name}`
         : selectedMainCategoryData!.name
     return (
-      <div className="space-y-6 pb-24 md:pb-8">
+      <div className={`space-y-6 pb-24 ${showBulkBar ? 'md:pb-28' : 'md:pb-8'}`}>
         {/* Breadcrumbs */}
         <CategoryBreadcrumbs items={breadcrumbs} />
 
@@ -518,67 +515,70 @@ export function CategoriesPage() {
 
         {/* Filters */}
         <GlassCard>
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-3">
-              <div className="relative w-full min-w-0 sm:flex-1 sm:min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder={t('categories.searchProducts')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              {manufacturers.length > 0 && (
-                <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder={t('products.manufacturer')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t('products.allManufacturers')}</SelectItem>
-                    {manufacturers.map((man) => (
-                      <SelectItem key={man} value={man}>{man}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <Select value={stockFilter} onValueChange={setStockFilter}>
-                <SelectTrigger className="w-full sm:w-[150px]">
-                  <SelectValue placeholder={t('categories.stock')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('products.allStock')}</SelectItem>
-                  <SelectItem value="in-stock">{t('products.inStock')}</SelectItem>
-                  <SelectItem value="low-stock">{t('products.lowStock')}</SelectItem>
-                  <SelectItem value="out-of-stock">{t('products.outOfStock')}</SelectItem>
-                </SelectContent>
-              </Select>
-              {isAdmin && (
-                <Select
-                  value={lifecycleFilter}
-                  onValueChange={(value) => setLifecycleFilter(value as ProductLifecycleFilter)}
-                >
-                  <SelectTrigger className="w-full sm:w-[160px]">
-                    <SelectValue placeholder={t('products.lifecycleStatus')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">{t('products.activeProducts')}</SelectItem>
-                    <SelectItem value="archived">{t('products.archivedProducts')}</SelectItem>
-                    <SelectItem value="all">{t('products.allLifecycleProducts')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-              {hasActiveFilters && (
-                <Button variant="outline" onClick={clearFilters}>
-                  <X className="w-4 h-4 mr-2" />
-                  {t('categories.clear')}
-                </Button>
-              )}
+          <div className="space-y-3">
+            {/* Search — full width */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder={t('categories.searchProducts')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
 
-            {isAdmin && (
-              <div className="flex justify-end border-t pt-3">
-                <div className="inline-flex rounded-md border bg-background p-1">
+            {/* Filters + view toggle on one compact row */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-wrap gap-3">
+                {manufacturers.length > 0 && (
+                  <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder={t('products.manufacturers')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('products.manufacturers')}</SelectItem>
+                      {manufacturers.map((man) => (
+                        <SelectItem key={man} value={man}>{man}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Select value={stockFilter} onValueChange={setStockFilter}>
+                  <SelectTrigger className="w-full sm:w-[150px]">
+                    <SelectValue placeholder={t('products.availability')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('products.availability')}</SelectItem>
+                    <SelectItem value="in-stock">{t('products.inStock')}</SelectItem>
+                    <SelectItem value="low-stock">{t('products.lowStock')}</SelectItem>
+                    <SelectItem value="out-of-stock">{t('products.outOfStock')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {isAdmin && (
+                  <Select
+                    value={lifecycleFilter}
+                    onValueChange={(value) => setLifecycleFilter(value as ProductLifecycleFilter)}
+                  >
+                    <SelectTrigger className="w-full sm:w-[160px]">
+                      <SelectValue placeholder={t('products.lifecycleStatus')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">{t('products.activeProducts')}</SelectItem>
+                      <SelectItem value="archived">{t('products.archivedProducts')}</SelectItem>
+                      <SelectItem value="all">{t('products.allLifecycleProducts')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                {hasActiveFilters && (
+                  <Button variant="outline" onClick={clearFilters} className="w-full sm:w-auto">
+                    <X className="w-4 h-4 mr-2" />
+                    {t('categories.clear')}
+                  </Button>
+                )}
+              </div>
+
+              {isAdmin && (
+                <div className="inline-flex shrink-0 self-start rounded-md border bg-background p-1 lg:self-auto">
                   <Button
                     type="button"
                     variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -602,8 +602,8 @@ export function CategoriesPage() {
                     {t('products.listView')}
                   </Button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Active filters */}
             {hasActiveFilters && (

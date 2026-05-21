@@ -105,52 +105,59 @@ export function BulkProductCategoryMoveBar({
 
   return (
     <>
-      <div className="sticky top-2 z-20 rounded-lg border bg-card/95 px-4 py-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/85">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <CheckSquare className="h-4 w-4 text-primary" />
-            <span>{countLabel}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClearSelection}
-            >
-              <X className="mr-2 h-4 w-4" />
-              {t('products.clearSelection')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setDialogOpen(true)}
-            >
-              <Tags className="mr-2 h-4 w-4" />
-              {t('products.changeCategory')}
-            </Button>
-            {hasActiveSelection && (
+      {/* Fixed bottom action bar — stays in the viewport so the admin can run
+          bulk actions after selecting products anywhere in a long list,
+          without scrolling back to the top. Offset by the desktop sidebar
+          width (lg:left-64) so it sits within the content area. z-40 keeps it
+          above the table/pagination but below modal overlays (z-50). */}
+      <div className="fixed inset-x-0 bottom-4 z-40 px-4 sm:bottom-6 sm:px-5 lg:left-64 lg:px-8">
+        <div className="mx-auto rounded-lg border bg-card/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/85">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <CheckSquare className="h-4 w-4 text-primary" />
+              <span>{countLabel}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setVisibilityAction('archive')}
+                onClick={onClearSelection}
               >
-                <Archive className="mr-2 h-4 w-4" />
-                {t('products.archiveSelected')}
+                <X className="mr-2 h-4 w-4" />
+                {t('products.clearSelection')}
               </Button>
-            )}
-            {hasArchivedSelection && (
               <Button
                 type="button"
-                variant="outline"
                 size="sm"
-                onClick={() => setVisibilityAction('restore')}
+                onClick={() => setDialogOpen(true)}
               >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                {t('products.restoreSelected')}
+                <Tags className="mr-2 h-4 w-4" />
+                {t('products.changeCategory')}
               </Button>
-            )}
+              {hasActiveSelection && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibilityAction('archive')}
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  {t('products.archiveSelected')}
+                </Button>
+              )}
+              {hasArchivedSelection && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibilityAction('restore')}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  {t('products.restoreSelected')}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

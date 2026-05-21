@@ -51,11 +51,13 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
 
 ### P1 — Catalog UX correctness
 
-6. ~~Fix product filters~~ ✅ DONE
-    - Manufacturer/vendor filter: root cause was `.limit(10000)` without `.order()` on the filter-options query — Supabase returns arbitrary rows, missing manufacturers outside that window. Fixed by removing the limit entirely (single-column `manufacturer` select, small payload even for large catalogs).
+6. ~~Fix product filters~~ ✅ DONE (manufacturer filter fully fixed)
+    - Manufacturer/vendor filter: the earlier "remove the limit" fix was incomplete on `/dashboard/products` — PostgREST still silently caps a single response at the server `db-max-rows` limit (~1000 rows), so on large catalogs the un-ordered options query only ever saw the first 1000 arbitrary rows (e.g. all "Europe", missing "Mebelcenter").
+    - **Final fix:** added `src/lib/manufacturers.ts` with a shared `getProductManufacturer()` resolver and a `fetchManufacturerOptions()` helper that pages through the `manufacturer` column (ordered, 1000-row pages) until exhausted — never truncated, still a lightweight single-column payload. Both `/dashboard/products` and category product pages now use the same helper; grid cards and the list table use the same resolver for display.
     - Availability filter removed from UI and all query logic (state, query keys, filter application, count query, active filters display).
     - Category and stock filters remain working.
     - Grid adjusted from `lg:grid-cols-5` to `lg:grid-cols-4`.
+    - Filter UX polish: shortened dropdown labels (Categories / Manufacturers / Availability — Категории / Производители / Наличност), compacted the filter card (search row, then filters + Grid/List toggle on one aligned row).
 
 7. ~~Fix pagination~~ ✅ DONE
     - Root cause: `cachedPage1Data` query key was missing `profile?.id` and `profile?.commission_rate` fields that the main paginated query includes, causing cache miss and empty results on page 2+.
@@ -96,6 +98,7 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
    - Select-all applies only to visible/current-page products, not every product matching filters across pages.
    - Product archive/deactivate workflow: ✅ DONE & POLISHED. Archive is reversible via `products.is_visible`; no hard delete was implemented. Archived products are hidden from client catalog/search/category/wishlist/order-source loading, while historical orders remain preserved.
    - Bulk archive/restore: ✅ DONE from the admin list/table view. Context-aware: Active view shows "Archive selected", Archived view shows "Restore selected", All view shows both when the selection mixes active and archived products.
+   - Bulk action bar UX: ✅ POLISHED. The earlier sticky-top approach still left the actions out of reach when selecting products near the bottom of a long list. Replaced with a **fixed bottom action bar** (`fixed bottom-4/6`, offset by the desktop sidebar via `lg:left-64`, `z-40`) that only renders in admin List view when a selection exists, so bulk actions stay in the viewport no matter where the admin scrolls. The top reserved slot/hint was removed (no duplicate action bars). Pages add bottom padding while a selection is active so the bar never covers the last rows / pagination. Applies to both `/dashboard/products` and category product pages.
    - Lifecycle/status visual polish: ✅ DONE. Admin list view shows a muted/gray Archived badge and a subtle soft-green Active badge (no red danger styling); normal in-stock badge softened to a muted outline, low stock soft-amber, out-of-stock kept distinct. Product detail metadata shows the lifecycle badge plus a separate "Availability" (stock) row to avoid confusing lifecycle with stock.
    - Cart/order submission validation: ✅ DONE. Before a client submits an order, the quote mutation re-checks current product visibility from the DB; archived/hidden items are removed from the cart and submission is blocked with a clear localized message (EN/BG). Active-product order flow is unaffected.
    - Hard delete remains future/not planned until a safe product/order-history audit exists.
