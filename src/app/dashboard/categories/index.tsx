@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { useCategoryHierarchy } from '@/hooks/useCategoryHierarchy'
@@ -34,12 +34,35 @@ export function CategoriesPage() {
   const { t } = useTranslation()
   const { mainCategory, subCategory } = useParams<{ mainCategory?: string; subCategory?: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { workspaceId: tenantId } = useAppContext()
   const { withBase } = useTenantPath()
 
   // Decode URL parameters
   const decodedMainCategory = mainCategory ? decodeURIComponent(mainCategory) : null
   const decodedSubCategory = subCategory ? decodeURIComponent(subCategory) : null
+
+  // Legacy redirect: /dashboard/categories/:mainCategory/all is no longer a real
+  // route — collapse it to /dashboard/categories/:mainCategory?view=all so old
+  // bookmarks / external links don't 404 or render a broken page.
+  useEffect(() => {
+    if (decodedSubCategory && decodedSubCategory.toLowerCase() === 'all' && mainCategory) {
+      navigate(withBase(`/dashboard/categories/${mainCategory}?view=all`), { replace: true })
+    }
+  }, [decodedSubCategory, mainCategory, navigate, withBase])
+
+  // "View all products" mode for a main category (driven by ?view=all query param,
+  // never by a /all path segment).
+  const viewAllProducts = searchParams.get('view') === 'all'
+
+  // Reset scroll position whenever the user navigates between category levels.
+  // The dashboard layout has a scrollable <main id="dashboard-main">; window
+  // scrolling alone wouldn't move it.
+  useEffect(() => {
+    const main = document.getElementById('dashboard-main')
+    if (main) main.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    else window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [decodedMainCategory, decodedSubCategory, viewAllProducts])
 
   // State for product filtering (when viewing products)
   const [searchQuery, setSearchQuery] = useState('')
@@ -151,11 +174,19 @@ export function CategoriesPage() {
   }, [decodedSubCategory, selectedMainCategoryData])
 
   // Determine the current view level
+  // - If a main category has no subcategories, jump straight to products view.
+  // - If a main category has subcategories and ?view=all is set, show products
+  //   for the main category + all its subcategories.
+  // - Otherwise show subcategory cards.
   const viewLevel = useMemo(() => {
     if (decodedSubCategory && selectedSubcategoryData) return 'products'
-    if (decodedMainCategory && selectedMainCategoryData) return 'subcategories'
+    if (decodedMainCategory && selectedMainCategoryData) {
+      const hasSubcategories = selectedMainCategoryData.subcategories.size > 0
+      if (!hasSubcategories) return 'products'
+      return viewAllProducts ? 'products' : 'subcategories'
+    }
     return 'main'
-  }, [decodedMainCategory, decodedSubCategory, selectedMainCategoryData, selectedSubcategoryData])
+  }, [decodedMainCategory, decodedSubCategory, selectedMainCategoryData, selectedSubcategoryData, viewAllProducts])
 
   // Build category ID filter for product query (normalized architecture)
   // For subcategory view: filter by that specific category_id
@@ -163,6 +194,14 @@ export function CategoriesPage() {
   const categoryIds = useMemo((): string[] => {
     if (viewLevel === 'products' && selectedSubcategoryData) {
       return [selectedSubcategoryData.id]
+    }
+    if (viewLevel === 'products' && selectedMainCategoryData) {
+      // Main category with no subcategories OR ?view=all — include direct + sub IDs
+      const ids = [selectedMainCategoryData.id]
+      for (const [, subData] of selectedMainCategoryData.subcategories.entries()) {
+        ids.push(subData.id)
+      }
+      return ids
     }
     if (viewLevel === 'subcategories' && selectedMainCategoryData) {
       // Include main category ID and all subcategory IDs
@@ -315,13 +354,22 @@ export function CategoriesPage() {
           href: withBase(`/dashboard/categories/${mainSlug}`),
         })
         items.push({ label: selectedSubcategoryData.name })
+      } else if (viewAllProducts && selectedMainCategoryData.subcategories.size > 0) {
+        // ?view=all on a main category that has subcategories — keep the main
+        // category as a clickable crumb back to the subcategory hub, and show
+        // the localized "All products" label as the leaf (never "All" / "all").
+        items.push({
+          label: selectedMainCategoryData.name,
+          href: withBase(`/dashboard/categories/${mainSlug}`),
+        })
+        items.push({ label: t('categories.allProducts') })
       } else {
         items.push({ label: selectedMainCategoryData.name })
       }
     }
     
     return items
-  }, [selectedMainCategoryData, selectedSubcategoryData, withBase])
+  }, [selectedMainCategoryData, selectedSubcategoryData, viewAllProducts, withBase, t])
 
   // Render main categories view
   if (viewLevel === 'main') {
@@ -365,6 +413,32 @@ export function CategoriesPage() {
           </p>
         </div>
 
+        {/* "Всички продукти" entry-point — only when the main category also has
+            products directly assigned to it (i.e. there is something to "see all"
+            that isn't already reachable via a subcategory). Routes to the same
+            main-category URL with ?view=all; never inserts a fake /all slug. */}
+        {selectedMainCategoryData.directProductCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const mainSlug = selectedMainCategoryData.slug || encodeURIComponent(selectedMainCategoryData.name)
+              navigate(withBase(`/dashboard/categories/${mainSlug}?view=all`))
+            }}
+            className="w-full text-left rounded-2xl border border-border/40 bg-muted/30 hover:bg-muted/50 hover:border-primary/40 transition-colors p-4 flex items-center gap-3"
+          >
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Grid3X3 className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold">{t('categories.allProducts')}</div>
+              <div className="text-sm text-muted-foreground">
+                {t('categories.allProductsSubtitle', { category: selectedMainCategoryData.name })}
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
+        )}
+
         {/* Subcategory Cards */}
         <SubcategoryBubbles
           subcategories={subcategories}
@@ -374,7 +448,7 @@ export function CategoriesPage() {
               // Find the subcategory data to get its slug
               const subData = Array.from(selectedMainCategoryData.subcategories.entries())
                 .find(([, data]) => data.fullCategory === fullCategory)
-              
+
               if (subData) {
                 const [subName, data] = subData
                 const mainSlug = selectedMainCategoryData.slug || encodeURIComponent(selectedMainCategoryData.name)
@@ -389,8 +463,13 @@ export function CategoriesPage() {
     )
   }
 
-  // Render products view (subcategory selected)
-  if (viewLevel === 'products' && selectedSubcategoryData) {
+  // Render products view (subcategory selected, OR main category with no subcategories)
+  if (viewLevel === 'products' && (selectedSubcategoryData || selectedMainCategoryData)) {
+    const productsHeader = selectedSubcategoryData
+      ? selectedSubcategoryData.name
+      : viewAllProducts && selectedMainCategoryData!.subcategories.size > 0
+        ? `${t('categories.allProducts')} — ${selectedMainCategoryData!.name}`
+        : selectedMainCategoryData!.name
     return (
       <div className="space-y-6 pb-24 md:pb-8">
         {/* Breadcrumbs */}
@@ -398,7 +477,7 @@ export function CategoriesPage() {
 
         {/* Header */}
         <div>
-          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{selectedSubcategoryData.name}</h1>
+          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{productsHeader}</h1>
           <p className="text-muted-foreground">
             {t('categories.products', { count: totalCount })}
           </p>

@@ -402,44 +402,30 @@ export function ManageCategoriesPage() {
 
       setIsSubmitting(true)
       try {
-        // Get all category IDs to unassign (this category + subcategories if main category)
-        const categoryIdsToUnassign = [selectedCategory.id]
-        
-        if (!selectedCategory.parent_id) {
-          // This is a main category - also get all subcategory IDs
-          const { data: subcategories } = await supabase
-            .from('categories')
-            .select('id')
-            .eq('parent_id', selectedCategory.id)
-            .eq('tenant_id', tenantId)
-
-          if (subcategories) {
-            categoryIdsToUnassign.push(...subcategories.map(c => c.id))
-          }
-        }
-
-        // Set category_id to NULL for all affected products
-        // The foreign key has ON DELETE SET NULL, but let's be explicit
-        const { error: updateError } = await supabase
+        // Re-verify the category is safe to delete (empty: no products, no subcategories)
+        const { count: productCount, error: countError } = await supabase
           .from('products')
-          .update({ category_id: null })
-          .in('category_id', categoryIdsToUnassign)
+          .select('*', { count: 'exact', head: true })
+          .eq('category_id', selectedCategory.id)
           .eq('tenant_id', tenantId)
 
-        if (updateError) throw updateError
-
-        // Delete subcategories first if this is a main category
-        if (!selectedCategory.parent_id) {
-          const { error: subDeleteError } = await supabase
-            .from('categories')
-            .delete()
-            .eq('parent_id', selectedCategory.id)
-            .eq('tenant_id', tenantId)
-
-          if (subDeleteError) throw subDeleteError
+        if (countError) throw countError
+        if ((productCount ?? 0) > 0) {
+          throw new Error('BLOCKED_PRODUCTS')
         }
 
-        // Delete the category itself
+        const { count: childCount, error: childError } = await supabase
+          .from('categories')
+          .select('*', { count: 'exact', head: true })
+          .eq('parent_id', selectedCategory.id)
+          .eq('tenant_id', tenantId)
+
+        if (childError) throw childError
+        if ((childCount ?? 0) > 0) {
+          throw new Error('BLOCKED_SUBCATEGORIES')
+        }
+
+        // Delete the (empty) category itself
         const { error } = await supabase
           .from('categories')
           .delete()
@@ -463,7 +449,23 @@ export function ManageCategoriesPage() {
       queryClient.invalidateQueries({ queryKey: ['workspace', 'categories'] })
       queryClient.invalidateQueries({ queryKey: ['workspace', 'category-product-counts'] })
     },
-    onError: () => {
+    onError: (error: Error) => {
+      if (error?.message === 'BLOCKED_PRODUCTS') {
+        toast({
+          title: t('categories.deleteBlockedTitle', 'Cannot delete category'),
+          description: t('categories.deleteBlockedProducts'),
+          variant: 'destructive',
+        })
+        return
+      }
+      if (error?.message === 'BLOCKED_SUBCATEGORIES') {
+        toast({
+          title: t('categories.deleteBlockedTitle', 'Cannot delete category'),
+          description: t('categories.deleteBlockedSubcategories'),
+          variant: 'destructive',
+        })
+        return
+      }
       toast({
         title: t('general.error'),
         description: t('products.failedToDelete'),
@@ -834,32 +836,52 @@ export function ManageCategoriesPage() {
 
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {t('categories.deleteCategory', 'Delete Category')}
-            </DialogTitle>
-            <DialogDescription>
-              {t(
-                'categories.deleteWarning',
-                'All products in this category will be moved to "Uncategorized". This action cannot be undone.'
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteModalOpen(false)}
-            >
-              {t('general.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={isSubmitting}
-              onClick={() => deleteCategoryMutation.mutate()}
-            >
-              {t('general.delete')}
-            </Button>
-          </div>
+          {(() => {
+            const hasProducts = selectedCategory
+              ? (productCounts[selectedCategory.id] ?? 0) > 0
+              : false
+            const hasSubcategories = selectedCategory
+              ? categories.some((c) => c.parent_id === selectedCategory.id)
+              : false
+            const blocked = hasProducts || hasSubcategories
+            const description = hasSubcategories
+              ? t('categories.deleteBlockedSubcategories')
+              : hasProducts
+                ? t('categories.deleteBlockedProducts')
+                : t(
+                    'categories.deleteWarning',
+                    'Are you sure you want to delete this category? This action cannot be undone.'
+                  )
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    {blocked
+                      ? t('categories.deleteBlockedTitle', 'Cannot delete category')
+                      : t('categories.deleteCategory', 'Delete Category')}
+                  </DialogTitle>
+                  <DialogDescription>{description}</DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setDeleteModalOpen(false)}
+                  >
+                    {blocked ? t('general.cancel') : t('general.cancel')}
+                  </Button>
+                  {!blocked && (
+                    <Button
+                      variant="destructive"
+                      disabled={isSubmitting}
+                      onClick={() => deleteCategoryMutation.mutate()}
+                    >
+                      {t('general.delete')}
+                    </Button>
+                  )}
+                </div>
+              </>
+            )
+          })()}
         </DialogContent>
       </Dialog>
 

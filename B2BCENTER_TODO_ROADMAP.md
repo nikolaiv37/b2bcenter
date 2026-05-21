@@ -62,11 +62,21 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
     - Fixed by adding missing fields to the `getQueryData` lookup key.
     - Page resets to 1 when filters/search change (existing `useEffect` already handles this).
 
-8. ~~Fix category click flow~~ ✅ DONE (previously working)
+8. ~~Fix category click flow~~ ✅ DONE (polished)
+   - Categories without subcategories open the product listing directly (no intermediate single-card "All" page).
+   - Categories with real subcategories still show the subcategory cards.
+   - **Fake "All" subcategory removed.** `useCategoryHierarchy` no longer injects a synthetic `slug: 'all'` entry into the hierarchy map for any case.
+   - **"Всички продукти" entry-point card** is now rendered at the component level (only when the main category also has products assigned directly to it) and navigates to `/dashboard/categories/:mainCategory?view=all` — never `/dashboard/categories/:mainCategory/all`. The URL never contains an `/all` path segment.
+   - **Legacy redirect:** Visiting `/dashboard/categories/:mainCategory/all` now `replace()`-navigates to `/dashboard/categories/:mainCategory?view=all` so old bookmarks keep working without rendering a broken "category not found" state.
+   - **Breadcrumbs** show the localized "Всички продукти" / "All products" label as the leaf for the all-view, never the raw token "all" / "All".
+   - **Scroll reset:** category navigation now scrolls the dashboard scroll container (`<main id="dashboard-main">`) back to the top whenever `mainCategory`, `subCategory`, or the `?view=all` flag changes. Previous behavior preserved per-route scroll, landing users mid-grid after clicking a category card.
+   - **Heavy-loading fix on `/dashboard/categories`:** the old `useCategoryHierarchy` query pulled every visible product in the tenant (including the full `images[]` array) via a nested PostgREST join just to compute per-category counts and pick a fallback card image. Replaced with two parallel slim queries (categories metadata; visible products with only `category_id, main_image`) and a client-side bucket map. Hierarchy is also cached with `staleTime: 30s` so navigating between the categories list and a category page no longer re-fires the query on every entry.
 
-9. Fix product image gallery
-   - Product page image gallery/multiple images do not open or load correctly.
-   - Verify image parsing, thumbnail click, modal/lightbox, fallback image handling.
+   Remaining: a fuller perf pass on `manage.tsx` (per-category count query is N+1) is still tracked under item 12.
+
+9. Product gallery — data/import follow-up (not a UI bug)
+   - The gallery UI works correctly when `images[]` has multiple items; most imports currently only populate `main_image`.
+   - Follow-up should ensure the CSV/import pipeline populates `images[]` from `image1`–`image10` columns when available.
 
 10. Remove similar products from product page
    - Similar/recommended products are not needed.
@@ -74,12 +84,14 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
 
 ### P2 — Admin tooling and performance
 
-11. Fix manage categories operations
-   - Edit category.
-   - Upload/change category photo.
-   - Merge categories.
-   - Delete categories if supported.
-   - Verify all operations work with current single-tenant schema and storage buckets.
+11. ~~Fix manage categories operations~~ ✅ DONE
+   - Edit category, upload/change category photo, merge categories — verified working.
+   - Delete category now only deletes empty/safe categories:
+     - Categories that contain products are blocked. The admin is instructed to use **Merge Categories** to move the products to another category before removing the original.
+     - Categories that have subcategories are blocked. The admin must move/merge/delete the subcategories first.
+     - No "Без категория" orphan product behavior. Category deletion never moves products to a hidden uncategorized bucket and never hard-deletes products.
+   - The delete modal swaps title/body/CTA based on the live product and subcategory counts; the mutation re-verifies the counts server-side before deleting.
+   - Product deletion/archival is intentionally out of scope here and tracked as a separate future feature.
 
 12. Reduce heavy initial/page loading
    - App and some pages have unnecessary heavy loading.

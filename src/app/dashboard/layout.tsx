@@ -324,7 +324,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8 custom-scrollbar">
+        <main id="dashboard-main" className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8 custom-scrollbar">
           <Outlet />
         </main>
       </div>
