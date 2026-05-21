@@ -24,24 +24,47 @@ interface ProductListTableProps {
   onToggleAllVisible: () => void
 }
 
-function getStockVariant(quantity: number | undefined): 'default' | 'secondary' | 'destructive' {
-  if (!quantity && quantity !== 0) return 'secondary'
-  if (quantity === 0) return 'destructive'
-  if (quantity <= 10) return 'secondary'
-  return 'default'
+function getStockBadge(quantity: number, t: (key: string, opts?: Record<string, unknown>) => string) {
+  if (quantity === 0) {
+    return (
+      <Badge variant="destructive" className="whitespace-nowrap font-normal">
+        {t('products.outOfStock')}
+      </Badge>
+    )
+  }
+
+  if (quantity <= 10) {
+    return (
+      <Badge
+        variant="outline"
+        className="whitespace-nowrap font-normal border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400"
+      >
+        {t('products.inStockCount', { count: quantity })}
+      </Badge>
+    )
+  }
+
+  return (
+    <Badge variant="outline" className="whitespace-nowrap font-normal text-muted-foreground">
+      {t('products.inStockCount', { count: quantity })}
+    </Badge>
+  )
 }
 
 function getLifecycleBadge(product: Product, t: (key: string) => string) {
   if (product.is_visible === false) {
     return (
-      <Badge variant="secondary" className="whitespace-nowrap border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+      <Badge variant="secondary" className="whitespace-nowrap font-normal text-muted-foreground">
         {t('products.archived')}
       </Badge>
     )
   }
 
   return (
-    <Badge variant="outline" className="whitespace-nowrap border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+    <Badge
+      variant="outline"
+      className="whitespace-nowrap font-normal border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+    >
       {t('products.active')}
     </Badge>
   )
@@ -109,9 +132,6 @@ export function ProductListTable({
                   />
                 </TableCell>
                 <TableCell>
-                  {getLifecycleBadge(product, t)}
-                </TableCell>
-                <TableCell>
                   <div className="flex min-w-[300px] items-center gap-3">
                     <Link
                       to={detailUrl}
@@ -143,9 +163,10 @@ export function ProductListTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={getStockVariant(quantity)} className="whitespace-nowrap font-normal">
-                    {quantity === 0 ? t('products.outOfStock') : t('products.inStockCount', { count: quantity })}
-                  </Badge>
+                  {getLifecycleBadge(product, t)}
+                </TableCell>
+                <TableCell>
+                  {getStockBadge(quantity, t)}
                 </TableCell>
                 <TableCell className="max-w-[190px] truncate text-sm" title={categoryLabel}>
                   {categoryLabel}

@@ -1146,7 +1146,8 @@
       "addFailedDescription": "Unable to add product to cart",
       "backorderBadge": "Backorder",
       "backorderLineHint": "This line will be submitted as a backorder request.",
-      "backorderSubmitHint": "This submission contains one or more backorder request lines."
+      "backorderSubmitHint": "This submission contains one or more backorder request lines.",
+      "archivedItemsError": "Some products in your cart are no longer available. Please remove them before submitting the order."
     },
     "wishlist": {
       "title": "My Wishlist",

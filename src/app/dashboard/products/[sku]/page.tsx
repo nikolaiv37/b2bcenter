@@ -432,10 +432,10 @@ export function ProductDetailPage() {
                   <Badge
                     variant={isArchived ? 'secondary' : 'outline'}
                     className={cn(
-                      'text-xs font-medium',
+                      'text-xs font-normal',
                       isArchived
-                        ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                        : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                        ? 'text-muted-foreground'
+                        : 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
                     )}
                   >
                     {isArchived ? t('products.archived') : t('products.active')}
@@ -460,7 +460,7 @@ export function ProductDetailPage() {
                   </div>
                 )}
                 <div>
-                  <span className="text-muted-foreground">{t('products.status')}</span>
+                  <span className="text-muted-foreground">{t('products.availability')}</span>
                   <p className="font-medium">
                     {isOutOfStock ? t('products.outOfStock') : t('products.inStock')}
                   </p>

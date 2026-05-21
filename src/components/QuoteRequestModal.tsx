@@ -37,7 +37,7 @@ export function OrderRequestModal({
   onSuccess,
 }: OrderRequestModalProps) {
   const { t } = useTranslation()
-  const { items, getTotal, clearCart } = useCartStore()
+  const { items, getTotal, clearCart, removeItem } = useCartStore()
   const { user, profile, company } = useAuth()
   const { hasDiscount, commissionRate } = useCommissionRate()
   const { workspaceId: tenantId } = useAppContext()
@@ -58,6 +58,31 @@ export function OrderRequestModal({
       const userId = user?.id || devUserId
       if (!userId) {
         throw new Error('User not authenticated')
+      }
+
+      // Safety: an item may have been archived after it was added to the
+      // (persisted) cart. Verify current visibility before submitting.
+      const cartProductIds = items.map((item) => item.product.id).filter(Boolean)
+      if (cartProductIds.length > 0) {
+        const { data: visibilityRows, error: visibilityError } = await supabase
+          .from('products')
+          .select('id, is_visible')
+          .in('id', cartProductIds)
+          .eq('tenant_id', tenantId)
+
+        if (visibilityError) throw visibilityError
+
+        const visibleIds = new Set(
+          (visibilityRows ?? [])
+            .filter((row) => row.is_visible !== false)
+            .map((row) => row.id),
+        )
+        const unavailableItems = items.filter((item) => !visibleIds.has(item.product.id))
+
+        if (unavailableItems.length > 0) {
+          unavailableItems.forEach((item) => removeItem(item.product.id))
+          throw new Error(t('cart.archivedItemsError'))
+        }
       }
 
       const total = getTotal()

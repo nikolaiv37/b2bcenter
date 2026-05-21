@@ -834,7 +834,8 @@
       "addFailedDescription": "Продуктът не може да бъде добавен в количката",
       "backorderBadge": "Backorder",
       "backorderLineHint": "Тази линия ще бъде изпратена като заявка за backorder.",
-      "backorderSubmitHint": "Тази заявка съдържа една или повече линии за backorder."
+      "backorderSubmitHint": "Тази заявка съдържа една или повече линии за backorder.",
+      "archivedItemsError": "Някои продукти в количката вече не са налични в каталога. Моля, премахнете ги преди изпращане на поръчката."
     },
     "wishlist": {
       "title": "Любими",

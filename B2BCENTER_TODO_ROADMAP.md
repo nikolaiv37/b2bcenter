@@ -94,8 +94,10 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
    - Product-level category change: ✅ DONE. Admins can change one product's `category_id` from the product detail page without merging an entire category.
    - Bulk product category move: ✅ DONE — moved to admin list/table view and UX-polished. Grid view is visual-only; list view is the admin management mode with current-page product selection and bulk category move on `/dashboard/products` and category product grids.
    - Select-all applies only to visible/current-page products, not every product matching filters across pages.
-   - Product archive/deactivate workflow: ✅ DONE. Archive is reversible via `products.is_visible`; no hard delete was implemented. Archived products are hidden from client catalog/search/category/wishlist/order-source loading, while historical orders remain preserved.
-   - Bulk archive/restore: ✅ DONE from the admin list/table view.
+   - Product archive/deactivate workflow: ✅ DONE & POLISHED. Archive is reversible via `products.is_visible`; no hard delete was implemented. Archived products are hidden from client catalog/search/category/wishlist/order-source loading, while historical orders remain preserved.
+   - Bulk archive/restore: ✅ DONE from the admin list/table view. Context-aware: Active view shows "Archive selected", Archived view shows "Restore selected", All view shows both when the selection mixes active and archived products.
+   - Lifecycle/status visual polish: ✅ DONE. Admin list view shows a muted/gray Archived badge and a subtle soft-green Active badge (no red danger styling); normal in-stock badge softened to a muted outline, low stock soft-amber, out-of-stock kept distinct. Product detail metadata shows the lifecycle badge plus a separate "Availability" (stock) row to avoid confusing lifecycle with stock.
+   - Cart/order submission validation: ✅ DONE. Before a client submits an order, the quote mutation re-checks current product visibility from the DB; archived/hidden items are removed from the cart and submission is blocked with a clear localized message (EN/BG). Active-product order flow is unaffected.
    - Hard delete remains future/not planned until a safe product/order-history audit exists.
 
 12. Reduce heavy initial/page loading
