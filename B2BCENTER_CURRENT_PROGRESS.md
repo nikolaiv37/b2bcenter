@@ -1,6 +1,6 @@
 # B2BCENTER CURRENT PROGRESS
 
-> Snapshot: 2026-05-19 | Last commit: `333c1c9` — "Add order templates and backorder requests"
+> Snapshot: 2026-05-21 | Last commit: `ddfd36c` — "Polish UI bulk actions products done"
 
 ---
 
@@ -8,143 +8,97 @@
 
 | Property | Value |
 |---|---|
-| **Branch** | (current HEAD) |
-| **Last commit** | `333c1c9` — Add order templates and backorder requests |
-| **Commits behind** | Unknown (no remote check performed) |
-| **Build status** | Last verified via `npm run build` per docs |
-| **Working tree** | Contains `.env` with real Supabase credentials (should not be committed) |
+| **Branch** | `main` |
+| **Last commit** | `ddfd36c` — Polish UI bulk actions products done |
+| **Working tree** | Clean at snapshot time |
+| **Build status** | Verified via `npm run build` per workflow |
+| **Note** | `.env` with real Supabase credentials must not be committed |
 
-### Recent commit history (last 20)
+### Recent commit history (last 5)
 ```
-333c1c9 Add order templates and backorder requests
-9b0316d translation added
-3a2c384 fixes bugs etc
-9ae02c1 fixing bugs, errors, econt
-d67e4e8 Merge commit 'a53211b'
-a53211b redesign
-ff1b67a redesign admin dashboard overview
-eef808d changes orders
-89422b9 Improve client invite flow: admin fills details, client sets password only
-5dabb2a implement account manage profile, mobile fixes
-f6f5275 csv import fix, import catalog, improve UI out-of-stock
-3e778f4 Improve mobile dashboard navigation and responsive page layouts
-69fc63c Fix variable scoping in single-tenant soft-cut migration
-0dc3911 Fix single-tenant soft-cut migration array syntax
-c682383 Refresh runbook and migration docs for single-tenant b2bcenter
-68618ba Add single-tenant DB soft cut and formalize Econt migration
-0053543 Cut multitenant frontend surface to single-workspace mode
-7efaa94 Simplify single-tenant navigation and membership resolution
-6f0a633 Enable single-tenant host fallback for standalone app
+ddfd36c Polish UI bulk actions products done
+6463970 added and finished implemenation wise
+9c55de1 integrate bulk, change hide products
+1ae1b7d manage categories ,etc
+9b50fcd fix issues with filters
 ```
 
 ---
 
-## Last Completed Work
+## Last Completed Work — Product / Catalog / Admin Management Pass
 
-The most recent completed work (commit `333c1c9`) added:
+A large product/catalog/admin management pass is now complete:
 
-1. **Order templates** — new `order_templates` table (migration `20260409113000`), UI at `/dashboard/order-templates`, per-user saved order templates with RLS policies
-2. **Backorder flag** — `has_backorder_items` column on `quotes` table (migration `20260409143000`), type updates in `QuoteItem` and `Quote` interfaces
+1. **Manual client creation flow** — admin creates clients directly from the Clients page (no invite flow).
+2. **Client delete/deactivation flow** — access revoked via Edge Function; history preserved.
+3. **Admin cart/add-to-cart UI removed** — admins no longer see cart, quantity selectors, or add-to-cart.
+4. **Admin product cards and product detail UI cleaned** — denser two-column detail layout, manufacturer-only card metadata.
+5. **Similar products removed** — similar/recommended UI and queries removed from product detail.
+6. **Product gallery investigated** — confirmed a data/import limitation (`images[]` mostly empty), not a UI bug.
+7. **Product filters/pagination fixed** — filter card polished; pagination cache-key bug fixed.
+8. **Manufacturer filter fixed** — shared `getProductManufacturer()` resolver + paginated option fetching (`src/lib/manufacturers.ts`), no PostgREST 1000-row truncation.
+9. **Econt/shipping hidden from client profiles** — admin-only.
+10. **Category browsing flow fixed** — categories without subcategories open products directly; fake `/all` route removed; scroll reset fixed.
+11. **Manage categories fixed** — edit, image upload/change, merge work; delete safely blocked for categories with products/subcategories; empty-category delete works.
+12. **Single product category change** — change one product's category from the detail page.
+13. **Bulk product category move** — from the admin list/table view.
+14. **Admin Grid/List split** — grid = visual browsing, list = product management.
+15. **Product archive/restore** — reversible via `products.is_visible`; no hard delete.
+16. **Bulk archive/restore** — context-aware bulk actions from the list view.
+17. **Archived products hidden from client flows** — catalog, category, wishlist, detail.
+18. **Cart/order submission validation for archived products** — archived items blocked at submission.
+19. **Bulk action UX polished** — fixed bottom action bar, no layout jump, accessible while scrolling.
+20. **Product filter layout polished** — compact filter card, shorter labels, grid/list toggle aligned with filters.
 
-Prior work includes:
-- Full i18n translation layer (EN/BG)
-- Admin dashboard overview redesign
-- Econt integration fixes
-- Client invite flow improvements
-- Mobile responsive improvements
-- CSV import fixes
-- Single-tenant migration and cut
-
----
-
-## Known Issues
-
-### High Priority
-| Issue | Impact | Location |
-|---|---|---|
-| `.env` contains real Supabase credentials | Security risk | Root `.env` |
-| No down-migration framework | Cannot rollback DB changes safely | `supabase/migrations/` |
-| `products` upsert conflict on global `sku` | Data integrity risk in multi-company scenarios | Import wizard upsert |
-
-### Medium Priority
-| Issue | Impact | Location |
-|---|---|---|
-| XML import persistence not wired | Feature incomplete | `src/lib/xml/`, `src/hooks/useXmlMapping.ts` |
-| `src/lib/xml/parser.ts` has dangling `export type { Builder }` | Potential TS build issue | Parser file |
-| `category-images` bucket migration may be missing | Runtime error on category image upload | Supabase migrations |
-| Stripe/Resend clients exist but no backend | Non-functional features | `src/lib/stripeClient.ts`, `src/lib/resendClient.ts` |
-| CSV mapping persistence tables unused | Dead code / unused schema | `csv_distributor_mappings`, `category_synonyms` |
-
-### Low Priority
-| Issue | Impact | Location |
-|---|---|---|
-| Legacy `schema.sql` outdated | Confusion for new devs | `supabase/schema.sql` |
-| Platform admin DB flags remain | Dead schema | Various migrations |
-| `orders` table in legacy schema unused | Confusion | `supabase/schema.sql` |
-| Commit messages vague ("fixes bugs etc") | Hard to track changes | Git history |
+See `B2BCENTER_TODO_ROADMAP.md` for the detailed per-item breakdown.
 
 ---
 
-## Safest Next Coding Step
+## Remaining Known Issues
 
-**Recommended: Wire XML import configuration persistence**
-
-This is the most logical next step because:
-1. The parser and mapping infrastructure already exists
-2. The `import_configs` table is already created
-3. `useXmlMapping` has `saveConfiguration`/`loadConfiguration` methods
-4. It's a contained feature that doesn't touch auth, billing, or core order flow
-
-**What to do:**
-1. Add save/load config UI to `UniversalImportWizard`
-2. Connect `useXmlMapping.saveConfiguration` / `loadConfiguration` to the UI
-3. Add import history logging to `csv_import_history` (add a `format` column: `'csv'` | `'xml'`)
-4. Test with a sample XML feed
-
-**Alternative safe steps:**
-- Add import history UI to show past imports
-- Fix `products` upsert to use `(tenant_id, sku)` conflict target
-- Add `category-images` bucket creation migration if missing
+| Issue | Status | Notes |
+|---|---|---|
+| Order notes saving | ⚠️ Open bug | Notes still do not persist correctly. Reopened 2026-05-21. |
+| Quick performance/loading audit | Not done | Audit expensive queries, repeated requests, realtime subscriptions. |
+| Greek manufacturer inventory sync | Next major task | Built in the `opsmebelcenter` ops project, not the portal. See `B2BCENTER_INVENTORY_SYNC_PLAN.md`. |
+| Hard product delete | Intentionally not implemented | Archive/restore is the supported lifecycle. |
+| Bulk archive/delete beyond archive/restore | Not needed now | — |
+| Product gallery multiple images | Data limitation | Depends on import/feed data, not a UI bug. |
 
 ---
 
-## Warnings — Do NOT Change Yet
+## Next Major Operational Task — Inventory Sync
+
+Greek manufacturer inventory sync is the next major task. Key product decision:
+
+- Inventory/manufacturer sync is **operational tooling**, not a portal feature.
+- It will be added to the existing private ops project — local repo `mebelcenter-shopify`, deployed at `opsmebelcenter.vercel.app` — as a separate operational module/target.
+- The `mebelcenter-shopify` repo must not be renamed or reorganized; B2BCenter sync is added alongside its existing Shopify supplier operations.
+- v1 scope: stock/inventory only, SKU-matched, tenant-scoped, dry-run first then apply, with logs/report. No price/category/name/description/image updates; no auto-archive of missing feed products.
+
+Full plan: `B2BCENTER_INVENTORY_SYNC_PLAN.md`.
+
+---
+
+## Warnings — Do NOT Change Casually
 
 | Area | Reason |
 |---|---|
-| **`useAuth.ts`** | Complex auth bootstrap with race-condition guards, tenant mismatch handling, and silent refresh. Any change risks breaking login for all users. |
-| **`TenantProvider.tsx`** | Handles session resolution, membership lookup with retry, timeout handling, and query cache invalidation. Tightly coupled to auth flow. |
-| **`MembershipGuard` / `TenantActiveGuard` / `SignupGuard`** | Gate all dashboard access. Changes could lock users out. |
-| **`20260312123000_single_tenant_soft_cut.sql`** | Enforces single-tenant DB behavior. Any change risks data isolation. |
-| **`enforce_single_tenant_fk()` trigger** | Blocks foreign tenant_id writes. Removing it without a replacement breaks data isolation. |
-| **`current_tenant_id()` function** | Used by RLS policies across all tables. Changes affect all DB access. |
-| **`orders` table** | Exists in legacy schema but app uses `quotes` for orders. Do not delete or modify without full audit. |
-| **Platform admin policies** | Already dropped by migration 23000. Do not re-add unless re-enabling multi-tenant. |
-| **Real Supabase credentials in `.env`** | The actual URL and anon key are live. Do not commit to git. |
+| **`useAuth.ts`** | Complex auth bootstrap with race-condition guards. Changes risk breaking login. |
+| **`TenantProvider.tsx`** | Session resolution + membership lookup. Tightly coupled to auth. |
+| **`MembershipGuard` / `TenantActiveGuard` / `SignupGuard`** | Gate all dashboard access. |
+| **`20260312123000_single_tenant_soft_cut.sql`** | Enforces single-tenant DB behavior. |
+| **`enforce_single_tenant_fk()` trigger / `current_tenant_id()`** | Data isolation + RLS across all tables. |
+| **Real Supabase credentials in `.env`** | Live URL and anon key. Do not commit. |
 
 ---
 
 ## Quick Start Commands
 
 ```bash
-# Install dependencies
-npm install
-
-# Start dev server
-npm run dev
-
-# Type-check + build
-npm run build
-
-# Lint
-npm run lint
-
-# Preview production build
-npm run preview
+npm install        # Install dependencies
+npm run dev        # Start dev server (port 5173)
+npm run build      # Type-check + production build
+npm run lint       # Lint check
+npm run preview    # Preview production build
 ```
-
-## Supabase Bootstrap
-
-Run migrations in order from `supabase/migrations/` (see `FINAL_B2BCENTER_MIGRATION_ORDER.md`).
-
-**Critical:** Before running migration `20260312122700_first_tenant_bootstrap_auto.sql`, ensure at least one `auth.users` row exists.

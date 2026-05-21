@@ -1,6 +1,6 @@
 # B2BCenter TODO Roadmap
 
-Generated: 2026-05-19
+Generated: 2026-05-19 | Last updated: 2026-05-21
 
 This file tracks the current working priorities for the single-tenant B2BCenter/Centivon app. It is based on the current repo context, not the TED/Lina version.
 
@@ -47,7 +47,10 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
     - Econt integration settings in Settings page already guarded by `isAdmin` for sidebar tab and content render.
     - Client order flow shipping method selection (`QuoteRequestModal`) untouched — clients still select shipping method when submitting orders.
 
-5. ~~Fix order notes saving~~ ✅ DONE (verified: internal notes mutation uses `internal_notes` column, backward-compatible fallback for tenants without migration)
+5. Fix order notes saving — ⚠️ STILL NOT FIXED
+    - Order notes still do not persist correctly. This remains an open bug.
+    - Earlier "verified done" note was premature; reopened 2026-05-21.
+    - Needs a fresh look at the order/quote notes mutation and the column it writes to.
 
 ### P1 — Catalog UX correctness
 
@@ -76,13 +79,14 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
 
    Remaining: a fuller perf pass on `manage.tsx` (per-category count query is N+1) is still tracked under item 12.
 
-9. Product gallery — data/import follow-up (not a UI bug)
-   - The gallery UI works correctly when `images[]` has multiple items; most imports currently only populate `main_image`.
-   - Follow-up should ensure the CSV/import pipeline populates `images[]` from `image1`–`image10` columns when available.
+9. Product gallery — data/import follow-up (not a UI bug) — ⚠️ KNOWN DATA LIMITATION
+   - Confirmed: the gallery UI works correctly when `images[]` has multiple items; most imports currently only populate `main_image`.
+   - This is an import/feed data limitation, not a UI bug. No UI work needed.
+   - Follow-up (low priority): ensure the CSV/import pipeline populates `images[]` from `image1`–`image10` columns when available.
 
-10. Remove similar products from product page
-   - Similar/recommended products are not needed.
-   - Remove UI and unnecessary queries if possible.
+10. ~~Remove similar products from product page~~ ✅ DONE
+   - Similar/recommended products UI removed from the product detail page.
+   - Associated queries removed.
 
 ### P2 — Admin tooling and performance
 
@@ -110,10 +114,13 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
 
 ### P3 — Later integrations
 
-13. Greek manufacturer inventory sync
-   - Implement later.
-   - There is already a separate Vercel domain / ops script that syncs SKU inventory into the portal.
-   - Reuse that approach if possible after core flows are stable.
+13. Greek manufacturer inventory sync — NEXT MAJOR OPERATIONAL TASK
+   - **Product decision:** inventory/manufacturer sync is NOT built into the normal B2BCenter client/admin portal UI. It is operational tooling.
+   - It will be added to the existing private ops project (local repo/folder `mebelcenter-shopify`, deployed at `opsmebelcenter.vercel.app`) as a separate operational module/target — not a new portal page.
+   - Do not rename the `mebelcenter-shopify` repo and do not reorganize that project; add B2BCenter sync as an additional target alongside its existing Shopify supplier operations.
+   - Full plan: see `B2BCENTER_INVENTORY_SYNC_PLAN.md`.
+   - v1 scope is stock/inventory only, SKU-matched, tenant-scoped, dry-run first then apply, with logs/report. No price/category/name/description/image updates; no auto-archive of missing feed products in v1.
+   - Do not start until core portal UX is stable (it now largely is — see P0/P1/P2 status).
 
 ## Important Constraints
 
@@ -126,14 +133,21 @@ This file tracks the current working priorities for the single-tenant B2BCenter/
   - `npm run lint` if practical
 - Update this file after completing each task.
 
+## Remaining Known Issues (as of 2026-05-21)
+
+1. **Order notes saving** — still not fixed (item 5). Open bug.
+2. **Quick performance/loading audit** — still not done (item 12).
+3. **Greek manufacturer inventory sync** — next major operational task (item 13). Built in the `opsmebelcenter` ops project, not the portal. See `B2BCENTER_INVENTORY_SYNC_PLAN.md`.
+4. **Hard product delete** — intentionally not implemented. Archive/restore via `is_visible` is the supported lifecycle.
+5. **Bulk archive/delete beyond archive/restore** — not needed right now.
+6. **Product gallery multiple images** — depends on import/feed data, not a UI bug (item 9).
+
 ## Recommended Work Order
 
-Start with:
+Core P0/P1/P2 product/admin cleanup is largely complete. Remaining focus:
 
-1. Manual client creation flow.
-2. Client deletion flow.
-3. Remove admin cart/add-to-cart.
-4. Hide Econt for clients.
-5. Fix filters and pagination.
+1. Fix order notes saving (item 5).
+2. Quick performance/loading audit (item 12).
+3. Greek manufacturer inventory sync in the `opsmebelcenter` ops project (item 13).
 
-Do not start Greek inventory sync until the core portal UX is stable.
+Do not start Greek inventory sync until the core portal UX is stable (it now largely is).
