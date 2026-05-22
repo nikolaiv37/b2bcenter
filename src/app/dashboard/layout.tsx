@@ -123,7 +123,7 @@ export function DashboardLayout() {
                   size="icon"
                   className="h-9 w-9 lg:hidden"
                   onClick={() => setMobileNavOpen(true)}
-                  aria-label={t('common.landing.nav.toggleMenu')}
+                  aria-label={t('landing.nav.toggleMenu')}
                 >
                   <Menu className="h-5 w-5" />
                 </Button>

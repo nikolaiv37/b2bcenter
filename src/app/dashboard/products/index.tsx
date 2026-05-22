@@ -256,6 +256,8 @@ export function ProductsPage() {
     },
     enabled: !!tenantId,
     placeholderData: (previousData) => previousData, // Keep previous data while loading
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   })
 
   // Get cached data from page 1 query for pages 2-7
@@ -326,6 +328,8 @@ export function ProductsPage() {
       return count ?? 0
     },
     enabled: !!tenantId,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   })
 
   // Fetch manufacturer filter options from ALL products.
@@ -346,6 +350,7 @@ export function ProductsPage() {
         isVisible: manufacturerVisibilityScope,
       }),
     staleTime: 5 * 60 * 1000,
+    gcTime: 5 * 60_000,
     enabled: !!tenantId,
   })
 

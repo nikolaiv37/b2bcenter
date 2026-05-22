@@ -289,6 +289,8 @@ export function CategoriesPage() {
       return { products: data as Product[], count: count || 0 }
     },
     enabled: !!tenantId && categoryIds.length > 0,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   })
 
   // Fetch manufacturers for filter (using normalized category_id).
@@ -309,6 +311,8 @@ export function CategoriesPage() {
         isVisible: manufacturerVisibilityScope,
       }),
     enabled: !!tenantId && categoryIds.length > 0 && viewLevel === 'products',
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   })
 
   const products = productsData?.products || []

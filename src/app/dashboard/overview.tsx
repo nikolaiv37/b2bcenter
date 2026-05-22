@@ -1084,7 +1084,7 @@ export function DashboardOverview() {
                 <div className="space-y-3">
                   {topUnpaidCompanies.map((company, index) => (
                     <button
-                      key={company.email || company.companyName || index}
+                      key={`${company.companyName || company.email || 'company'}-${index}`}
                       onClick={() =>
                         navigate(
                           `${withBase('/dashboard/orders')}?company=${encodeURIComponent(

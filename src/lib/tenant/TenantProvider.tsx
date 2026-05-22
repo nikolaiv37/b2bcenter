@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import type { Tenant, TenantMembership } from '@/types'
@@ -82,7 +81,6 @@ function mapTenantFromMembershipRow(row: TenantMembershipRow | null): Tenant | n
 }
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const location = useLocation()
   const queryClient = useQueryClient()
 
   const normalizedHost = useMemo(() => normalizeHost(window.location.host), [])
@@ -231,6 +229,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clearTenantQueries, isMarketingHost])
 
+  // Tenant resolution is host-based (see normalizeHost), not path-based, so this
+  // bootstrap must run once on mount — never on route changes. Re-running it per
+  // navigation re-issued the tenant_memberships lookup on every page transition.
+  // Auth-state changes and focus/visibility still trigger refresh below.
   useEffect(() => {
     let active = true
     const run = async () => {
@@ -243,7 +245,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false
     }
-  }, [location.pathname, refresh])
+  }, [refresh])
 
   useEffect(() => {
     const { data: subscription } = supabase.auth.onAuthStateChange(async () => {
