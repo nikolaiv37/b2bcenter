@@ -24,16 +24,10 @@ export default defineConfig({
     // lucide-react removed from exclude - let Vite pre-bundle it for faster dev cold start
   },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          // Split heavy vendors into separate chunks for better caching
-          if (id.includes('node_modules/recharts')) return 'vendor-recharts'
-          if (id.includes('node_modules/posthog')) return 'vendor-posthog'
-          if (id.includes('node_modules/@react-pdf')) return 'vendor-react-pdf'
-        },
-      },
-    },
+    // recharts, posthog, and @react-pdf are only reached via dynamic import().
+    // Letting Rollup chunk them naturally keeps them in async-only chunks so
+    // Vite does not emit eager <link rel="modulepreload"> for them in index.html.
+    chunkSizeWarningLimit: 1600,
   },
   server: {
     host: true,

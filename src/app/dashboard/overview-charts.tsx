@@ -24,6 +24,44 @@ interface OverviewChartsStats {
   categoriesByRevenue: Array<{ name: string; value: number; revenue: number }>
 }
 
+const ADMIN_SUBLABEL = '#6B7280'
+
+export function AdminOrdersBarChart({
+  data,
+}: {
+  data: Array<{ date: string; orders: number }>
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data}>
+        <CartesianGrid vertical={false} stroke="#E5E7EB" strokeDasharray="3 3" />
+        <XAxis
+          axisLine={false}
+          dataKey="date"
+          tick={{ fill: ADMIN_SUBLABEL, fontSize: 12 }}
+          tickLine={false}
+        />
+        <YAxis
+          axisLine={false}
+          allowDecimals={false}
+          tick={{ fill: ADMIN_SUBLABEL, fontSize: 12 }}
+          tickLine={false}
+        />
+        <Tooltip
+          cursor={{ fill: '#F5F3FF' }}
+          contentStyle={{
+            backgroundColor: '#FFFFFF',
+            border: 'none',
+            borderRadius: '12px',
+            boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)',
+          }}
+        />
+        <Bar dataKey="orders" fill="rgba(108, 99, 168, 0.8)" radius={[8, 8, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
 const COLORS = [
   'hsl(var(--primary))',
   '#8b5cf6',

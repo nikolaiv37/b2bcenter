@@ -22,15 +22,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  CartesianGrid,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
-import {
   DollarSign,
   ShoppingCart,
   Users,
@@ -48,6 +39,9 @@ import { trackEvent, AnalyticsEvents } from '@/lib/analytics'
 
 const OverviewChartsSection = lazy(() =>
   import('@/app/dashboard/overview-charts').then((m) => ({ default: m.OverviewChartsSection }))
+)
+const AdminOrdersBarChart = lazy(() =>
+  import('@/app/dashboard/overview-charts').then((m) => ({ default: m.AdminOrdersBarChart }))
 )
 
 interface DashboardStats {
@@ -135,7 +129,6 @@ interface ProductCategoryRow {
   sku?: string | null
 }
 
-const ADMIN_SUBLABEL = '#6B7280'
 const ADMIN_CARD_CLASS =
   'rounded-[12px] border border-[#ECE8F7] bg-white p-6 shadow-[0_12px_32px_rgba(47,36,58,0.08)] backdrop-blur-none'
 const ADMIN_SECTION_TITLE = 'text-[18px] font-semibold text-[#1A1A2E]'
@@ -1017,33 +1010,9 @@ export function DashboardOverview() {
               {isDetailsLoading ? (
                 <Skeleton className="h-[280px] w-full rounded-[12px]" />
               ) : stats?.ordersByDay && stats.ordersByDay.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={stats.ordersByDay}>
-                    <CartesianGrid vertical={false} stroke="#E5E7EB" strokeDasharray="3 3" />
-                    <XAxis
-                      axisLine={false}
-                      dataKey="date"
-                      tick={{ fill: ADMIN_SUBLABEL, fontSize: 12 }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      allowDecimals={false}
-                      tick={{ fill: ADMIN_SUBLABEL, fontSize: 12 }}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      cursor={{ fill: '#F5F3FF' }}
-                      contentStyle={{
-                        backgroundColor: '#FFFFFF',
-                        border: 'none',
-                        borderRadius: '12px',
-                        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)',
-                      }}
-                    />
-                    <Bar dataKey="orders" fill="rgba(108, 99, 168, 0.8)" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <Suspense fallback={<Skeleton className="h-[280px] w-full rounded-[12px]" />}>
+                  <AdminOrdersBarChart data={stats.ordersByDay} />
+                </Suspense>
               ) : (
                 <div className="flex h-[280px] items-center justify-center rounded-[12px] bg-[#FAFAFC] text-sm text-[#6B7280]">
                   {t('overview.noOrdersLast30Days')}
