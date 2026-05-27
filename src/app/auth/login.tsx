@@ -136,68 +136,87 @@ export function LoginPage() {
   ]
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 lg:grid lg:grid-cols-2">
+    <div className="min-h-screen w-full lg:grid lg:grid-cols-[1.05fr_1fr] xl:grid-cols-[1.1fr_1fr]">
       {/* Left: brand / visual panel */}
-      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-slate-900 text-white">
+      <aside className="relative hidden lg:flex flex-col overflow-hidden bg-slate-900 text-white">
         <div
           aria-hidden
-          className="absolute inset-0 bg-cover bg-center opacity-40"
+          className="absolute inset-0 bg-cover bg-center scale-105"
           style={{ backgroundImage: `url(${SHOWROOM_IMAGE})` }}
         />
+        {/* Layered overlays: keeps image visible but text readable */}
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-900/80 to-slate-900/40"
+          className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-slate-900/65 to-slate-900/30"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"
         />
 
-        <div className="relative z-10 p-10 xl:p-14 flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10">
-            <Package className="w-5 h-5" />
+        <div className="relative z-10 flex flex-col h-full px-12 xl:px-16 py-12 xl:py-14">
+          {/* Top: brand */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 backdrop-blur-sm border border-white/15">
+              <Package className="w-4.5 h-4.5" strokeWidth={2.25} />
+            </div>
+            <span className="text-base font-semibold tracking-tight">B2BCenter</span>
           </div>
-          <span className="text-lg font-semibold tracking-tight">B2BCenter</span>
-        </div>
 
-        <div className="relative z-10 p-10 xl:p-14 max-w-xl">
-          <h2 className="text-3xl xl:text-4xl font-semibold leading-tight tracking-tight">
-            {t('auth.brand.headline')}
-          </h2>
-          <p className="mt-4 text-base text-slate-300 leading-relaxed">
-            {t('auth.brand.subheadline')}
-          </p>
+          {/* Middle: headline + bullets, vertically anchored */}
+          <div className="mt-auto mb-auto pt-16">
+            <div className="max-w-[28rem]">
+              <h2 className="text-[2rem] xl:text-[2.375rem] font-semibold leading-[1.15] tracking-tight">
+                {t('auth.brand.headline')}
+              </h2>
+              <p className="mt-5 text-[15px] text-slate-300/90 leading-relaxed max-w-md">
+                {t('auth.brand.subheadline')}
+              </p>
+            </div>
 
-          <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-4">
-            {valueBullets.map(({ icon: Icon, label }) => (
-              <li key={label} className="flex items-center gap-3 text-sm text-slate-200">
-                <span className="flex items-center justify-center w-8 h-8 rounded-md bg-white/10 border border-white/10">
-                  <Icon className="w-4 h-4" />
-                </span>
-                <span>{label}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+            <ul className="mt-12 grid grid-cols-2 gap-x-8 gap-y-5 max-w-md">
+              {valueBullets.map(({ icon: Icon, label }) => (
+                <li key={label} className="flex items-center gap-3 text-[13.5px] text-slate-200/95">
+                  <span className="flex items-center justify-center w-7 h-7 rounded-md bg-white/[0.07] border border-white/10">
+                    <Icon className="w-3.5 h-3.5" strokeWidth={2} />
+                  </span>
+                  <span className="leading-snug">{label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        <div className="relative z-10 p-10 xl:p-14 text-xs text-slate-400">
-          © {new Date().getFullYear()} B2BCenter · Centivon
+          {/* Bottom: footer brand */}
+          <div className="flex items-center justify-between text-[11px] text-slate-400/80 tracking-wide">
+            <span>© {new Date().getFullYear()} B2BCenter</span>
+            <span className="uppercase">Powered by Centivon</span>
+          </div>
         </div>
       </aside>
 
       {/* Right: login form */}
-      <main className="flex items-center justify-center px-6 py-12 sm:px-10">
-        <div className="w-full max-w-md">
+      <main
+        className="relative flex items-center justify-center px-6 py-12 sm:px-10 bg-slate-50"
+        style={{
+          backgroundImage:
+            'radial-gradient(1200px 600px at 100% 0%, rgba(15,23,42,0.05), transparent 60%), radial-gradient(900px 500px at 0% 100%, rgba(15,23,42,0.04), transparent 60%)',
+        }}
+      >
+        <div className="w-full max-w-[420px]">
           {/* Mobile brand */}
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-900 text-white">
-              <Package className="w-5 h-5" />
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-900 text-white">
+              <Package className="w-4.5 h-4.5" strokeWidth={2.25} />
             </div>
-            <span className="text-lg font-semibold tracking-tight text-slate-900">B2BCenter</span>
+            <span className="text-base font-semibold tracking-tight text-slate-900">B2BCenter</span>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 sm:p-10 shadow-sm">
-            <div className="mb-8">
-              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
+          <div className="rounded-2xl border border-slate-200/80 bg-white px-7 py-9 sm:px-9 sm:py-10 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-12px_rgba(15,23,42,0.12)]">
+            <div className="mb-7">
+              <h1 className="text-[1.625rem] sm:text-[1.75rem] font-semibold tracking-tight text-slate-900 leading-tight">
                 {t('auth.loginHeading')}
               </h1>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
                 {workspaceName
                   ? `${t('auth.loginSubheading')} · ${workspaceName}`
                   : t('auth.loginSubheading')}
@@ -211,9 +230,9 @@ export function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-700">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-[13px] font-medium text-slate-700">
                   {t('auth.email')}
                 </Label>
                 <Input
@@ -221,16 +240,16 @@ export function LoginPage() {
                   type="email"
                   autoComplete="email"
                   placeholder={t('auth.emailPlaceholder')}
-                  className="h-11"
+                  className="h-11 bg-white border-slate-200 focus-visible:ring-slate-900/10 focus-visible:border-slate-400"
                   {...register('email', { onChange: () => setLoginError(null) })}
                 />
                 {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                  <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-700">
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-[13px] font-medium text-slate-700">
                   {t('auth.password')}
                 </Label>
                 <Input
@@ -238,11 +257,11 @@ export function LoginPage() {
                   type="password"
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="h-11"
+                  className="h-11 bg-white border-slate-200 focus-visible:ring-slate-900/10 focus-visible:border-slate-400"
                   {...register('password', { onChange: () => setLoginError(null) })}
                 />
                 {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                  <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
                 )}
               </div>
 
@@ -255,18 +274,18 @@ export function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-medium"
+                className="w-full h-11 mt-2 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white text-[14px] font-medium tracking-tight shadow-sm transition-colors"
                 disabled={isLoading}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t('auth.signIn')}
               </Button>
             </form>
-
-            <p className="mt-8 text-center text-xs text-slate-400">
-              {t('auth.accessNote')}
-            </p>
           </div>
+
+          <p className="mt-6 text-center text-[12px] text-slate-400">
+            {t('auth.accessNote')}
+          </p>
         </div>
       </main>
     </div>
