@@ -20,8 +20,10 @@ import {
 } from 'lucide-react'
 import { useAppContext } from '@/lib/app/AppContext'
 
+// Premium furniture interior with strong depth and contrast — anchors the
+// dark overlay better than the previous flat showroom shot.
 const SHOWROOM_IMAGE =
-  'https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=1600&q=80'
+  'https://images.unsplash.com/photo-1540574163026-643ea20ade25?auto=format&fit=crop&w=1800&q=85'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -141,17 +143,23 @@ export function LoginPage() {
       <aside className="relative hidden lg:flex flex-col overflow-hidden bg-slate-900 text-white">
         <div
           aria-hidden
-          className="absolute inset-0 bg-cover bg-center scale-105"
-          style={{ backgroundImage: `url(${SHOWROOM_IMAGE})` }}
+          className="absolute inset-0 bg-cover scale-105"
+          style={{ backgroundImage: `url(${SHOWROOM_IMAGE})`, backgroundPosition: '70% 35%' }}
         />
-        {/* Layered overlays: keeps image visible but text readable */}
+        {/* Layered overlays: image is ~10–15% more present, text remains readable */}
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-slate-900/65 to-slate-900/30"
+          className="absolute inset-0 bg-gradient-to-br from-slate-950/75 via-slate-900/55 to-slate-900/20"
         />
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"
+          className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent"
+        />
+        {/* Local contrast pad behind text column (left half only) so the headline
+            doesn't fight the sofa silhouette — image stays visible on the right. */}
+        <div
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-[70%] bg-gradient-to-r from-slate-950/55 via-slate-950/25 to-transparent"
         />
 
         <div className="relative z-10 flex flex-col h-full px-12 xl:px-16 py-12 xl:py-14">
@@ -202,25 +210,29 @@ export function LoginPage() {
             'radial-gradient(1200px 600px at 100% 0%, rgba(15,23,42,0.05), transparent 60%), radial-gradient(900px 500px at 0% 100%, rgba(15,23,42,0.04), transparent 60%)',
         }}
       >
-        {/* Decorative depth — hidden on small screens, purely cosmetic */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 hidden sm:block">
-          {/* Soft blurred slate glow behind the card */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full bg-slate-200/50 blur-3xl" />
-          {/* Faint grid pattern, very low opacity */}
+        {/* Ambient atmosphere behind the card — slate-toned, restrained but visible */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 hidden sm:block overflow-hidden"
+        >
+          {/* Soft ambient glow — stronger than before so the right side reads as intentional */}
           <div
-            className="absolute inset-0 opacity-[0.35]"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[820px] h-[820px] rounded-full blur-3xl"
             style={{
-              backgroundImage:
-                'linear-gradient(to right, rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(15,23,42,0.04) 1px, transparent 1px)',
-              backgroundSize: '44px 44px',
-              maskImage:
-                'radial-gradient(ellipse 60% 55% at 50% 50%, black 35%, transparent 75%)',
-              WebkitMaskImage:
-                'radial-gradient(ellipse 60% 55% at 50% 50%, black 35%, transparent 75%)',
+              background:
+                'radial-gradient(closest-side, rgba(100,116,139,0.45), rgba(100,116,139,0.18) 50%, transparent 78%)',
             }}
           />
-          {/* Offset outlined rectangle echoing the card, for subtle depth */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-[calc(50%-14px)] -translate-y-[calc(50%-14px)] w-[420px] h-[360px] rounded-2xl border border-slate-200/70" />
+          {/* Secondary cooler accent, lower-left, for slight directional light */}
+          <div
+            className="absolute left-[15%] bottom-[10%] w-[420px] h-[420px] rounded-full blur-3xl"
+            style={{
+              background:
+                'radial-gradient(closest-side, rgba(148,163,184,0.22), transparent 70%)',
+            }}
+          />
+          {/* Faint offset rounded panel echoing the card */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-[calc(50%-18px)] -translate-y-[calc(50%-18px)] w-[420px] h-[380px] rounded-2xl border border-slate-300/60 bg-white/30 backdrop-blur-[1px]" />
         </div>
 
         <div className="relative w-full max-w-[420px]">
