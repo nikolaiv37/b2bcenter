@@ -20,11 +20,6 @@ import {
 } from 'lucide-react'
 import { useAppContext } from '@/lib/app/AppContext'
 
-// Premium furniture interior with strong depth and contrast — anchors the
-// dark overlay better than the previous flat showroom shot.
-const SHOWROOM_IMAGE =
-  'https://images.unsplash.com/photo-1540574163026-643ea20ade25?auto=format&fit=crop&w=1800&q=85'
-
 export function LoginPage() {
   const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
@@ -139,27 +134,89 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen w-full lg:grid lg:grid-cols-[1.05fr_1fr] xl:grid-cols-[1.1fr_1fr]">
-      {/* Left: brand / visual panel */}
-      <aside className="relative hidden lg:flex flex-col overflow-hidden bg-slate-900 text-white">
+      {/* Left: brand / visual panel — controlled abstract composition (no stock photo) */}
+      <aside
+        className="relative hidden lg:flex flex-col overflow-hidden text-white"
+        style={{
+          background:
+            'linear-gradient(135deg, #0b1220 0%, #0f172a 45%, #111e34 100%)',
+        }}
+      >
+        {/* Faint geometric grid — catalog/spec-sheet feel */}
         <div
           aria-hidden
-          className="absolute inset-0 bg-cover scale-105"
-          style={{ backgroundImage: `url(${SHOWROOM_IMAGE})`, backgroundPosition: '70% 35%' }}
+          className="absolute inset-0 opacity-[0.24]"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.07) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
+            maskImage:
+              'radial-gradient(ellipse 95% 92% at 68% 50%, black 42%, transparent 92%)',
+            WebkitMaskImage:
+              'radial-gradient(ellipse 95% 92% at 68% 50%, black 42%, transparent 92%)',
+          }}
         />
-        {/* Layered overlays: image is ~10–15% more present, text remains readable */}
+
+        {/* Abstract product-card / catalog tile silhouettes — anchored to the
+            right of the panel so they don't compete with the text column.
+            Each card hints at: thumbnail + title row + meta/price row. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          {/* Large catalog card */}
+          <div className="absolute right-[-50px] top-[14%] w-[280px] h-[340px] rounded-2xl border border-white/[0.12] bg-white/[0.045] p-4 flex flex-col gap-3 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.45)]">
+            <div className="h-[55%] w-full rounded-lg bg-white/[0.05] border border-white/[0.04]" />
+            <div className="h-2 w-3/4 rounded-full bg-white/[0.09]" />
+            <div className="h-2 w-1/2 rounded-full bg-white/[0.06]" />
+            <div className="mt-auto flex items-center justify-between">
+              <div className="h-2.5 w-16 rounded-full bg-white/[0.10]" />
+              <div className="h-5 w-12 rounded-md bg-white/[0.06] border border-white/[0.05]" />
+            </div>
+          </div>
+
+          {/* Medium catalog card, offset left */}
+          <div className="absolute right-[180px] top-[40%] w-[210px] h-[250px] rounded-2xl border border-white/[0.10] bg-white/[0.038] p-3.5 flex flex-col gap-2.5 shadow-[0_24px_50px_-30px_rgba(0,0,0,0.4)]">
+            <div className="h-[52%] w-full rounded-lg bg-white/[0.045] border border-white/[0.04]" />
+            <div className="h-1.5 w-2/3 rounded-full bg-white/[0.08]" />
+            <div className="h-1.5 w-1/2 rounded-full bg-white/[0.05]" />
+            <div className="mt-auto h-2 w-14 rounded-full bg-white/[0.09]" />
+          </div>
+
+          {/* Small catalog card */}
+          <div className="absolute right-[-20px] bottom-[11%] w-[200px] h-[180px] rounded-xl border border-white/[0.09] bg-white/[0.032] p-3 flex flex-col gap-2 shadow-[0_20px_40px_-25px_rgba(0,0,0,0.4)]">
+            <div className="h-[50%] w-full rounded-md bg-white/[0.04] border border-white/[0.03]" />
+            <div className="h-1.5 w-3/5 rounded-full bg-white/[0.07]" />
+            <div className="mt-auto h-2 w-12 rounded-full bg-white/[0.08]" />
+          </div>
+
+          {/* Faint catalog-row lines — suggest data table rhythm behind cards */}
+          <div className="absolute right-[-80px] top-[11%] w-[460px] h-px bg-white/[0.06]" />
+          <div className="absolute right-[-80px] top-[38%] w-[460px] h-px bg-white/[0.04]" />
+          <div className="absolute right-[-80px] top-[70%] w-[460px] h-px bg-white/[0.05]" />
+        </div>
+
+        {/* Directional ambient glow — soft top-right, gives premium light */}
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-slate-950/75 via-slate-900/55 to-slate-900/20"
+          className="pointer-events-none absolute -top-40 -right-40 w-[680px] h-[680px] rounded-full blur-3xl"
+          style={{
+            background:
+              'radial-gradient(closest-side, rgba(99,128,176,0.28), transparent 72%)',
+          }}
         />
+
+        {/* Counter-glow bottom-left — balances the top-right light, adds depth */}
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent"
+          className="pointer-events-none absolute -bottom-40 -left-40 w-[520px] h-[520px] rounded-full blur-3xl"
+          style={{
+            background:
+              'radial-gradient(closest-side, rgba(30,41,59,0.55), transparent 72%)',
+          }}
         />
-        {/* Local contrast pad behind text column (left half only) so the headline
-            doesn't fight the sofa silhouette — image stays visible on the right. */}
+
+        {/* Bottom-left depth shadow — anchors the text column */}
         <div
           aria-hidden
-          className="absolute inset-y-0 left-0 w-[70%] bg-gradient-to-r from-slate-950/55 via-slate-950/25 to-transparent"
+          className="pointer-events-none absolute inset-y-0 left-0 w-[60%] bg-gradient-to-r from-slate-950/55 via-slate-950/15 to-transparent"
         />
 
         <div className="relative z-10 flex flex-col h-full px-12 xl:px-16 py-12 xl:py-14">
