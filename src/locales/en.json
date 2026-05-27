@@ -566,6 +566,19 @@
     "auth": {
       "welcomeToFurniTrade": "Welcome to B2BCenter",
       "signInToAccount": "Sign in to your wholesale account",
+      "loginHeading": "Welcome back",
+      "loginSubheading": "Sign in to your B2B portal for orders, products and clients.",
+      "accessNote": "Access is granted to approved partners only.",
+      "brand": {
+        "headline": "The professional B2B portal for furniture wholesale",
+        "subheadline": "Manage catalog, orders and clients in one place — built for distributors and wholesalers."
+      },
+      "value": {
+        "catalog": "Catalog & inventory",
+        "orders": "Orders & documents",
+        "clients": "Clients & distributors",
+        "portal": "Secure B2B access"
+      },
       "email": "Email",
       "emailPlaceholder": "you@example.com",
       "password": "Password",

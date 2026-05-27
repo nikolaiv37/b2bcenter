@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async'
 import { ErrorBoundary } from 'react-error-boundary'
@@ -10,13 +10,11 @@ import { AuthGuard } from '@/components/AuthGuard'
 import { TenantProvider } from '@/lib/tenant/TenantProvider'
 import { TenantActiveGuard } from '@/components/guards/TenantActiveGuard'
 import { MembershipGuard } from '@/components/guards/MembershipGuard'
-import { SignupGuard } from '@/components/guards/SignupGuard'
 import { PageLoader } from '@/components/PageLoader'
 import { AppContextProvider } from '@/lib/app/AppContext'
 
 // Auth pages
 const LoginPage = lazy(() => import('@/app/auth/login').then((m) => ({ default: m.LoginPage })))
-const SignupPage = lazy(() => import('@/app/auth/signup').then((m) => ({ default: m.SignupPage })))
 const OnboardingPage = lazy(() => import('@/app/auth/onboarding').then((m) => ({ default: m.OnboardingPage })))
 const AcceptInvitePage = lazy(() => import('@/app/auth/accept-invite').then((m) => ({ default: m.AcceptInvitePage })))
 const ClientSetupPage = lazy(() => import('@/app/auth/client-setup').then((m) => ({ default: m.ClientSetupPage })))
@@ -104,13 +102,7 @@ function App() {
                 />
                 <Route
                   path="/auth/signup"
-                  element={
-                    <SignupGuard>
-                      <Suspense fallback={<PageLoader />}>
-                        <SignupPage />
-                      </Suspense>
-                    </SignupGuard>
-                  }
+                  element={<Navigate to="/auth/login" replace />}
                 />
                 <Route
                   path="/auth/onboarding"

@@ -1,22 +1,31 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supabase } from '@/lib/supabase/client'
-import { GlassCard } from '@/components/GlassCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
-import { AlertTriangle, Loader2, Package } from 'lucide-react'
+import {
+  AlertTriangle,
+  Loader2,
+  Package,
+  BookOpen,
+  ClipboardList,
+  Users,
+  ShieldCheck,
+} from 'lucide-react'
 import { useAppContext } from '@/lib/app/AppContext'
+
+const SHOWROOM_IMAGE =
+  'https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=1600&q=80'
 
 export function LoginPage() {
   const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
-  const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [accessDeniedMsg, setAccessDeniedMsg] = useState<string | null>(null)
   const [loginError, setLoginError] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -35,19 +44,16 @@ export function LoginPage() {
     register,
     handleSubmit,
     formState: { errors },
-    getValues,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   })
 
-  // After login, go to redirect param (e.g. accept-invite) or dashboard
   const redirectParam = searchParams.get('redirect')
   const postLoginPath =
     redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
       ? redirectParam
       : '/dashboard'
 
-  // Pick up ?reason=no-membership from auto-signout redirect, then clean the URL
   useEffect(() => {
     const reason = searchParams.get('reason')
     if (reason === 'no-membership') {
@@ -60,34 +66,26 @@ export function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Check for email verification confirmation
   useEffect(() => {
     const verified = searchParams.get('verified')
     if (verified === 'true') {
-      // Show success toast
       toast({
         title: t('auth.emailConfirmed'),
         description: t('auth.emailVerified'),
       })
-      // Remove the query param from URL
       searchParams.delete('verified')
       setSearchParams(searchParams, { replace: true })
     }
 
-    // Also check for Supabase auth hash in URL (from email confirmation)
     const hash = window.location.hash
     if (hash.includes('access_token') || hash.includes('type=recovery')) {
-      // Supabase will automatically handle this with detectSessionInUrl: true
-      // But we'll also show a toast if the session is successfully created
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
           toast({
             title: t('auth.emailConfirmed'),
             description: t('auth.redirecting'),
           })
-          // Clean the hash from URL
           window.history.replaceState({}, '', window.location.pathname)
-          // Redirect to dashboard
           setTimeout(() => {
             navigate(postLoginPath)
           }, 1000)
@@ -97,20 +95,17 @@ export function LoginPage() {
   }, [searchParams, setSearchParams, navigate, toast, postLoginPath, t])
 
   const onSubmit = async (data: LoginFormData) => {
-    // Clear previous inline errors on new submit
     setLoginError(null)
     setAccessDeniedMsg(null)
     setIsLoading(true)
 
     try {
-      const signInResult = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
-      const { error } = signInResult
 
       if (error) {
-        // Show user-friendly inline error instead of a toast
         if (error.message?.includes('Email not confirmed') || error.message?.includes('email_not_confirmed')) {
           setLoginError(t('auth.checkEmailConfirm'))
         } else if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
@@ -121,11 +116,6 @@ export function LoginPage() {
         return
       }
 
-      // Login succeeded — redirect immediately.
-      // Membership is checked by MembershipGuard after the
-      // redirect, using TenantProvider's refresh (which fires on the
-      // onAuthStateChange event). This avoids a duplicate membership query
-      // that can race with session propagation and intermittently fail.
       toast({
         title: t('auth.welcomeBack'),
         description: t('auth.successfullyLoggedIn'),
@@ -138,128 +128,147 @@ export function LoginPage() {
     }
   }
 
-  const handleForgotPassword = async () => {
-    const email = getValues('email')
-    if (!email) {
-      toast({
-        title: t('auth.emailRequired'),
-        description: t('auth.enterEmailFirst'),
-        variant: 'destructive',
-      })
-      return
-    }
-
-    setIsResettingPassword(true)
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      })
-
-      if (error) throw error
-
-      toast({
-        title: t('auth.passwordResetEmailSent'),
-        description: t('auth.checkEmailResetLink'),
-      })
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : t('auth.tryAgainLater')
-      toast({
-        title: t('auth.failedToSendResetEmail'),
-        description: errorMessage,
-        variant: 'destructive',
-      })
-    } finally {
-      setIsResettingPassword(false)
-    }
-  }
+  const valueBullets = [
+    { icon: BookOpen, label: t('auth.value.catalog') },
+    { icon: ClipboardList, label: t('auth.value.orders') },
+    { icon: Users, label: t('auth.value.clients') },
+    { icon: ShieldCheck, label: t('auth.value.portal') },
+  ]
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-4">
-        <GlassCard>
-          <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <Package className="w-12 h-12 text-primary" />
+    <div className="min-h-screen w-full bg-slate-50 lg:grid lg:grid-cols-2">
+      {/* Left: brand / visual panel */}
+      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-slate-900 text-white">
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-cover bg-center opacity-40"
+          style={{ backgroundImage: `url(${SHOWROOM_IMAGE})` }}
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-900/80 to-slate-900/40"
+        />
+
+        <div className="relative z-10 p-10 xl:p-14 flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10">
+            <Package className="w-5 h-5" />
           </div>
-          <h1 className="text-3xl font-bold mb-2">
-            {workspaceName ? `${t('auth.welcomeBack')} • ${workspaceName}` : t('auth.welcomeToFurniTrade')}
-          </h1>
-          <p className="text-muted-foreground">
-            {t('auth.signInToAccount')}
-          </p>
+          <span className="text-lg font-semibold tracking-tight">B2BCenter</span>
         </div>
 
-        {accessDeniedMsg && (
-          <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 mb-4 text-sm text-destructive">
-            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>{accessDeniedMsg}</span>
-          </div>
-        )}
+        <div className="relative z-10 p-10 xl:p-14 max-w-xl">
+          <h2 className="text-3xl xl:text-4xl font-semibold leading-tight tracking-tight">
+            {t('auth.brand.headline')}
+          </h2>
+          <p className="mt-4 text-base text-slate-300 leading-relaxed">
+            {t('auth.brand.subheadline')}
+          </p>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">{t('auth.email')}</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder={t('auth.emailPlaceholder')}
-              {...register('email', { onChange: () => setLoginError(null) })}
-            />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
-          </div>
+          <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-4">
+            {valueBullets.map(({ icon: Icon, label }) => (
+              <li key={label} className="flex items-center gap-3 text-sm text-slate-200">
+                <span className="flex items-center justify-center w-8 h-8 rounded-md bg-white/10 border border-white/10">
+                  <Icon className="w-4 h-4" />
+                </span>
+                <span>{label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">{t('auth.password')}</Label>
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                disabled={isResettingPassword}
-                className="text-sm text-primary hover:underline disabled:opacity-50"
-              >
-                {isResettingPassword ? t('auth.sending') : t('auth.forgotPassword')}
-              </button>
+        <div className="relative z-10 p-10 xl:p-14 text-xs text-slate-400">
+          © {new Date().getFullYear()} B2BCenter · Centivon
+        </div>
+      </aside>
+
+      {/* Right: login form */}
+      <main className="flex items-center justify-center px-6 py-12 sm:px-10">
+        <div className="w-full max-w-md">
+          {/* Mobile brand */}
+          <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-900 text-white">
+              <Package className="w-5 h-5" />
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              {...register('password', { onChange: () => setLoginError(null) })}
-            />
-            {errors.password && (
-              <p className="text-sm text-destructive">
-                {errors.password.message}
+            <span className="text-lg font-semibold tracking-tight text-slate-900">B2BCenter</span>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 sm:p-10 shadow-sm">
+            <div className="mb-8">
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
+                {t('auth.loginHeading')}
+              </h1>
+              <p className="mt-2 text-sm text-slate-500">
+                {workspaceName
+                  ? `${t('auth.loginSubheading')} · ${workspaceName}`
+                  : t('auth.loginSubheading')}
               </p>
-            )}
-          </div>
-
-          {loginError && (
-            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{loginError}</span>
             </div>
-          )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t('auth.signIn')}
-          </Button>
-        </form>
-          <div className="mt-6 text-center text-sm">
-            <p className="text-muted-foreground">
-              {t('auth.dontHaveAccount')}{' '}
-              <Link
-                to="/auth/signup"
-                className="text-primary font-semibold hover:underline"
+            {accessDeniedMsg && (
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 mb-5 text-sm text-destructive">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>{accessDeniedMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-slate-700">
+                  {t('auth.email')}
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder={t('auth.emailPlaceholder')}
+                  className="h-11"
+                  {...register('email', { onChange: () => setLoginError(null) })}
+                />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-slate-700">
+                  {t('auth.password')}
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="h-11"
+                  {...register('password', { onChange: () => setLoginError(null) })}
+                />
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                )}
+              </div>
+
+              {loginError && (
+                <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-medium"
+                disabled={isLoading}
               >
-                {t('auth.signUp')}
-              </Link>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('auth.signIn')}
+              </Button>
+            </form>
+
+            <p className="mt-8 text-center text-xs text-slate-400">
+              {t('auth.accessNote')}
             </p>
           </div>
-        </GlassCard>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }
