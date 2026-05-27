@@ -196,13 +196,34 @@ export function LoginPage() {
 
       {/* Right: login form */}
       <main
-        className="relative flex items-center justify-center px-6 py-12 sm:px-10 bg-slate-50"
+        className="relative flex items-center justify-center overflow-hidden px-6 py-12 sm:px-10 bg-slate-50"
         style={{
           backgroundImage:
             'radial-gradient(1200px 600px at 100% 0%, rgba(15,23,42,0.05), transparent 60%), radial-gradient(900px 500px at 0% 100%, rgba(15,23,42,0.04), transparent 60%)',
         }}
       >
-        <div className="w-full max-w-[420px]">
+        {/* Decorative depth — hidden on small screens, purely cosmetic */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 hidden sm:block">
+          {/* Soft blurred slate glow behind the card */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full bg-slate-200/50 blur-3xl" />
+          {/* Faint grid pattern, very low opacity */}
+          <div
+            className="absolute inset-0 opacity-[0.35]"
+            style={{
+              backgroundImage:
+                'linear-gradient(to right, rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(15,23,42,0.04) 1px, transparent 1px)',
+              backgroundSize: '44px 44px',
+              maskImage:
+                'radial-gradient(ellipse 60% 55% at 50% 50%, black 35%, transparent 75%)',
+              WebkitMaskImage:
+                'radial-gradient(ellipse 60% 55% at 50% 50%, black 35%, transparent 75%)',
+            }}
+          />
+          {/* Offset outlined rectangle echoing the card, for subtle depth */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-[calc(50%-14px)] -translate-y-[calc(50%-14px)] w-[420px] h-[360px] rounded-2xl border border-slate-200/70" />
+        </div>
+
+        <div className="relative w-full max-w-[420px]">
           {/* Mobile brand */}
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-900 text-white">
