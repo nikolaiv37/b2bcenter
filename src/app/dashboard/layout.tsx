@@ -20,6 +20,8 @@ import {
   Phone,
   LogOut,
   Menu,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -30,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useDarkMode } from '@/hooks/useDarkMode'
+import { usePriceVisibilityStore } from '@/stores/priceVisibilityStore'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
@@ -75,6 +78,8 @@ export function DashboardLayout() {
   const { getItemCount } = useCartStore()
   const navigate = useNavigate()
   const { isDark, toggle: toggleTheme } = useDarkMode()
+  const showPrices = usePriceVisibilityStore((s) => s.showPrices)
+  const toggleShowPrices = usePriceVisibilityStore((s) => s.toggleShowPrices)
 
   const cartItemCount = getItemCount()
 
@@ -151,6 +156,24 @@ export function DashboardLayout() {
                       <Sun className="h-5 w-5 transition-all" />
                     ) : (
                       <Moon className="h-5 w-5 transition-all" />
+                    )}
+                  </Button>
+                </div>
+
+                {/* Price Visibility Toggle */}
+                <div className="hidden md:block">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    onClick={toggleShowPrices}
+                    aria-label={showPrices ? t('header.hidePrices') : t('header.showPrices')}
+                    title={showPrices ? t('header.hidePrices') : t('header.showPrices')}
+                  >
+                    {showPrices ? (
+                      <Eye className="h-5 w-5 transition-all" />
+                    ) : (
+                      <EyeOff className="h-5 w-5 transition-all" />
                     )}
                   </Button>
                 </div>

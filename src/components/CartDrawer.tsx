@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Minus, Plus, Trash2, ShoppingCart, FileText, Percent } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { useCommissionRate } from '@/hooks/useCommissionRate'
+import { PriceDisplay } from '@/components/PriceDisplay'
 
 interface CartDrawerProps {
   open: boolean
@@ -123,7 +124,7 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
                       </p>
                       <div className="flex items-center gap-2 mb-2">
                         <div className="text-sm font-bold text-primary">
-                          {formatPrice(item.price)} each
+                          <PriceDisplay>{formatPrice(item.price)} each</PriceDisplay>
                         </div>
                         {isBackorder && (
                           <Badge variant="outline" className="text-[10px] font-semibold">
@@ -188,7 +189,7 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
                     {/* Line Total */}
                     <div className="flex-shrink-0 text-right">
                       <div className="font-bold text-lg">
-                        {formatPrice(item.total)}
+                        <PriceDisplay>{formatPrice(item.total)}</PriceDisplay>
                       </div>
                     </div>
                   </div>
@@ -211,7 +212,7 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
               {/* Grand Total */}
               <div className="flex items-center justify-between text-lg font-bold">
                 <span>Total</span>
-                <span className="text-2xl text-primary">{formatPrice(total)}</span>
+                <span className="text-2xl text-primary"><PriceDisplay>{formatPrice(total)}</PriceDisplay></span>
               </div>
 
               {/* Submit Order Button */}

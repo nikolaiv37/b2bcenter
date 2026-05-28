@@ -267,7 +267,10 @@
       "accountSettings": "Account Settings",
       "companyInfo": "Company Info",
       "admin": "Admin",
-      "accountManager": "Account manager"
+      "accountManager": "Account manager",
+      "hidePrices": "Hide prices",
+      "showPrices": "Show prices",
+      "pricesHidden": "Prices hidden"
     },
     "products": {
       "title": "All Products",

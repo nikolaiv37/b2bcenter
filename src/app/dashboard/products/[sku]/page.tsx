@@ -43,6 +43,8 @@ import { HtmlContent } from '@/components/HtmlContent'
 import { ChangeProductCategoryDialog } from '@/components/ChangeProductCategoryDialog'
 import { useCategoryOptions } from '@/hooks/useCategoryOptions'
 import { useMutationUpdateProductVisibility } from '@/hooks/useMutationProductVisibility'
+import { PriceDisplay } from '@/components/PriceDisplay'
+import { usePriceVisibilityStore } from '@/stores/priceVisibilityStore'
 
 /**
  * Product Detail Page
@@ -69,6 +71,7 @@ export function ProductDetailPage() {
   const { isInWishlist, toggleWishlist } = useWishlist()
   const { hasDiscount, commissionRate } = useCommissionRate()
   const { currentAccount } = useAppContext()
+  const showPrices = usePriceVisibilityStore((s) => s.showPrices)
   const isAdmin = currentAccount.isAdmin
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [addToOrderOpen, setAddToOrderOpen] = useState(false)
@@ -378,7 +381,7 @@ export function ProductDetailPage() {
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <div className="text-4xl font-bold text-primary">
-                  {formatPrice(displayPrice)}
+                  <PriceDisplay>{formatPrice(displayPrice)}</PriceDisplay>
                 </div>
                 {hasCommissionDiscount && (
                   <Badge 
@@ -390,12 +393,12 @@ export function ProductDetailPage() {
                   </Badge>
                 )}
               </div>
-              {hasCommissionDiscount && (
+              {showPrices && hasCommissionDiscount && (
                 <div className="text-lg text-muted-foreground line-through">
                   {formatPrice(product.weboffer_price)}
                 </div>
               )}
-              {!hasCommissionDiscount && product.retail_price && product.retail_price > (product.weboffer_price || 0) && (
+              {showPrices && !hasCommissionDiscount && product.retail_price && product.retail_price > (product.weboffer_price || 0) && (
                 <div className="text-lg text-muted-foreground line-through">
                   {formatPrice(product.retail_price)}
                 </div>

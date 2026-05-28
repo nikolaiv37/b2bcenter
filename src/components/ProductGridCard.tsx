@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils'
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { getProductManufacturer } from '@/lib/manufacturers'
+import { PriceDisplay } from '@/components/PriceDisplay'
+import { usePriceVisibilityStore } from '@/stores/priceVisibilityStore'
 
 interface ProductGridCardProps {
   product: Product
@@ -109,6 +111,7 @@ export function ProductGridCard({
   // Use adjusted_price if available, otherwise fall back to weboffer_price
   const displayPrice = product.adjusted_price ?? product.weboffer_price
   const hasCommissionDiscount = hasDiscount && product.adjusted_price !== undefined && product.adjusted_price < product.weboffer_price
+  const showPrices = usePriceVisibilityStore((s) => s.showPrices)
 
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -294,7 +297,7 @@ export function ProductGridCard({
         <div className="mb-3">
           <div className="flex items-center gap-2">
             <div className="text-2xl font-bold text-primary">
-              {formatPrice(displayPrice, t('general.notAvailable'))}
+              <PriceDisplay>{formatPrice(displayPrice, t('general.notAvailable'))}</PriceDisplay>
             </div>
             {hasCommissionDiscount && (
               <Badge 
@@ -307,13 +310,13 @@ export function ProductGridCard({
             )}
           </div>
           {/* Show base wholesale price as strikethrough when commission discount applies */}
-          {hasCommissionDiscount && (
+          {showPrices && hasCommissionDiscount && (
             <div className="text-sm text-muted-foreground line-through">
               {formatPrice(product.weboffer_price, t('general.notAvailable'))}
             </div>
           )}
           {/* Show retail price strikethrough only if no commission discount and retail > wholesale */}
-          {!hasCommissionDiscount && product.retail_price && product.retail_price > (product.weboffer_price || 0) && (
+          {showPrices && !hasCommissionDiscount && product.retail_price && product.retail_price > (product.weboffer_price || 0) && (
             <div className="text-sm text-muted-foreground line-through">
               {formatPrice(product.retail_price, t('general.notAvailable'))}
             </div>

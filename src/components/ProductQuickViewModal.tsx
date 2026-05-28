@@ -19,6 +19,8 @@ import { useCommissionRate } from '@/hooks/useCommissionRate'
 import { useAppContext } from '@/lib/app/AppContext'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { HtmlContent } from '@/components/HtmlContent'
+import { PriceDisplay } from '@/components/PriceDisplay'
+import { usePriceVisibilityStore } from '@/stores/priceVisibilityStore'
 
 interface ProductQuickViewModalProps {
   product: Product | null
@@ -47,6 +49,7 @@ export function ProductQuickViewModal({
   const { withBase } = useTenantPath()
   const { currentAccount } = useAppContext()
   const isAdmin = currentAccount.isAdmin
+  const showPrices = usePriceVisibilityStore((s) => s.showPrices)
 
   if (!product) return null
 
@@ -185,7 +188,7 @@ export function ProductQuickViewModal({
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <div className="text-3xl font-bold text-primary">
-                  {formatPrice(displayPrice)}
+                  <PriceDisplay>{formatPrice(displayPrice)}</PriceDisplay>
                 </div>
                 {hasCommissionDiscount && (
                   <Badge 
@@ -198,13 +201,13 @@ export function ProductQuickViewModal({
                 )}
               </div>
               {/* Show base wholesale price as strikethrough when commission discount applies */}
-              {hasCommissionDiscount && (
+              {showPrices && hasCommissionDiscount && (
                 <div className="text-lg text-muted-foreground line-through">
                   {formatPrice(product.weboffer_price)}
                 </div>
               )}
               {/* Show retail price strikethrough only if no commission discount and retail > wholesale */}
-              {!hasCommissionDiscount && product.retail_price && product.retail_price > (product.weboffer_price || 0) && (
+              {showPrices && !hasCommissionDiscount && product.retail_price && product.retail_price > (product.weboffer_price || 0) && (
                 <div className="text-lg text-muted-foreground line-through">
                   {formatPrice(product.retail_price)}
                 </div>

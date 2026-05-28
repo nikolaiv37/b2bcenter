@@ -267,7 +267,10 @@
       "accountSettings": "Настройки на Профила",
       "companyInfo": "Информация за Фирмата",
       "admin": "Администратор",
-      "accountManager": "Account manager"
+      "accountManager": "Account manager",
+      "hidePrices": "Скрий цените",
+      "showPrices": "Покажи цените",
+      "pricesHidden": "Цените са скрити"
     },
     "products": {
       "title": "Всички Продукти",
