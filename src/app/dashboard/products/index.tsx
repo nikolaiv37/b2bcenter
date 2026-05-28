@@ -223,7 +223,13 @@ export function ProductsPage() {
 
   // Fetch paginated products with server-side filters
   const range = getPaginationRange()
-  const { data: products, isLoading } = useQuery({
+  const {
+    data: products,
+    isLoading,
+    isError: isProductsError,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useQuery({
     queryKey: [
       'tenant',
       tenantId,
@@ -249,8 +255,11 @@ export function ProductsPage() {
 
       const { data, error } = await query
 
-      if (error) throw error
-      
+      if (error) {
+        console.error('[ProductsPage] products query failed', error)
+        throw error
+      }
+
       // Apply commission-based pricing
       return applyCommissionToProducts(data as Product[], profile?.role, profile?.commission_rate)
     },
@@ -690,6 +699,24 @@ export function ProductsPage() {
             </GlassCard>
           ))}
         </div>
+      ) : isProductsError ? (
+        <GlassCard>
+          <div className="text-center py-16">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 text-destructive flex items-center justify-center">
+              <X className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">{t('products.loadErrorTitle')}</h3>
+            <p className="text-muted-foreground mb-2">{t('products.loadErrorDescription')}</p>
+            {productsError instanceof Error && (
+              <p className="text-xs text-muted-foreground mb-6 font-mono break-all">
+                {productsError.message}
+              </p>
+            )}
+            <Button variant="outline" onClick={() => refetchProducts()}>
+              {t('products.retry')}
+            </Button>
+          </div>
+        </GlassCard>
       ) : paginatedProducts && paginatedProducts.length > 0 ? (
         <>
           {isAdmin && viewMode === 'list' ? (
