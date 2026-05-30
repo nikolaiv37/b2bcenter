@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
+import { isRealtimeEnabled } from '@/lib/supabase/realtime'
 import { useAuthStore } from '@/stores/authStore'
 import { Profile, UserRole, Company } from '@/types'
 import { identifyUser } from '@/lib/analytics'
@@ -584,27 +585,39 @@ export function useAuth() {
   }, [tenantId, user])
 
   useEffect(() => {
+    if (!isRealtimeEnabled()) return
     if (!user || !tenantId) return
 
-    const channel = supabase
-      .channel(`profile-${tenantId}-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        () => {
-          lastSilentRefreshAt.current = Date.now()
-          void loadOrCreateProfile(user, { silent: true })
-        }
-      )
-      .subscribe()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    try {
+      channel = supabase
+        .channel(`profile-${tenantId}-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`,
+          },
+          () => {
+            lastSilentRefreshAt.current = Date.now()
+            void loadOrCreateProfile(user, { silent: true })
+          }
+        )
+        .subscribe()
+    } catch {
+      channel = null
+    }
 
     return () => {
-      void supabase.removeChannel(channel)
+      if (channel) {
+        try {
+          void supabase.removeChannel(channel)
+        } catch {
+          /* noop */
+        }
+      }
     }
   }, [tenantId, user])
 

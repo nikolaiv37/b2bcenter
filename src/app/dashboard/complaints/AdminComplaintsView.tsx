@@ -3,6 +3,7 @@ import { useAppContext } from '@/lib/app/AppContext'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
+import { isRealtimeEnabled } from '@/lib/supabase/realtime'
 import { sendNotification } from '@/lib/notifications'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -247,26 +248,39 @@ export function AdminComplaintsView() {
     gcTime: 5 * 60 * 1000,
   })
 
-  // Set up real-time subscription for complaints
+  // Set up real-time subscription for complaints (gated by feature flag)
   useEffect(() => {
-    const channel = supabase
-      .channel('admin-complaints-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'complaints',
-        },
-        () => {
-          // Refetch complaints when any change occurs
-          queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-complaints'] })
-        }
-      )
-      .subscribe()
+    if (!isRealtimeEnabled()) return
+    if (!tenantId) return
+
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    try {
+      channel = supabase
+        .channel(`admin-complaints-${tenantId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'complaints',
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-complaints'] })
+          }
+        )
+        .subscribe()
+    } catch {
+      channel = null
+    }
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) {
+        try {
+          supabase.removeChannel(channel)
+        } catch {
+          /* noop */
+        }
+      }
     }
   }, [queryClient, tenantId])
 

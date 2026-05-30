@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
+import { isRealtimeEnabled } from '@/lib/supabase/realtime'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppContext } from '@/lib/app/AppContext'
 import type { AppNotification } from '@/types'
@@ -40,30 +41,42 @@ export function useNotifications() {
   // ── Unread count (derived from fetched data) ────────────
   const unreadCount = notifications.filter((n) => !n.read_at).length
 
-  // ── Realtime subscription ───────────────────────────────
+  // ── Realtime subscription (gated by feature flag) ───────
   useEffect(() => {
+    if (!isRealtimeEnabled()) return
     if (!userId || !tenantId) return
 
-    const channel = supabase
-      .channel('user-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({
-            queryKey: ['workspace', 'notifications'],
-          })
-        }
-      )
-      .subscribe()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    try {
+      channel = supabase
+        .channel(`notifications-${tenantId}-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            queryClient.invalidateQueries({
+              queryKey: ['workspace', 'notifications'],
+            })
+          }
+        )
+        .subscribe()
+    } catch {
+      channel = null
+    }
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) {
+        try {
+          supabase.removeChannel(channel)
+        } catch {
+          /* noop */
+        }
+      }
     }
   }, [userId, tenantId, queryClient])
 

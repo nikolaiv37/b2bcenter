@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useAppContext } from '@/lib/app/AppContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
+import { isRealtimeEnabled } from '@/lib/supabase/realtime'
 import { useAuth } from './useAuth'
 import { WishlistItem } from '@/types'
 
@@ -36,29 +37,41 @@ export function useWishlist() {
     enabled: !!userId && !!tenantId,
   })
 
-  // Set up realtime subscription for wishlist changes
+  // Set up realtime subscription for wishlist changes (gated by feature flag)
   useEffect(() => {
+    if (!isRealtimeEnabled()) return
     if (!userId || !tenantId) return
 
-    const channel = supabase
-      .channel('wishlist-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'wishlist_items',
-          filter: `tenant_id=eq.${tenantId}`,
-        },
-        () => {
-          // Invalidate and refetch wishlist on any change
-          queryClient.invalidateQueries({ queryKey: ['workspace', 'wishlist', userId] })
-        }
-      )
-      .subscribe()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    try {
+      channel = supabase
+        .channel(`wishlist-${tenantId}-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'wishlist_items',
+            filter: `tenant_id=eq.${tenantId}`,
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['workspace', 'wishlist', userId] })
+          }
+        )
+        .subscribe()
+    } catch {
+      // Don't block rendering if realtime fails
+      channel = null
+    }
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) {
+        try {
+          supabase.removeChannel(channel)
+        } catch {
+          /* noop */
+        }
+      }
     }
   }, [userId, queryClient, tenantId])
 

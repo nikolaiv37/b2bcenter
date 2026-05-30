@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
+import { isRealtimeEnabled } from '@/lib/supabase/realtime'
 import { sendNotification } from '@/lib/notifications'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -311,26 +312,39 @@ export function AdminOrdersView() {
     gcTime: 5 * 60 * 1000,
   })
 
-  // Set up real-time subscription for orders
+  // Set up real-time subscription for orders (gated by feature flag)
   useEffect(() => {
-    const channel = supabase
-      .channel('admin-orders-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'quotes',
-        },
-        () => {
-          // Refetch orders when any change occurs
-          queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-orders'] })
-        }
-      )
-      .subscribe()
+    if (!isRealtimeEnabled()) return
+    if (!tenantId) return
+
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    try {
+      channel = supabase
+        .channel(`admin-orders-${tenantId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'quotes',
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['workspace', 'admin-orders'] })
+          }
+        )
+        .subscribe()
+    } catch {
+      channel = null
+    }
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) {
+        try {
+          supabase.removeChannel(channel)
+        } catch {
+          /* noop */
+        }
+      }
     }
   }, [queryClient, tenantId])
 
