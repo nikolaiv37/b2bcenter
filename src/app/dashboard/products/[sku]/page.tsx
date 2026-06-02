@@ -45,6 +45,7 @@ import { HtmlContent } from '@/components/HtmlContent'
 import { ChangeProductCategoryDialog } from '@/components/ChangeProductCategoryDialog'
 import { useCategoryOptions } from '@/hooks/useCategoryOptions'
 import { useMutationUpdateProductVisibility } from '@/hooks/useMutationProductVisibility'
+import { ProductShippingEditor } from '@/components/ProductShippingEditor'
 import { PriceDisplay } from '@/components/PriceDisplay'
 import { usePriceVisibilityStore } from '@/stores/priceVisibilityStore'
 
@@ -524,6 +525,9 @@ export function ProductDetailPage() {
                 </Button>
               </div>
             )}
+
+            {/* Shipping Editor (admin only) */}
+            {isAdmin && <ProductShippingEditor product={product} />}
 
             {/* Description Card — GlassCard styling */}
             {product.description && (

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Check, ChevronsUpDown, Loader2, PackageSearch, RefreshCcw, Truck, Trash2 } from 'lucide-react'
+import { AlertTriangle, Check, ChevronsUpDown, Loader2, PackageSearch, RefreshCcw, Save, Truck, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/use-toast'
@@ -23,6 +23,27 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { getCarrierAdapter } from '@/lib/shipping/carriers/registry'
 import type { ShipmentDraftInput } from '@/lib/shipping/carriers/types'
 import { cn } from '@/lib/utils'
+import { useQueryProductsShipping, getEffectiveShippingWeightKg, type ProductShippingRow } from '@/hooks/useQueryProductsShipping'
+import { useMutationUpdateProductShipping } from '@/hooks/useMutationUpdateProductShipping'
+
+// Accepts both `.` and `,` decimal separators (e.g. Bulgarian "19,71"). Empty
+// string / null / undefined become `undefined` so optional numeric fields stay
+// optional. Anything else gets parsed with Number() and validated by zod.
+function parseLocalizedNumber(value: unknown): unknown {
+  if (value === null || value === undefined) return undefined
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed === '') return undefined
+    const normalized = trimmed.replace(/\s+/g, '').replace(',', '.')
+    const n = Number(normalized)
+    return Number.isFinite(n) ? n : value
+  }
+  return value
+}
+
+const optionalNumber = (min = 0) =>
+  z.preprocess(parseLocalizedNumber, z.number().min(min).optional())
 
 const schema = z.object({
   receiverName: z.string().trim().min(1, 'Receiver name is required'),
@@ -35,12 +56,22 @@ const schema = z.object({
   street: z.string().trim().optional().or(z.literal('')),
   streetNum: z.string().trim().optional().or(z.literal('')),
   other: z.string().trim().optional().or(z.literal('')),
-  weightKg: z.coerce.number().positive(),
-  parcelsCount: z.coerce.number().int().min(1),
+  weightKg: z.preprocess(parseLocalizedNumber, z.number().positive()),
+  parcelsCount: z.preprocess(parseLocalizedNumber, z.number().int().min(1)),
   payer: z.enum(['SENDER', 'RECEIVER']),
-  codAmount: z.coerce.number().min(0).optional(),
-  declaredValue: z.coerce.number().min(0).optional(),
+  codAmount: optionalNumber(0),
+  declaredValue: optionalNumber(0),
   description: z.string().trim().max(255).optional().or(z.literal('')),
+  lengthCm: optionalNumber(0),
+  widthCm: optionalNumber(0),
+  heightCm: optionalNumber(0),
+}).superRefine((values, ctx) => {
+  if (values.destinationType === 'office' && !values.officeCode) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['officeCode'], message: 'Office code is required' })
+  }
+  if (values.destinationType === 'address' && !values.city) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['city'], message: 'City is required' })
+  }
 }).superRefine((values, ctx) => {
   if (values.destinationType === 'office' && !values.officeCode) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['officeCode'], message: 'Office code is required' })
@@ -58,6 +89,13 @@ interface OrderShipmentSeed {
   receiverName?: string | null
   receiverPhone?: string | null
   receiverEmail?: string | null
+  items?: Array<{
+    sku: string
+    product_id?: string | null
+    product_name?: string | null
+    quantity: number
+  }>
+  orderTotal?: number | null
 }
 
 interface ShipmentRow {
@@ -103,8 +141,88 @@ interface EcontOfficeListResponse {
   offices: EcontOfficeRow[]
 }
 
-function toDefaultForm(seed: OrderShipmentSeed, settings?: EcontSettingsSanitized['integration']): FormValues {
+interface AggregatedShipping {
+  weightKg: number | null
+  parcelsCount: number | null
+  lengthCm: number | null
+  widthCm: number | null
+  heightCm: number | null
+  missingWeightSkus: string[]
+  hasAnyData: boolean
+}
+
+function aggregateShippingFromItems(
+  items: OrderShipmentSeed['items'],
+  shippingBySku: Map<string, ProductShippingRow>,
+): AggregatedShipping {
+  const result: AggregatedShipping = {
+    weightKg: null,
+    parcelsCount: null,
+    lengthCm: null,
+    widthCm: null,
+    heightCm: null,
+    missingWeightSkus: [],
+    hasAnyData: false,
+  }
+  if (!items || items.length === 0) return result
+
+  let totalWeight = 0
+  let totalParcels = 0
+  let anyWeight = false
+  let anyParcels = false
+  // For dimensions on single-product orders we just take that product's values.
+  const singleProductSku = items.length === 1 ? items[0].sku : null
+
+  for (const line of items) {
+    const qty = Math.max(0, Number(line.quantity) || 0)
+    const row = shippingBySku.get(line.sku)
+    if (!row) {
+      // No product row found at all → we cannot know its weight.
+      result.missingWeightSkus.push(line.sku)
+      continue
+    }
+    // Effective weight: prefer the explicit shipping_weight_kg, fall back to
+    // the legacy catalog weight fields. Only warn when no effective weight
+    // could be derived.
+    const effectiveWeight = getEffectiveShippingWeightKg(row)
+    if (effectiveWeight != null) {
+      totalWeight += effectiveWeight * qty
+      anyWeight = true
+      result.hasAnyData = true
+    } else {
+      result.missingWeightSkus.push(line.sku)
+    }
+    const p = row.shipping_parcels_count ?? 1
+    if (Number.isFinite(Number(p))) {
+      totalParcels += Math.max(1, Math.round(Number(p))) * qty
+      anyParcels = true
+      result.hasAnyData = true
+    }
+    if (singleProductSku && row.sku === singleProductSku) {
+      result.lengthCm = row.shipping_length_cm ?? null
+      result.widthCm = row.shipping_width_cm ?? null
+      result.heightCm = row.shipping_height_cm ?? null
+      if (result.lengthCm != null || result.widthCm != null || result.heightCm != null) {
+        result.hasAnyData = true
+      }
+    }
+  }
+
+  if (anyWeight) result.weightKg = Math.round(totalWeight * 1000) / 1000
+  if (anyParcels) result.parcelsCount = Math.max(1, Math.round(totalParcels))
+  return result
+}
+
+function toDefaultForm(
+  seed: OrderShipmentSeed,
+  settings?: EcontSettingsSanitized['integration'],
+  suggestion?: AggregatedShipping | null,
+): FormValues {
   const defaults = settings?.defaults || {}
+  const codFromOrder =
+    seed.orderTotal != null && Number.isFinite(Number(seed.orderTotal)) && Number(seed.orderTotal) > 0
+      ? Number(seed.orderTotal)
+      : undefined
   return {
     receiverName: seed.receiverName || '',
     receiverPhone: seed.receiverPhone || '',
@@ -116,12 +234,19 @@ function toDefaultForm(seed: OrderShipmentSeed, settings?: EcontSettingsSanitize
     street: '',
     streetNum: '',
     other: '',
-    weightKg: defaults.default_weight_kg ?? 1,
-    parcelsCount: defaults.default_parcels_count ?? 1,
+    weightKg: suggestion?.weightKg && suggestion.weightKg > 0
+      ? suggestion.weightKg
+      : (defaults.default_weight_kg ?? 1),
+    parcelsCount: suggestion?.parcelsCount && suggestion.parcelsCount > 0
+      ? suggestion.parcelsCount
+      : (defaults.default_parcels_count ?? 1),
     payer: defaults.default_payer ?? 'SENDER',
-    codAmount: defaults.default_cod_enabled ? 0 : undefined,
+    codAmount: codFromOrder ?? (defaults.default_cod_enabled ? 0 : undefined),
     declaredValue: defaults.default_declared_value_enabled ? 0 : undefined,
     description: seed.orderNumber ? `Order #${seed.orderNumber}` : '',
+    lengthCm: suggestion?.lengthCm ?? undefined,
+    widthCm: suggestion?.widthCm ?? undefined,
+    heightCm: suggestion?.heightCm ?? undefined,
   }
 }
 
@@ -350,12 +475,30 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
   const [officePickerOpen, setOfficePickerOpen] = useState(false)
   const [officeSearch, setOfficeSearch] = useState('')
 
+  const itemSkus = useMemo(
+    () => (seed.items || []).map((line) => line.sku).filter(Boolean),
+    [seed.items],
+  )
+  const shippingQuery = useQueryProductsShipping(itemSkus)
+  const shippingBySku = useMemo(() => {
+    const map = new Map<string, ProductShippingRow>()
+    for (const row of shippingQuery.data || []) map.set(row.sku, row)
+    return map
+  }, [shippingQuery.data])
+  const aggregated = useMemo(
+    () => aggregateShippingFromItems(seed.items, shippingBySku),
+    [seed.items, shippingBySku],
+  )
+  const singleProductLine = seed.items && seed.items.length === 1 ? seed.items[0] : null
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: toDefaultForm(seed),
     mode: 'onBlur',
   })
   const destinationType = form.watch('destinationType')
+
+  const saveToProductMutation = useMutationUpdateProductShipping()
 
   const adapter = useMemo(() => (tenantId ? getCarrierAdapter(tenantId, 'econt') : null), [tenantId])
   const numericQuoteId = Number(seed.quoteId)
@@ -408,13 +551,22 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
   })
 
   useEffect(() => {
-    if (settingsQuery.data?.integration) {
-      const current = form.getValues()
-      const next = toDefaultForm(seed, settingsQuery.data.integration)
-      form.reset({ ...next, receiverName: current.receiverName || next.receiverName, receiverPhone: current.receiverPhone || next.receiverPhone, receiverEmail: current.receiverEmail || next.receiverEmail })
-    }
+    if (!settingsQuery.data?.integration) return
+    // Wait for product shipping rows before computing the suggestion, so we don't
+    // first reset to the integration defaults and then immediately overwrite them
+    // once the products query resolves (which would clobber user edits).
+    if (itemSkus.length > 0 && shippingQuery.isLoading) return
+
+    const current = form.getValues()
+    const next = toDefaultForm(seed, settingsQuery.data.integration, aggregated)
+    form.reset({
+      ...next,
+      receiverName: current.receiverName || next.receiverName,
+      receiverPhone: current.receiverPhone || next.receiverPhone,
+      receiverEmail: current.receiverEmail || next.receiverEmail,
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsQuery.data?.integration, seed.quoteId])
+  }, [settingsQuery.data?.integration, seed.quoteId, shippingQuery.isLoading, aggregated.hasAnyData])
 
   const latestShipment = shipmentsQuery.data?.[0] ?? null
   const activeShipmentId = latestShipment?.id
@@ -861,11 +1013,11 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label>{t('shippingEcont.form.weight')}</Label>
-            <Input type="number" step="0.1" min={0.1} {...form.register('weightKg', { valueAsNumber: true })} />
+            <Input type="number" step="0.1" min={0.1} {...form.register('weightKg')} />
           </div>
           <div className="space-y-2">
             <Label>{t('shippingEcont.form.parcels')}</Label>
-            <Input type="number" step={1} min={1} {...form.register('parcelsCount', { valueAsNumber: true })} />
+            <Input type="number" step={1} min={1} {...form.register('parcelsCount')} />
           </div>
           <div className="space-y-2">
             <Label>{t('shippingEcont.form.payer')}</Label>
@@ -887,17 +1039,68 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
           </div>
           <div className="space-y-2">
             <Label>{t('shippingEcont.form.codAmount')}</Label>
-            <Input type="number" step="0.01" min={0} {...form.register('codAmount', { valueAsNumber: true })} />
+            <Input
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
+              {...form.register('codAmount')}
+            />
           </div>
           <div className="space-y-2 lg:col-span-2">
             <Label>{t('shippingEcont.form.declaredValue')}</Label>
-            <Input type="number" step="0.01" min={0} {...form.register('declaredValue', { valueAsNumber: true })} />
+            <Input
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
+              {...form.register('declaredValue')}
+            />
           </div>
           <div className="space-y-2 lg:col-span-2">
             <Label>{t('shippingEcont.form.description')}</Label>
             <Input {...form.register('description')} />
           </div>
         </div>
+
+        <details className="rounded border bg-muted/30 px-3 py-2 group">
+          <summary className="cursor-pointer text-sm font-medium text-muted-foreground select-none">
+            {t('shippingEcont.form.packagingExtraTitle')}
+          </summary>
+          <div className="pt-3 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              {t('shippingEcont.form.dimensionsHint')}
+            </p>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>{t('shippingEcont.form.lengthCm')}</Label>
+                <Input type="number" step="0.1" min={0} {...form.register('lengthCm')} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('shippingEcont.form.widthCm')}</Label>
+                <Input type="number" step="0.1" min={0} {...form.register('widthCm')} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('shippingEcont.form.heightCm')}</Label>
+                <Input type="number" step="0.1" min={0} {...form.register('heightCm')} />
+              </div>
+            </div>
+          </div>
+        </details>
+
+        {aggregated.missingWeightSkus.length > 0 ? (
+          <div className="rounded border border-amber-200 bg-amber-50 text-amber-800 p-3 text-sm flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium">
+                {t('shippingEcont.warnings.missingWeightTitle', { count: aggregated.missingWeightSkus.length })}
+              </p>
+              <p className="text-xs">
+                {t('shippingEcont.warnings.missingWeightBody', {
+                  skus: aggregated.missingWeightSkus.slice(0, 6).join(', '),
+                })}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -932,6 +1135,56 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
             {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
             {t('shippingEcont.actions.cancelLabel')}
           </Button>
+          {singleProductLine ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saveToProductMutation.isPending}
+              onClick={async () => {
+                const values = form.getValues()
+                const num = (v: unknown): number | null => {
+                  const parsed = parseLocalizedNumber(v)
+                  return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : null
+                }
+                const qty = Math.max(1, Number(singleProductLine.quantity) || 1)
+                const weightTotal = num(values.weightKg)
+                const parcelsTotal = num(values.parcelsCount)
+                const perUnitWeight = weightTotal != null ? weightTotal / qty : null
+                const perUnitParcels =
+                  parcelsTotal != null ? Math.max(1, Math.round(parcelsTotal / qty)) : null
+                try {
+                  await saveToProductMutation.mutateAsync({
+                    sku: singleProductLine.sku,
+                    productId: singleProductLine.product_id || undefined,
+                    shipping_weight_kg: perUnitWeight,
+                    shipping_parcels_count: perUnitParcels,
+                    shipping_length_cm: num(values.lengthCm),
+                    shipping_width_cm: num(values.widthCm),
+                    shipping_height_cm: num(values.heightCm),
+                  })
+                  toast({
+                    title: t('shippingEcont.toasts.saveToProductSuccessTitle'),
+                    description: t('shippingEcont.toasts.saveToProductSuccessDescription', {
+                      sku: singleProductLine.sku,
+                    }),
+                  })
+                } catch (error) {
+                  toast({
+                    title: t('shippingEcont.toasts.saveToProductErrorTitle'),
+                    description: error instanceof Error ? error.message : 'Unknown error',
+                    variant: 'destructive',
+                  })
+                }
+              }}
+            >
+              {saveToProductMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {t('shippingEcont.actions.saveToProduct')}
+            </Button>
+          ) : null}
         </div>
       </form>
 

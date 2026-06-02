@@ -373,6 +373,13 @@ export function OrderDetailsSheet({
                 receiverName: order.company_name,
                 receiverPhone: order.phone,
                 receiverEmail: order.email,
+                orderTotal: order.total,
+                items: (order.items || []).map((item) => ({
+                  sku: item.sku,
+                  product_id: item.product_id || null,
+                  product_name: item.product_name,
+                  quantity: item.quantity,
+                })),
               }}
             />
           )}

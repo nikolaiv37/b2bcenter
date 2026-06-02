@@ -120,6 +120,13 @@ export interface Product {
   // Computed field for personalized commission discounts (set at runtime, not stored in DB)
   // adjusted_price = weboffer_price * (1 - commission_rate) for company users
   adjusted_price?: number
+  // Per-product shipping data used to auto-fill carrier shipment forms.
+  shipping_weight_kg?: number | null
+  shipping_parcels_count?: number | null
+  shipping_length_cm?: number | null
+  shipping_width_cm?: number | null
+  shipping_height_cm?: number | null
+  shipping_requires_review?: boolean | null
 }
 
 export interface QuoteItem {

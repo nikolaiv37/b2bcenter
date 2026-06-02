@@ -1281,7 +1281,16 @@
         "payerReceiver": "Получател",
         "codAmount": "Наложен платеж (BGN)",
         "declaredValue": "Обявена стойност (BGN)",
-        "description": "Описание (по избор)"
+        "description": "Описание (по избор)",
+        "lengthCm": "Дължина (см)",
+        "widthCm": "Широчина (см)",
+        "heightCm": "Височина (см)",
+        "dimensionsHint": "Размерите се записват към пратката, но засега не се изпращат към Еконт.",
+        "packagingExtraTitle": "Допълнителни данни за опаковка (по избор)"
+      },
+      "warnings": {
+        "missingWeightTitle": "Липсва тегло за {{count}} продукт(а)",
+        "missingWeightBody": "За тези SKU не е въведено тегло за доставка: {{skus}}. Въведете тегло ръчно или го запазете към продукта."
       },
       "officeSuggestions": {
         "helper": "Еконт върна {{count}} допустими офиса за тази пратка. Изберете/поставете точно име на офис от предложенията.",
@@ -1303,7 +1312,8 @@
         "calculate": "Калкулирай",
         "createLabel": "Създай товарителница",
         "track": "Проследи",
-        "cancelLabel": "Анулирай товарителница"
+        "cancelLabel": "Анулирай товарителница",
+        "saveToProduct": "Запази към продукта"
       },
       "tracking": {
         "resultTitle": "Резултат от проследяване",
@@ -1337,7 +1347,29 @@
         "trackErrorTitle": "Неуспешно проследяване",
         "cancelSuccessTitle": "Товарителницата е анулирана",
         "cancelSuccessDescription": "Пратката беше маркирана като анулирана.",
-        "cancelErrorTitle": "Неуспешно анулиране"
+        "cancelErrorTitle": "Неуспешно анулиране",
+        "saveToProductSuccessTitle": "Запазено към продукта",
+        "saveToProductSuccessDescription": "Данните за доставка са запазени към {{sku}}.",
+        "saveToProductErrorTitle": "Неуспешно запазване към продукта"
+      }
+    },
+    "productShipping": {
+      "title": "Доставка",
+      "subtitle": "Данни за опаковка и тегло на този продукт. Използват се автоматично при попълване на пратка с Еконт.",
+      "fields": {
+        "weight": "Тегло за доставка (кг)",
+        "parcels": "Брой колети за 1 бр.",
+        "length": "Дължина (см)",
+        "width": "Широчина (см)",
+        "height": "Височина (см)",
+        "requiresReview": "Маркирай за ръчна проверка преди изпращане"
+      },
+      "actions": {
+        "save": "Запази"
+      },
+      "toasts": {
+        "savedTitle": "Данните за доставка са запазени",
+        "errorTitle": "Неуспешно запазване"
       }
     },
     "notifications": {

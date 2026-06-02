@@ -973,6 +973,13 @@ export function AdminOrdersView() {
                     receiverName: selectedOrder.company_name,
                     receiverPhone: selectedOrder.phone,
                     receiverEmail: selectedOrder.email,
+                    orderTotal: selectedOrder.total,
+                    items: (selectedOrder.items || []).map((item) => ({
+                      sku: item.sku,
+                      product_id: item.product_id || null,
+                      product_name: item.product_name,
+                      quantity: item.quantity,
+                    })),
                   }}
                 />
 

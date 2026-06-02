@@ -1603,7 +1603,16 @@
         "payerReceiver": "Receiver",
         "codAmount": "COD amount (BGN)",
         "declaredValue": "Declared value (BGN)",
-        "description": "Description (optional)"
+        "description": "Description (optional)",
+        "lengthCm": "Length (cm)",
+        "widthCm": "Width (cm)",
+        "heightCm": "Height (cm)",
+        "dimensionsHint": "Dimensions are stored with the shipment but not yet sent to Econt.",
+        "packagingExtraTitle": "Additional packaging data (optional)"
+      },
+      "warnings": {
+        "missingWeightTitle": "Shipping weight missing for {{count}} product(s)",
+        "missingWeightBody": "No shipping weight on these SKUs: {{skus}}. Enter weight manually or save it to the product."
       },
       "officeSuggestions": {
         "helper": "Econt returned {{count}} allowed offices for this shipment. Pick/paste an exact office name from the suggestions list.",
@@ -1625,7 +1634,8 @@
         "calculate": "Calculate",
         "createLabel": "Create label",
         "track": "Track",
-        "cancelLabel": "Cancel label"
+        "cancelLabel": "Cancel label",
+        "saveToProduct": "Save to product"
       },
       "tracking": {
         "resultTitle": "Tracking result",
@@ -1659,7 +1669,29 @@
         "trackErrorTitle": "Track failed",
         "cancelSuccessTitle": "Econt label cancelled",
         "cancelSuccessDescription": "Shipment was marked as cancelled.",
-        "cancelErrorTitle": "Cancel failed"
+        "cancelErrorTitle": "Cancel failed",
+        "saveToProductSuccessTitle": "Saved to product",
+        "saveToProductSuccessDescription": "Shipping data saved to {{sku}}.",
+        "saveToProductErrorTitle": "Save to product failed"
+      }
+    },
+    "productShipping": {
+      "title": "Shipping",
+      "subtitle": "Per-product packaging and weight data. Used to auto-fill Econt shipment forms.",
+      "fields": {
+        "weight": "Shipping weight (kg)",
+        "parcels": "Parcels per unit",
+        "length": "Length (cm)",
+        "width": "Width (cm)",
+        "height": "Height (cm)",
+        "requiresReview": "Flag for manual review before shipping"
+      },
+      "actions": {
+        "save": "Save"
+      },
+      "toasts": {
+        "savedTitle": "Shipping data saved",
+        "errorTitle": "Save failed"
       }
     },
     "notifications": {
