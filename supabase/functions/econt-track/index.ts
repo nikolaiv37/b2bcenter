@@ -1,5 +1,6 @@
 import { requireTenantAuth } from '../_shared/auth.ts'
 import {
+  appendShipmentError,
   econtPost,
   getTenantEcontIntegration,
   getTenantShipment,
@@ -14,6 +15,7 @@ interface Body {
 }
 
 Deno.serve(async (req) => {
+  let errorLogContext: { adminClient: unknown; tenantId: string; shipmentId: string } | null = null
   try {
     const preflight = requirePostOrOptions(req)
     if (preflight) return preflight
@@ -22,6 +24,7 @@ Deno.serve(async (req) => {
     if (!body.shipment_id) throw new HttpError(400, 'shipment_id is required')
 
     const auth = await requireTenantAuth(req, { tenantId: body.tenant_id ?? null })
+    errorLogContext = { adminClient: auth.adminClient, tenantId: auth.tenantId, shipmentId: body.shipment_id }
     const integration = await getTenantEcontIntegration(auth.adminClient, auth.tenantId, { requireEnabled: true })
     const shipment = await getTenantShipment(auth.adminClient, auth.tenantId, body.shipment_id)
 
@@ -98,6 +101,14 @@ Deno.serve(async (req) => {
       throttle_minutes: throttleMinutes,
     })
   } catch (error) {
+    if (errorLogContext) {
+      await appendShipmentError(errorLogContext.adminClient, {
+        tenantId: errorLogContext.tenantId,
+        shipmentId: errorLogContext.shipmentId,
+        action: 'track',
+        error,
+      })
+    }
     return errorResponse(error)
   }
 })

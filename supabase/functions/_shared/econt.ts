@@ -955,8 +955,18 @@ export async function upsertShipmentDraft(adminClient: any, args: {
   status: string
   econtWaybillNumber?: string | null
   econtLabelData?: Record<string, unknown> | null
+  // Phase 1.5 dedicated columns. All optional — only included when defined so
+  // we never overwrite an existing value with null.
+  serviceName?: string | null
+  serviceDescription?: string | null
+  expectedDeliveryAt?: string | null
+  pdfUrl?: string | null
+  printUrl?: string | null
+  createdBy?: string | null
+  cancelledAt?: string | null
+  cancelReason?: string | null
 }) {
-  const payload = {
+  const payload: Record<string, unknown> = {
     tenant_id: args.tenantId,
     quote_id: args.snapshot.quoteId ?? null,
     carrier: ECONT_PROVIDER,
@@ -973,6 +983,19 @@ export async function upsertShipmentDraft(adminClient: any, args: {
     status: args.status,
     ...(args.status === 'created' || args.status === 'cancelled' ? { last_synced_at: new Date().toISOString() } : {}),
   }
+
+  // Only set the new dedicated columns when the caller provides them. The
+  // partial-update pattern (`if (key !== undefined) payload[key] = value`)
+  // lets calculate/track skip these without nulling out values that were
+  // written by a previous create-label call.
+  if (args.serviceName !== undefined) payload.service_name = args.serviceName
+  if (args.serviceDescription !== undefined) payload.service_description = args.serviceDescription
+  if (args.expectedDeliveryAt !== undefined) payload.expected_delivery_at = args.expectedDeliveryAt
+  if (args.pdfUrl !== undefined) payload.pdf_url = args.pdfUrl
+  if (args.printUrl !== undefined) payload.print_url = args.printUrl
+  if (args.createdBy !== undefined) payload.created_by = args.createdBy
+  if (args.cancelledAt !== undefined) payload.cancelled_at = args.cancelledAt
+  if (args.cancelReason !== undefined) payload.cancel_reason = args.cancelReason
 
   if (args.shipmentId) {
     const { data: existing, error: existingError } = await adminClient
@@ -1030,5 +1053,58 @@ export function getSettingsResponse(row: TenantIntegrationRow | null) {
     environment: normalizeEnvironment(row?.environment),
     defaults,
     has_credentials: Boolean(row?.credentials && Object.keys(row.credentials || {}).length > 0),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1.5 — minimal error log per shipment.
+//
+// Each entry: { at, action, status, message, details? }. Kept as the most
+// recent N entries to bound row size.
+// ---------------------------------------------------------------------------
+
+export async function appendShipmentError(
+  adminClient: any,
+  args: {
+    tenantId: string
+    shipmentId: string
+    action: string
+    error: unknown
+  },
+) {
+  const MAX_ENTRIES = 20
+  const at = new Date().toISOString()
+
+  let message = 'Unknown error'
+  let status: number | null = null
+  let details: unknown = null
+  if (args.error instanceof HttpError) {
+    message = args.error.message
+    status = args.error.status
+    details = args.error.details ?? null
+  } else if (args.error instanceof Error) {
+    message = args.error.message
+  } else if (typeof args.error === 'string') {
+    message = args.error
+  }
+  const entry = { at, action: args.action, status, message, details }
+
+  try {
+    const { data: row, error: readError } = await adminClient
+      .from('shipments')
+      .select('error_log')
+      .eq('id', args.shipmentId)
+      .eq('tenant_id', args.tenantId)
+      .maybeSingle()
+    if (readError) return
+    const previous = Array.isArray(row?.error_log) ? (row.error_log as unknown[]) : []
+    const next = [...previous, entry].slice(-MAX_ENTRIES)
+    await adminClient
+      .from('shipments')
+      .update({ error_log: next })
+      .eq('id', args.shipmentId)
+      .eq('tenant_id', args.tenantId)
+  } catch (_e) {
+    // Logging is best-effort. Never let it mask the original error.
   }
 }

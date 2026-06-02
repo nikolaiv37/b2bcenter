@@ -1674,7 +1674,11 @@
         "lastSynced": "Last synced: {{date}}",
         "trackingRefresh": "Tracking refresh: {{date}}",
         "printLabel": "Print label",
-        "openPdf": "Open PDF"
+        "openPdf": "Open PDF",
+        "cancelledAt": "Cancelled at: {{date}}",
+        "errorPrefix": "Error on {{action}}",
+        "servicesBreakdownTitle": "Services breakdown ({{count}})",
+        "trackingHistoryTitle": "Tracking history ({{count}})"
       },
       "toasts": {
         "calculateSuccessTitle": "Shipping calculated",

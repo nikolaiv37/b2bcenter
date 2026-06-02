@@ -1352,7 +1352,11 @@
         "lastSynced": "Последен sync: {{date}}",
         "trackingRefresh": "Опресняване на tracking: {{date}}",
         "printLabel": "Принт товарителница",
-        "openPdf": "Отвори PDF"
+        "openPdf": "Отвори PDF",
+        "cancelledAt": "Анулирана на: {{date}}",
+        "errorPrefix": "Грешка при {{action}}",
+        "servicesBreakdownTitle": "Разбивка на услугите ({{count}})",
+        "trackingHistoryTitle": "История на проследяването ({{count}})"
       },
       "toasts": {
         "calculateSuccessTitle": "Калкулацията е готова",

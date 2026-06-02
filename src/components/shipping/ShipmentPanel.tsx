@@ -112,7 +112,19 @@ interface ShipmentRow {
   updated_at: string
   last_synced_at: string | null
   tracking_last_requested_at: string | null
+  // Phase 1.5 dedicated columns. Nullable on older rows that pre-date the
+  // migration; we always fall back to econt_label_data when not set.
+  service_name?: string | null
+  service_description?: string | null
+  expected_delivery_at?: string | null
+  pdf_url?: string | null
+  print_url?: string | null
+  error_log?: Array<{ at: string; action: string; status: number | null; message: string; details?: unknown }> | null
+  cancelled_at?: string | null
+  cancel_reason?: string | null
 }
+
+const CANCELLABLE_STATUSES = new Set(['draft', 'calculated', 'created'])
 
 interface EcontSettingsSanitized {
   success: boolean
@@ -1141,7 +1153,12 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
             type="button"
             variant="ghost"
             className="text-red-600 hover:text-red-700"
-            disabled={!latestShipment?.econt_waybill_number || deleteMutation.isPending || !integrationEnabled}
+            disabled={
+              !latestShipment?.econt_waybill_number ||
+              deleteMutation.isPending ||
+              !integrationEnabled ||
+              !CANCELLABLE_STATUSES.has(latestShipment?.status ?? '')
+            }
             onClick={() => deleteMutation.mutate()}
           >
             {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
@@ -1254,90 +1271,9 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
           <div className="text-sm text-muted-foreground border rounded p-3">{t('shippingEcont.shipments.empty')}</div>
         ) : (
           <div className="space-y-2">
-            {shipmentsQuery.data.map((shipment) => {
-              const labelData = shipment.econt_label_data || {}
-              const printUrl = typeof labelData.printUrl === 'string' ? labelData.printUrl : null
-              const pdfUrl = typeof labelData.pdfUrl === 'string' ? labelData.pdfUrl : null
-              const raw = labelData.raw && typeof labelData.raw === 'object' ? (labelData.raw as Record<string, unknown>) : null
-              const rawLabel = raw?.label && typeof raw.label === 'object' ? (raw.label as Record<string, unknown>) : null
-              const uiPrice =
-                shipment.price_amount ??
-                (typeof labelData.total_price === 'number'
-                  ? labelData.total_price
-                  : (typeof rawLabel?.totalPrice === 'number' ? rawLabel.totalPrice : null))
-              const uiCurrency =
-                shipment.currency ||
-                (typeof labelData.currency === 'string' ? labelData.currency : null) ||
-                (typeof rawLabel?.currency === 'string' ? rawLabel.currency : null) ||
-                'BGN'
-              const serviceDescription =
-                (typeof labelData.service_description === 'string' && labelData.service_description) ||
-                (Array.isArray(rawLabel?.services) &&
-                rawLabel.services[0] &&
-                typeof rawLabel.services[0] === 'object' &&
-                typeof (rawLabel.services[0] as Record<string, unknown>).description === 'string'
-                  ? ((rawLabel.services[0] as Record<string, unknown>).description as string)
-                  : null)
-              const expectedDeliveryAt =
-                (typeof labelData.expected_delivery_at === 'string' && labelData.expected_delivery_at) ||
-                (typeof rawLabel?.expectedDeliveryDate === 'number'
-                  ? new Date(rawLabel.expectedDeliveryDate).toISOString()
-                  : null)
-              return (
-                <div key={shipment.id} className="rounded border p-3 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">{shipment.status}</Badge>
-                    {shipment.econt_waybill_number ? (
-                      <span className="text-sm font-mono">
-                        {t('shippingEcont.shipments.awb', { awb: shipment.econt_waybill_number })}
-                      </span>
-                    ) : null}
-                    {uiPrice != null ? (
-                      <span className="text-sm text-muted-foreground">
-                        {t('shippingEcont.shipments.price', { price: uiPrice, currency: uiCurrency })}
-                      </span>
-                    ) : null}
-                  </div>
-                  {serviceDescription || expectedDeliveryAt ? (
-                    <div className="text-xs text-muted-foreground grid gap-1 md:grid-cols-2">
-                      {serviceDescription ? (
-                        <span>{t('shippingEcont.shipments.service', { service: serviceDescription })}</span>
-                      ) : null}
-                      {expectedDeliveryAt ? (
-                        <span>
-                          {t('shippingEcont.shipments.expectedDelivery', {
-                            date: formatDateTime(expectedDeliveryAt),
-                          })}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <div className="text-xs text-muted-foreground grid gap-1 md:grid-cols-2">
-                    <span>{t('shippingEcont.shipments.createdAt', { date: formatDateTime(shipment.created_at) })}</span>
-                    <span>{t('shippingEcont.shipments.lastSynced', { date: formatDateTime(shipment.last_synced_at) })}</span>
-                    <span>
-                      {t('shippingEcont.shipments.trackingRefresh', {
-                        date: formatDateTime(shipment.tracking_last_requested_at),
-                      })}
-                    </span>
-                  </div>
-                  {(printUrl || pdfUrl) ? (
-                    <div className="flex flex-wrap gap-3 text-sm">
-                      {printUrl ? (
-                        <a className="underline" href={printUrl} target="_blank" rel="noreferrer">
-                          {t('shippingEcont.shipments.printLabel')}
-                        </a>
-                      ) : null}
-                      {pdfUrl ? (
-                        <a className="underline" href={pdfUrl} target="_blank" rel="noreferrer">
-                          {t('shippingEcont.shipments.openPdf')}
-                        </a>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              )
-            })}
+            {shipmentsQuery.data.map((shipment) => (
+              <ShipmentHistoryRow key={shipment.id} shipment={shipment} />
+            ))}
           </div>
         )}
       </div>
@@ -1452,5 +1388,240 @@ function SaveToProductDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function pickStr(...values: unknown[]): string | null {
+  for (const v of values) {
+    if (typeof v === 'string' && v.trim()) return v.trim()
+  }
+  return null
+}
+
+function pickNum(...values: unknown[]): number | null {
+  for (const v of values) {
+    if (typeof v === 'number' && Number.isFinite(v)) return v
+  }
+  return null
+}
+
+interface RawServiceLine {
+  type?: string
+  description?: string
+  count?: number
+  price?: number
+  currency?: string
+  paymentSide?: string
+}
+
+interface RawTrackingEvent {
+  time: string | null
+  destinationType: string | null
+  description: string | null
+  officeName: string | null
+}
+
+function readRawLabel(shipment: ShipmentRow): Record<string, unknown> | null {
+  const labelData = shipment.econt_label_data || null
+  const raw = labelData?.raw && typeof labelData.raw === 'object' ? (labelData.raw as Record<string, unknown>) : null
+  if (!raw) return null
+  if (raw.label && typeof raw.label === 'object') return raw.label as Record<string, unknown>
+  return raw
+}
+
+function readServiceLines(shipment: ShipmentRow): RawServiceLine[] {
+  const rawLabel = readRawLabel(shipment)
+  const services = Array.isArray(rawLabel?.services) ? (rawLabel!.services as Array<Record<string, unknown>>) : []
+  return services
+    .map((entry) => ({
+      type: pickStr(entry.type) ?? undefined,
+      description: pickStr(entry.description) ?? undefined,
+      count: pickNum(entry.count) ?? undefined,
+      price: pickNum(entry.price) ?? undefined,
+      currency: pickStr(entry.currency) ?? undefined,
+      paymentSide: pickStr(entry.paymentSide) ?? undefined,
+    }))
+    .filter((entry) => entry.description || entry.type || entry.price != null)
+}
+
+function readTrackingEvents(shipment: ShipmentRow): RawTrackingEvent[] {
+  const rawLabel = readRawLabel(shipment)
+  const events = Array.isArray(rawLabel?.trackingEvents) ? (rawLabel!.trackingEvents as Array<Record<string, unknown>>) : []
+  return events
+    .map((entry) => {
+      const timeRaw = entry.time
+      let time: string | null = null
+      if (typeof timeRaw === 'number' && Number.isFinite(timeRaw)) {
+        // Econt sends epoch ms.
+        time = new Date(timeRaw).toISOString()
+      } else if (typeof timeRaw === 'string' && timeRaw.trim()) {
+        time = timeRaw.trim()
+      }
+      return {
+        time,
+        destinationType: pickStr(entry.destinationType),
+        description: pickStr(entry.description, entry.shipmentAction),
+        officeName: pickStr(entry.officeName),
+      }
+    })
+    .filter((event) => event.time || event.description || event.officeName)
+}
+
+function ShipmentHistoryRow({ shipment }: { shipment: ShipmentRow }) {
+  const { t } = useTranslation()
+  const labelData = shipment.econt_label_data || {}
+  const rawLabel = readRawLabel(shipment)
+
+  // Phase 1.5: prefer the dedicated columns; fall back to the JSON blob for
+  // rows persisted before the migration.
+  const printUrl =
+    pickStr(shipment.print_url) ||
+    pickStr(labelData.printUrl, labelData.print_url) ||
+    pickStr(rawLabel?.printURL)
+  const pdfUrl =
+    pickStr(shipment.pdf_url) ||
+    pickStr(labelData.pdfUrl, labelData.pdf_url) ||
+    pickStr(rawLabel?.pdfURL)
+  const uiPrice =
+    pickNum(shipment.price_amount, labelData.total_price, rawLabel?.totalPrice)
+  const uiCurrency =
+    pickStr(shipment.currency, labelData.currency, rawLabel?.currency) || 'BGN'
+  const serviceDescription =
+    pickStr(shipment.service_description, labelData.service_description) ||
+    pickStr(
+      Array.isArray(rawLabel?.services) && rawLabel!.services[0]
+        ? (rawLabel!.services[0] as Record<string, unknown>).description
+        : null,
+    )
+  const expectedDeliveryAt =
+    pickStr(shipment.expected_delivery_at, labelData.expected_delivery_at) ||
+    (typeof rawLabel?.expectedDeliveryDate === 'number'
+      ? new Date(rawLabel.expectedDeliveryDate).toISOString()
+      : null)
+
+  const serviceLines = readServiceLines(shipment)
+  const trackingEvents = readTrackingEvents(shipment)
+  const errorEntries = Array.isArray(shipment.error_log) ? shipment.error_log : []
+  const latestError = errorEntries.length > 0 ? errorEntries[errorEntries.length - 1] : null
+
+  return (
+    <div className="rounded border p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline">{shipment.status}</Badge>
+        {shipment.econt_waybill_number ? (
+          <span className="text-sm font-mono">
+            {t('shippingEcont.shipments.awb', { awb: shipment.econt_waybill_number })}
+          </span>
+        ) : null}
+        {uiPrice != null ? (
+          <span className="text-sm text-muted-foreground">
+            {t('shippingEcont.shipments.price', { price: uiPrice, currency: uiCurrency })}
+          </span>
+        ) : null}
+      </div>
+
+      {serviceDescription || expectedDeliveryAt ? (
+        <div className="text-xs text-muted-foreground grid gap-1 md:grid-cols-2">
+          {serviceDescription ? (
+            <span>{t('shippingEcont.shipments.service', { service: serviceDescription })}</span>
+          ) : null}
+          {expectedDeliveryAt ? (
+            <span>
+              {t('shippingEcont.shipments.expectedDelivery', { date: formatDateTime(expectedDeliveryAt) })}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="text-xs text-muted-foreground grid gap-1 md:grid-cols-2">
+        <span>{t('shippingEcont.shipments.createdAt', { date: formatDateTime(shipment.created_at) })}</span>
+        <span>{t('shippingEcont.shipments.lastSynced', { date: formatDateTime(shipment.last_synced_at) })}</span>
+        <span>
+          {t('shippingEcont.shipments.trackingRefresh', {
+            date: formatDateTime(shipment.tracking_last_requested_at),
+          })}
+        </span>
+        {shipment.cancelled_at ? (
+          <span>
+            {t('shippingEcont.shipments.cancelledAt', { date: formatDateTime(shipment.cancelled_at) })}
+          </span>
+        ) : null}
+      </div>
+
+      {printUrl || pdfUrl ? (
+        <div className="flex flex-wrap gap-3 text-sm">
+          {printUrl ? (
+            <a className="underline" href={printUrl} target="_blank" rel="noreferrer">
+              {t('shippingEcont.shipments.printLabel')}
+            </a>
+          ) : null}
+          {pdfUrl ? (
+            <a className="underline" href={pdfUrl} target="_blank" rel="noreferrer">
+              {t('shippingEcont.shipments.openPdf')}
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+
+      {latestError ? (
+        <div className="rounded border border-red-200 bg-red-50 text-red-800 p-2 text-xs flex items-start gap-2">
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <div className="space-y-0.5">
+            <p className="font-medium">
+              {t('shippingEcont.shipments.errorPrefix', { action: latestError.action })}
+            </p>
+            <p>{latestError.message}</p>
+            <p className="text-[10px] opacity-70">{formatDateTime(latestError.at)}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {serviceLines.length > 0 ? (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground select-none">
+            {t('shippingEcont.shipments.servicesBreakdownTitle', { count: serviceLines.length })}
+          </summary>
+          <ul className="mt-2 space-y-1">
+            {serviceLines.map((line, idx) => (
+              <li key={idx} className="flex justify-between gap-3 border-b last:border-b-0 py-1">
+                <span className="truncate">
+                  {line.description || line.type || '—'}
+                  {line.count != null ? ` × ${line.count}` : ''}
+                  {line.paymentSide ? ` · ${line.paymentSide}` : ''}
+                </span>
+                <span className="font-medium shrink-0">
+                  {line.price != null
+                    ? `${line.price} ${line.currency || uiCurrency}`
+                    : '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
+      {trackingEvents.length > 0 ? (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground select-none">
+            {t('shippingEcont.shipments.trackingHistoryTitle', { count: trackingEvents.length })}
+          </summary>
+          <ul className="mt-2 space-y-1">
+            {trackingEvents.map((event, idx) => (
+              <li key={idx} className="border-b last:border-b-0 py-1">
+                <div className="flex justify-between gap-3">
+                  <span className="truncate">{event.description || event.destinationType || '—'}</span>
+                  <span className="text-muted-foreground shrink-0">
+                    {event.time ? formatDateTime(event.time) : '—'}
+                  </span>
+                </div>
+                {event.officeName ? (
+                  <p className="text-muted-foreground">{event.officeName}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
   )
 }
