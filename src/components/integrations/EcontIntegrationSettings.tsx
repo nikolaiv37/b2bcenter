@@ -40,6 +40,7 @@ const schema = z.object({
   defaultPayer: z.enum(['SENDER', 'RECEIVER']).default('SENDER'),
   defaultCodEnabled: z.boolean().default(false),
   defaultDeclaredValueEnabled: z.boolean().default(false),
+  defaultSendDimensionsToEcont: z.boolean().default(false),
   trackingThrottleMinutes: z.coerce.number().int().min(5).max(15).default(10),
 })
 .refine((values) => {
@@ -77,6 +78,7 @@ type SettingsResponse = {
       default_payer?: 'SENDER' | 'RECEIVER'
       default_cod_enabled?: boolean
       default_declared_value_enabled?: boolean
+      default_send_dimensions_to_econt?: boolean
       tracking_throttle_minutes?: number
     }
   }
@@ -102,6 +104,7 @@ function toFormDefaults(data?: SettingsResponse['integration']): FormValues {
     defaultPayer: data?.defaults?.default_payer ?? 'SENDER',
     defaultCodEnabled: data?.defaults?.default_cod_enabled ?? false,
     defaultDeclaredValueEnabled: data?.defaults?.default_declared_value_enabled ?? false,
+    defaultSendDimensionsToEcont: data?.defaults?.default_send_dimensions_to_econt ?? false,
     trackingThrottleMinutes: data?.defaults?.tracking_throttle_minutes ?? 10,
   }
 }
@@ -170,14 +173,29 @@ export function EcontIntegrationSettings() {
           default_payer: values.defaultPayer,
           default_cod_enabled: values.defaultCodEnabled,
           default_declared_value_enabled: values.defaultDeclaredValueEnabled,
+          default_send_dimensions_to_econt: values.defaultSendDimensionsToEcont,
           tracking_throttle_minutes: values.trackingThrottleMinutes,
         },
       }
 
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('[EcontSettings] saving defaults', {
+          default_send_dimensions_to_econt: payload.defaults.default_send_dimensions_to_econt,
+          default_cod_enabled: payload.defaults.default_cod_enabled,
+          default_declared_value_enabled: payload.defaults.default_declared_value_enabled,
+        })
+      }
       const { data, error } = await supabase.functions.invoke('econt-settings-save', {
         body: payload,
       })
       if (error) throw error
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('[EcontSettings] saved defaults', {
+          default_send_dimensions_to_econt: (data as SettingsResponse).integration?.defaults?.default_send_dimensions_to_econt,
+        })
+      }
       return data as SettingsResponse
     },
     onSuccess: (saved) => {
@@ -387,6 +405,29 @@ export function EcontIntegrationSettings() {
                   <Label>Default declared value enabled</Label>
                 </div>
                 <Controller control={form.control} name="defaultDeclaredValueEnabled" render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />} />
+              </div>
+              <div className="md:col-span-2 rounded-lg border p-4 space-y-3 bg-amber-50/30 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/40">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label htmlFor="econt-send-dimensions">Изпращай размери към Еконт / Send dimensions to Econt</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Използва дължина, ширина и височина при калкулация и създаване на товарителница. Оставете изключено, ако не сте сигурни в размерите.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Uses length, width and height when calculating and creating a waybill. Leave off if you are not sure about the dimensions.
+                    </p>
+                  </div>
+                  <Controller
+                    control={form.control}
+                    name="defaultSendDimensionsToEcont"
+                    render={({ field }) => (
+                      <Switch id="econt-send-dimensions" checked={field.value} onCheckedChange={field.onChange} />
+                    )}
+                  />
+                </div>
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                  ⚠ Размерите могат да променят цената на доставката. Тествайте първо с демо среда. / Dimensions can change the shipping price. Test in the demo environment first.
+                </p>
               </div>
             </div>
           </div>

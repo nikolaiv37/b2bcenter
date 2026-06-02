@@ -31,6 +31,13 @@ export interface ShipmentDraftInput {
   declaredValue?: number | null
   payer?: ShipmentPayer | null
   description?: string | null
+  // Optional package dimensions in centimetres. The shared edge-function
+  // builder applies an all-or-nothing gate — it only forwards them to Econt
+  // when the tenant's `default_send_dimensions_to_econt` flag is on AND all
+  // three values are positive numbers.
+  lengthCm?: number | null
+  widthCm?: number | null
+  heightCm?: number | null
 }
 
 export interface CalculateInput {

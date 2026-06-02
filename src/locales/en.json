@@ -1629,6 +1629,9 @@
         "widthCm": "Width (cm)",
         "heightCm": "Height (cm)",
         "dimensionsHint": "Dimensions are stored with the shipment but not yet sent to Econt.",
+        "dimensionsHintOff": "Dimensions are stored on the product/form but are not sent to Econt.",
+        "dimensionsHintWillSend": "Dimensions will be sent to Econt for calculation.",
+        "dimensionsHintMissing": "Fill in length, width and height for them to be sent to Econt.",
         "packagingExtraTitle": "Additional packaging data (optional)"
       },
       "warnings": {

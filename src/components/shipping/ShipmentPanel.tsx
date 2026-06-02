@@ -138,6 +138,7 @@ interface EcontSettingsSanitized {
       tracking_throttle_minutes?: number
       default_cod_enabled?: boolean
       default_declared_value_enabled?: boolean
+      default_send_dimensions_to_econt?: boolean
     }
   }
 }
@@ -263,7 +264,29 @@ function toDefaultForm(
   }
 }
 
-function buildShipmentPayload(seed: OrderShipmentSeed, values: FormValues): ShipmentDraftInput {
+function buildShipmentPayload(
+  seed: OrderShipmentSeed,
+  values: FormValues,
+  options?: { sendDimensions?: boolean },
+): ShipmentDraftInput {
+  // All-or-nothing client-side gate. We only attach dimensions to the draft
+  // sent to the edge function when the tenant has opted in AND all three
+  // values are positive numbers. The edge-function builder re-applies the
+  // same gate on the server (defence in depth) before forwarding to Econt.
+  const sendDimensions =
+    Boolean(options?.sendDimensions) &&
+    typeof values.lengthCm === 'number' && Number.isFinite(values.lengthCm) && values.lengthCm > 0 &&
+    typeof values.widthCm === 'number' && Number.isFinite(values.widthCm) && values.widthCm > 0 &&
+    typeof values.heightCm === 'number' && Number.isFinite(values.heightCm) && values.heightCm > 0
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug('[ShipmentPanel] buildShipmentPayload sendDimensions=', sendDimensions, {
+      length: values.lengthCm,
+      width: values.widthCm,
+      height: values.heightCm,
+    })
+  }
+
   return {
     quoteId: Number(seed.quoteId),
     receiver: {
@@ -290,6 +313,13 @@ function buildShipmentPayload(seed: OrderShipmentSeed, values: FormValues): Ship
     codAmount: values.codAmount && values.codAmount > 0 ? values.codAmount : null,
     declaredValue: values.declaredValue && values.declaredValue > 0 ? values.declaredValue : null,
     description: values.description || null,
+    ...(sendDimensions
+      ? {
+          lengthCm: Number(values.lengthCm),
+          widthCm: Number(values.widthCm),
+          heightCm: Number(values.heightCm),
+        }
+      : {}),
   }
 }
 
@@ -539,6 +569,8 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
     staleTime: 60_000,
   })
   const integrationEnabled = settingsQuery.data?.integration?.enabled ?? false
+  const sendDimensionsFlag =
+    settingsQuery.data?.integration?.defaults?.default_send_dimensions_to_econt === true
 
   const shipmentsQuery = useQuery({
     queryKey: ['workspace', 'shipments', 'econt', numericQuoteId],
@@ -724,7 +756,7 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
       return adapter.calculate({
         tenantId,
         shipmentId: draftShipmentId,
-        shipment: buildShipmentPayload(seed, values),
+        shipment: buildShipmentPayload(seed, values, { sendDimensions: sendDimensionsFlag }),
       })
     },
     onSuccess: async (result) => {
@@ -762,7 +794,7 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
       return adapter.createLabel({
         tenantId,
         shipmentId: draftShipmentId,
-        shipment: buildShipmentPayload(seed, values),
+        shipment: buildShipmentPayload(seed, values, { sendDimensions: sendDimensionsFlag }),
       })
     },
     onSuccess: async (result) => {
@@ -1090,9 +1122,12 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
             {t('shippingEcont.form.packagingExtraTitle')}
           </summary>
           <div className="pt-3 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              {t('shippingEcont.form.dimensionsHint')}
-            </p>
+            <DimensionsHint
+              sendDimensionsFlag={sendDimensionsFlag}
+              lengthCm={form.watch('lengthCm') as number | undefined}
+              widthCm={form.watch('widthCm') as number | undefined}
+              heightCm={form.watch('heightCm') as number | undefined}
+            />
             <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>{t('shippingEcont.form.lengthCm')}</Label>
@@ -1623,5 +1658,49 @@ function ShipmentHistoryRow({ shipment }: { shipment: ShipmentRow }) {
         </details>
       ) : null}
     </div>
+  )
+}
+
+function DimensionsHint({
+  sendDimensionsFlag,
+  lengthCm,
+  widthCm,
+  heightCm,
+}: {
+  sendDimensionsFlag: boolean
+  lengthCm: number | string | undefined
+  widthCm: number | string | undefined
+  heightCm: number | string | undefined
+}) {
+  const { t } = useTranslation()
+  // Parse via the same localised-number helper used by the form schema so a
+  // user typing "60,5" is treated as a valid dimension here too.
+  const toPositive = (v: unknown): number | null => {
+    const parsed = parseLocalizedNumber(v)
+    return typeof parsed === 'number' && Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  }
+  const L = toPositive(lengthCm)
+  const W = toPositive(widthCm)
+  const H = toPositive(heightCm)
+  const allThree = L !== null && W !== null && H !== null
+
+  if (!sendDimensionsFlag) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {t('shippingEcont.form.dimensionsHintOff')}
+      </p>
+    )
+  }
+  if (allThree) {
+    return (
+      <p className="text-xs text-emerald-700 dark:text-emerald-400">
+        {t('shippingEcont.form.dimensionsHintWillSend')}
+      </p>
+    )
+  }
+  return (
+    <p className="text-xs text-amber-700 dark:text-amber-400">
+      {t('shippingEcont.form.dimensionsHintMissing')}
+    </p>
   )
 }

@@ -40,6 +40,12 @@ export interface ShipmentSnapshotInput {
   declaredValue?: number | null
   payer?: EcontPayer | null
   description?: string | null
+  // Optional package dimensions in centimetres. Forwarded to Econt only by
+  // buildEcontLabelPayload when the integration flag is on AND all three are
+  // positive numbers.
+  lengthCm?: number | null
+  widthCm?: number | null
+  heightCm?: number | null
 }
 
 export interface EcontIntegrationDefaults {
@@ -55,6 +61,11 @@ export interface EcontIntegrationDefaults {
   default_payer?: EcontPayer
   default_cod_enabled?: boolean
   default_declared_value_enabled?: boolean
+  // When true, buildEcontLabelPayload forwards shipmentDimensionsL/W/H to
+  // Econt's createLabel endpoint. All-or-nothing: only sent when L, W, and
+  // H are all positive numbers. Defaults to false (off) so existing
+  // behaviour is byte-identical for every tenant that hasn't opted in.
+  default_send_dimensions_to_econt?: boolean
   tracking_throttle_minutes?: number
   [key: string]: unknown
 }
@@ -185,6 +196,21 @@ function asString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
+// -- DEBUG helper (remove or disable after Phase 2 verification) --
+// Returns true when the calling tenant is on the demo environment or the
+// edge function has been deployed with ECONT_DEBUG=true. Logs are gated by
+// this so production stays quiet by default.
+export function econtDebugEnabled(integrationOrDefaults: TenantIntegrationRow | EcontIntegrationDefaults | null | undefined): boolean {
+  try {
+    if (Deno.env.get('ECONT_DEBUG') === 'true') return true
+  } catch (_e) {
+    // Deno.env may be restricted; fall back to env-from-row.
+  }
+  if (!integrationOrDefaults) return false
+  const env = (integrationOrDefaults as TenantIntegrationRow).environment
+  return env === 'demo'
+}
+
 export function clampTrackingThrottleMinutes(value: unknown): number {
   const parsed = Math.round(Number(value))
   if (!Number.isFinite(parsed)) return 10
@@ -198,7 +224,11 @@ export function normalizeDefaults(input: unknown): EcontIntegrationDefaults {
     ? (senderSrc.address as Record<string, unknown>)
     : null
 
+  // Spread `src` first so any unknown / future fields stored alongside the
+  // known ones are carried through unchanged. Known fields below override
+  // those passthroughs with their typed/coerced values.
   const defaults: EcontIntegrationDefaults = {
+    ...src,
     sender: {
       name: asString(senderSrc.name) ?? undefined,
       phone: asString(senderSrc.phone) ?? undefined,
@@ -221,6 +251,7 @@ export function normalizeDefaults(input: unknown): EcontIntegrationDefaults {
     default_payer: src.default_payer === 'RECEIVER' ? 'RECEIVER' : 'SENDER',
     default_cod_enabled: Boolean(src.default_cod_enabled),
     default_declared_value_enabled: Boolean(src.default_declared_value_enabled),
+    default_send_dimensions_to_econt: Boolean(src.default_send_dimensions_to_econt),
     tracking_throttle_minutes: clampTrackingThrottleMinutes(src.tracking_throttle_minutes),
   }
 
@@ -295,6 +326,15 @@ export function parseShipmentInput(body: unknown, defaults?: EcontIntegrationDef
   const codAmount = cleanNumber(src.codAmount ?? src.cod_amount)
   const declaredValue = cleanNumber(src.declaredValue ?? src.declared_value)
 
+  // Dimensions are optional. Each is accepted only when it is a positive
+  // finite number; otherwise null. The all-or-nothing gate that actually
+  // forwards them to Econt lives in buildEcontLabelPayload — parsing just
+  // normalises whatever the client sent so persistence stays honest.
+  const lengthCm = cleanNumber(src.lengthCm ?? src.length_cm)
+  const widthCm = cleanNumber(src.widthCm ?? src.width_cm)
+  const heightCm = cleanNumber(src.heightCm ?? src.height_cm)
+  const positiveOrNull = (n: number | null) => (n !== null && n > 0 ? n : null)
+
   return {
     quoteId: parsedQuoteId,
     receiver: {
@@ -309,6 +349,9 @@ export function parseShipmentInput(body: unknown, defaults?: EcontIntegrationDef
     declaredValue: declaredValue && declaredValue > 0 ? declaredValue : null,
     payer,
     description: asString(src.description) ?? null,
+    lengthCm: positiveOrNull(lengthCm),
+    widthCm: positiveOrNull(widthCm),
+    heightCm: positiveOrNull(heightCm),
   }
 }
 
@@ -674,6 +717,46 @@ export function buildEcontLabelPayload(input: ShipmentSnapshotInput, defaults: E
   }
 
   label.services = services
+
+  // All-or-nothing dimensions gate.
+  // Forward shipmentDimensionsL/W/H to Econt only when:
+  //   1. the tenant has opted in (default_send_dimensions_to_econt === true),
+  //   2. all three values are positive finite numbers.
+  // sizeUnder60cm is intentionally NOT sent yet — tariff semantics need to
+  // be confirmed with Econt support / mode:"validate" first.
+  const sendDimensions =
+    defaults?.default_send_dimensions_to_econt === true &&
+    typeof input.lengthCm === 'number' && Number.isFinite(input.lengthCm) && input.lengthCm > 0 &&
+    typeof input.widthCm === 'number' && Number.isFinite(input.widthCm) && input.widthCm > 0 &&
+    typeof input.heightCm === 'number' && Number.isFinite(input.heightCm) && input.heightCm > 0
+  if (sendDimensions) {
+    label.shipmentDimensionsL = Number(input.lengthCm)
+    label.shipmentDimensionsW = Number(input.widthCm)
+    label.shipmentDimensionsH = Number(input.heightCm)
+  }
+
+  // -- DEBUG: dimensions verification (remove or disable after verification) --
+  // Logs no receiver/sender PII — only the boolean gate inputs and outputs
+  // needed to confirm Phase 2 wiring. Gated by `econtDebugEnabled`.
+  if (econtDebugEnabled(defaults)) {
+    const hasDimensions =
+      typeof input.lengthCm === 'number' && Number.isFinite(input.lengthCm) && input.lengthCm > 0 &&
+      typeof input.widthCm === 'number' && Number.isFinite(input.widthCm) && input.widthCm > 0 &&
+      typeof input.heightCm === 'number' && Number.isFinite(input.heightCm) && input.heightCm > 0
+    console.debug('[econt-debug] buildEcontLabelPayload', {
+      hasDimensions,
+      dimensions: {
+        length: input.lengthCm ?? null,
+        width: input.widthCm ?? null,
+        height: input.heightCm ?? null,
+      },
+      sendDimensionsFlag: defaults?.default_send_dimensions_to_econt === true,
+      finalPayloadHasDimensionFields:
+        Object.prototype.hasOwnProperty.call(label, 'shipmentDimensionsL') &&
+        Object.prototype.hasOwnProperty.call(label, 'shipmentDimensionsW') &&
+        Object.prototype.hasOwnProperty.call(label, 'shipmentDimensionsH'),
+    })
+  }
 
   return { label }
 }

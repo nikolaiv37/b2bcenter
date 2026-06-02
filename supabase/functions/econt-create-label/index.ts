@@ -2,6 +2,7 @@ import { requireTenantAuth } from '../_shared/auth.ts'
 import {
   appendShipmentError,
   buildEcontLabelPayload,
+  econtDebugEnabled,
   econtPost,
   getTenantEcontIntegration,
   getTenantShipment,
@@ -63,6 +64,26 @@ Deno.serve(async (req) => {
       errorLogContext = { adminClient: auth.adminClient, tenantId: auth.tenantId, shipmentId: body.shipment_id }
     }
     const integration = await getTenantEcontIntegration(auth.adminClient, auth.tenantId, { requireEnabled: true })
+
+    // -- DEBUG: dimensions verification (remove or disable after verification) --
+    if (econtDebugEnabled(integration)) {
+      const ship = (body.shipment ?? {}) as Record<string, unknown>
+      const length = (ship.lengthCm ?? ship.length_cm) as unknown
+      const width = (ship.widthCm ?? ship.width_cm) as unknown
+      const height = (ship.heightCm ?? ship.height_cm) as unknown
+      const hasDimensions =
+        typeof length === 'number' && Number.isFinite(length) &&
+        typeof width === 'number' && Number.isFinite(width) &&
+        typeof height === 'number' && Number.isFinite(height)
+      console.debug('[econt-debug] econt-create-label body', {
+        mode: 'create',
+        hasShipmentInBody: Boolean(body.shipment),
+        hasShipmentId: Boolean(body.shipment_id),
+        hasDimensions,
+        dimensions: { length: length ?? null, width: width ?? null, height: height ?? null },
+        sendDimensionsFlag: integration.defaults?.default_send_dimensions_to_econt === true,
+      })
+    }
 
     let existingShipment = null
     if (body.shipment_id) {

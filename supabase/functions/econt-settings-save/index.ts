@@ -22,7 +22,6 @@ Deno.serve(async (req) => {
 
     const enabled = Boolean(body.enabled)
     const environment = body.environment === 'prod' ? 'prod' : 'demo'
-    const defaults = normalizeDefaults(body.defaults)
 
     const { data: existing, error: existingError } = await auth.adminClient
       .from('tenant_integrations')
@@ -34,6 +33,24 @@ Deno.serve(async (req) => {
     if (existingError) {
       throw new HttpError(500, 'Failed to load existing Econt settings')
     }
+
+    // Merge existing defaults with the submitted ones BEFORE normalising. This
+    // protects against two failure modes:
+    //   (a) An older client UI that doesn't include a recently-added field —
+    //       its absence in the body would otherwise wipe the stored value.
+    //   (b) Unknown future fields stored on the row by another code path —
+    //       a strict whitelist would silently drop them.
+    // Submitted values win over existing values for any overlapping key.
+    const existingDefaults =
+      existing?.defaults && typeof existing.defaults === 'object'
+        ? (existing.defaults as Record<string, unknown>)
+        : {}
+    const submittedDefaults =
+      body.defaults && typeof body.defaults === 'object'
+        ? (body.defaults as Record<string, unknown>)
+        : {}
+    const mergedDefaults: Record<string, unknown> = { ...existingDefaults, ...submittedDefaults }
+    const defaults = normalizeDefaults(mergedDefaults)
 
     const username = body.username?.trim()
     const password = body.password?.trim()
