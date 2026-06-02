@@ -1693,7 +1693,8 @@
         "cancelErrorTitle": "Cancel failed",
         "saveToProductSuccessTitle": "Saved to product",
         "saveToProductSuccessDescription": "Shipping data saved to {{sku}}.",
-        "saveToProductErrorTitle": "Save to product failed"
+        "saveToProductErrorTitle": "Save to product failed",
+        "saveToProductNotFound": "No product found with SKU {{sku}}."
       }
     },
     "productShipping": {

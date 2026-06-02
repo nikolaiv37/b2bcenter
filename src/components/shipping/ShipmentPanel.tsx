@@ -24,7 +24,7 @@ import { getCarrierAdapter } from '@/lib/shipping/carriers/registry'
 import type { ShipmentDraftInput } from '@/lib/shipping/carriers/types'
 import { cn } from '@/lib/utils'
 import { useQueryProductsShipping, getEffectiveShippingWeightKg, type ProductShippingRow } from '@/hooks/useQueryProductsShipping'
-import { useMutationUpdateProductShipping } from '@/hooks/useMutationUpdateProductShipping'
+import { useMutationUpdateProductShipping, ProductNotFoundError } from '@/hooks/useMutationUpdateProductShipping'
 
 // Accepts both `.` and `,` decimal separators (e.g. Bulgarian "19,71"). Empty
 // string / null / undefined become `undefined` so optional numeric fields stay
@@ -1169,9 +1169,15 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
                     }),
                   })
                 } catch (error) {
+                  const description =
+                    error instanceof ProductNotFoundError
+                      ? t('shippingEcont.toasts.saveToProductNotFound', { sku: error.sku })
+                      : error instanceof Error
+                        ? error.message
+                        : 'Unknown error'
                   toast({
                     title: t('shippingEcont.toasts.saveToProductErrorTitle'),
-                    description: error instanceof Error ? error.message : 'Unknown error',
+                    description,
                     variant: 'destructive',
                   })
                 }

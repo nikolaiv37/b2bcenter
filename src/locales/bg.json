@@ -1371,7 +1371,8 @@
         "cancelErrorTitle": "Неуспешно анулиране",
         "saveToProductSuccessTitle": "Запазено към продукта",
         "saveToProductSuccessDescription": "Данните за доставка са запазени към {{sku}}.",
-        "saveToProductErrorTitle": "Неуспешно запазване към продукта"
+        "saveToProductErrorTitle": "Неуспешно запазване към продукта",
+        "saveToProductNotFound": "Не беше намерен продукт със SKU {{sku}}."
       }
     },
     "productShipping": {
