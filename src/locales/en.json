@@ -1632,7 +1632,13 @@
         "dimensionsHintOff": "Dimensions are stored on the product/form but are not sent to Econt.",
         "dimensionsHintWillSend": "Dimensions will be sent to Econt for calculation.",
         "dimensionsHintMissing": "Fill in length, width and height for them to be sent to Econt.",
-        "packagingExtraTitle": "Additional packaging data (optional)"
+        "packagingExtraTitle": "Additional packaging data (optional)",
+        "multiProductDimensions": {
+          "title": "⚠ This order contains multiple products.",
+          "body": "Weight and parcel count are calculated automatically.\nDimensions must be entered according to the actual packaging of the shipment.",
+          "linesTitle": "Products in this shipment:",
+          "qty": "— qty {{qty}}"
+        }
       },
       "warnings": {
         "missingWeightTitle": "Shipping weight missing for {{count}} product(s)",

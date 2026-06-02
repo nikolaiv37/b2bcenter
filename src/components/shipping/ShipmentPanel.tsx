@@ -1114,6 +1114,9 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
             {t('shippingEcont.form.packagingExtraTitle')}
           </summary>
           <div className="pt-3 space-y-3">
+            {seed.items && seed.items.length > 1 ? (
+              <MultiProductDimensionsNotice items={seed.items} />
+            ) : null}
             <DimensionsHint
               sendDimensionsFlag={sendDimensionsFlag}
               lengthCm={form.watch('lengthCm') as number | undefined}
@@ -1694,5 +1697,47 @@ function DimensionsHint({
     <p className="text-xs text-amber-700 dark:text-amber-400">
       {t('shippingEcont.form.dimensionsHintMissing')}
     </p>
+  )
+}
+
+function MultiProductDimensionsNotice({
+  items,
+}: {
+  items: NonNullable<OrderShipmentSeed['items']>
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="rounded border border-amber-200 bg-amber-50 text-amber-800 p-3 text-sm space-y-2">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+        <div className="space-y-1">
+          <p className="font-medium">
+            {t('shippingEcont.form.multiProductDimensions.title')}
+          </p>
+          <p className="text-xs whitespace-pre-line">
+            {t('shippingEcont.form.multiProductDimensions.body')}
+          </p>
+        </div>
+      </div>
+      <div className="pt-1">
+        <p className="text-xs font-medium">
+          {t('shippingEcont.form.multiProductDimensions.linesTitle')}
+        </p>
+        <ul className="mt-1 space-y-0.5 text-xs">
+          {items.map((line, idx) => (
+            <li key={`${line.sku}-${idx}`} className="flex gap-2">
+              <span aria-hidden="true">•</span>
+              <span className="font-mono shrink-0">{line.sku}</span>
+              <span className="truncate" title={line.product_name || undefined}>
+                — {line.product_name || '—'}
+              </span>
+              <span className="shrink-0 opacity-80">
+                {t('shippingEcont.form.multiProductDimensions.qty', { qty: line.quantity })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   )
 }
