@@ -23,7 +23,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { useAuth } from '@/hooks/useAuth'
 import { Product } from '@/types'
 import { Grid3X3, List, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
-import { applyCommissionRate, shouldApplyCommission } from '@/lib/priceUtils'
+import { applyPolicyToProducts } from '@/lib/pricing'
+import { usePricingContext } from '@/hooks/usePricingContext'
 import { fetchManufacturerOptions } from '@/lib/manufacturers'
 
 const ITEMS_PER_PAGE = 24
@@ -67,31 +68,6 @@ function getCategoryIdsForFilter(
   return [selectedCategoryId]
 }
 
-/**
- * Apply commission-based price adjustments to products.
- * Only company users with a commission_rate > 0 get adjusted prices.
- */
-function applyCommissionToProducts(
-  products: Product[],
-  role: string | null | undefined,
-  commissionRate: number | null | undefined
-): Product[] {
-  // Check if we should apply commission
-  if (!shouldApplyCommission(role, commissionRate)) {
-    // Return products with adjusted_price = weboffer_price (no discount)
-    return products.map((p) => ({
-      ...p,
-      adjusted_price: p.weboffer_price,
-    }))
-  }
-
-  // Apply commission rate to each product
-  return products.map((p) => ({
-    ...p,
-    adjusted_price: applyCommissionRate(p.weboffer_price, commissionRate),
-  }))
-}
-
 export function ProductsPage() {
   const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
@@ -110,6 +86,7 @@ export function ProductsPage() {
   const queryClient = useQueryClient()
   const { workspaceId: tenantId } = useAppContext()
   const isAdmin = profile?.role === 'admin'
+  const pricingCtx = usePricingContext()
 
   const applyLifecycleFilter = <T,>(query: T): T => {
     const productQuery = query as T & {
@@ -224,7 +201,7 @@ export function ProductsPage() {
   // Fetch paginated products with server-side filters
   const range = getPaginationRange()
   const {
-    data: products,
+    data: productsRaw,
     isLoading,
     isError: isProductsError,
     error: productsError,
@@ -243,7 +220,6 @@ export function ProductsPage() {
       currentPage,
       categoriesData,
       profile?.id,
-      profile?.commission_rate,
     ],
     queryFn: async () => {
       if (!tenantId) return []
@@ -260,8 +236,8 @@ export function ProductsPage() {
         throw error
       }
 
-      // Apply commission-based pricing
-      return applyCommissionToProducts(data as Product[], profile?.role, profile?.commission_rate)
+      // Raw rows — pricing is folded in below via `applyPolicyToProducts`.
+      return (data ?? []) as Product[]
     },
     enabled: !!tenantId,
     placeholderData: (previousData) => previousData, // Keep previous data while loading
@@ -269,8 +245,14 @@ export function ProductsPage() {
     gcTime: 5 * 60_000,
   })
 
+  // Apply policy-aware pricing (product → category → default → legacy commission_rate).
+  const products = useMemo(
+    () => applyPolicyToProducts(productsRaw, pricingCtx),
+    [productsRaw, pricingCtx],
+  )
+
   // Get cached data from page 1 query for pages 2-7
-  const cachedPage1Data = queryClient.getQueryData<Product[]>([
+  const cachedPage1Raw = queryClient.getQueryData<Product[]>([
     'tenant',
     tenantId,
     'products',
@@ -283,8 +265,11 @@ export function ProductsPage() {
     1,
     categoriesData,
     profile?.id,
-    profile?.commission_rate,
   ])
+  const cachedPage1Data = useMemo(
+    () => (cachedPage1Raw ? applyPolicyToProducts(cachedPage1Raw, pricingCtx) : undefined),
+    [cachedPage1Raw, pricingCtx],
+  )
 
   // Fetch total count with same filters (using normalized category_id)
   const { data: totalCount } = useQuery({

@@ -20,6 +20,7 @@ import {
   FileSpreadsheet,
   FolderKanban,
   Users,
+  Tags,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useWishlist } from '@/hooks/useWishlist'
@@ -61,6 +62,13 @@ const mainNavItemsConfig = [
     titleKey: 'nav.distributors',
     href: '/dashboard/clients',
     icon: Users,
+    adminOnly: true,
+  },
+  // Admin-only: per-client Pricing Policies editor
+  {
+    titleKey: 'nav.pricingPolicies',
+    href: '/dashboard/pricing-policies',
+    icon: Tags,
     adminOnly: true,
   },
   {

@@ -46,12 +46,22 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
   const total = getTotal()
   const itemCount = getItemCount()
   
-  // Check if item has a commission discount applied
-  const hasItemDiscount = (item: typeof items[0]) => {
+  // Phase 5: prefer per-item metadata if the line was added with a resolved
+  // pricing payload (any new add or reorder path). Fall back to the legacy
+  // commission-rate heuristic for older persisted cart items.
+  const getItemDiscountPercent = (item: typeof items[0]): number | null => {
+    if (typeof item.discount_rate === 'number' && item.discount_rate > 0) {
+      return Math.round(item.discount_rate * 100)
+    }
     const product = item.product
-    return hasDiscount && 
-           product.adjusted_price !== undefined && 
-           product.adjusted_price < product.weboffer_price
+    if (
+      hasDiscount &&
+      product.adjusted_price !== undefined &&
+      product.adjusted_price < product.weboffer_price
+    ) {
+      return Math.round(commissionRate * 100)
+    }
+    return null
   }
 
   return (
@@ -131,15 +141,18 @@ export function CartDrawer({ open, onOpenChange, onRequestQuote }: CartDrawerPro
                             {t('cart.backorderBadge')}
                           </Badge>
                         )}
-                        {hasItemDiscount(item) && (
-                          <Badge 
-                            variant="secondary" 
-                            className="gap-0.5 px-1.5 py-0 text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                          >
-                            <Percent className="w-2.5 h-2.5" />
-                            {Math.round(commissionRate * 100)}%
-                          </Badge>
-                        )}
+                        {(() => {
+                          const pct = getItemDiscountPercent(item)
+                          return pct !== null ? (
+                            <Badge
+                              variant="secondary"
+                              className="gap-0.5 px-1.5 py-0 text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                            >
+                              <Percent className="w-2.5 h-2.5" />
+                              {pct}%
+                            </Badge>
+                          ) : null
+                        })()}
                       </div>
 
                       {/* Quantity Controls */}

@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils'
 import { useCartStore } from '@/stores/cartStore'
 import { useToast } from '@/components/ui/use-toast'
 import { useCommissionRate } from '@/hooks/useCommissionRate'
+import { usePricingContext } from '@/hooks/usePricingContext'
+import { resolveCartLinePricing } from '@/lib/pricing'
 import { useAppContext } from '@/lib/app/AppContext'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
 import { HtmlContent } from '@/components/HtmlContent'
@@ -46,6 +48,7 @@ export function ProductQuickViewModal({
   const { addItem } = useCartStore()
   const { toast } = useToast()
   const { hasDiscount, commissionRate } = useCommissionRate()
+  const pricingCtx = usePricingContext()
   const { withBase } = useTenantPath()
   const { currentAccount } = useAppContext()
   const isAdmin = currentAccount.isAdmin
@@ -79,7 +82,9 @@ export function ProductQuickViewModal({
       return
     }
 
-    const result = addItem(product, 1, 'buyer')
+    const result = addItem(product, 1, 'buyer', {
+      pricing: resolveCartLinePricing(product, pricingCtx),
+    })
     
     if (result.success) {
       toast({

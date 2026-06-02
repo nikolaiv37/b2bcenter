@@ -18,6 +18,8 @@ import { useCartStore } from '@/stores/cartStore'
 import { useWishlist } from '@/hooks/useWishlist'
 import { useQueryProductBySku } from '@/hooks/useQueryProducts'
 import { useCommissionRate } from '@/hooks/useCommissionRate'
+import { usePricingContext } from '@/hooks/usePricingContext'
+import { resolveCartLinePricing } from '@/lib/pricing'
 import { useAppContext } from '@/lib/app/AppContext'
 import {
   Package,
@@ -70,6 +72,7 @@ export function ProductDetailPage() {
   const { addItem } = useCartStore()
   const { isInWishlist, toggleWishlist } = useWishlist()
   const { hasDiscount, commissionRate } = useCommissionRate()
+  const pricingCtx = usePricingContext()
   const { currentAccount } = useAppContext()
   const showPrices = usePriceVisibilityStore((s) => s.showPrices)
   const isAdmin = currentAccount.isAdmin
@@ -167,7 +170,9 @@ export function ProductDetailPage() {
 
   // Handle quick add (adds 1 piece to cart)
   const handleQuickAdd = () => {
-    const result = addItem(product, 1, 'buyer')
+    const result = addItem(product, 1, 'buyer', {
+      pricing: resolveCartLinePricing(product, pricingCtx),
+    })
     if (result.success) {
       toast({
         title: 'Added to cart',

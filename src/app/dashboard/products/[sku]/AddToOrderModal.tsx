@@ -3,6 +3,8 @@ import { Product } from '@/types'
 import { useCartStore } from '@/stores/cartStore'
 import { useToast } from '@/components/ui/use-toast'
 import { useCommissionRate } from '@/hooks/useCommissionRate'
+import { usePricingContext } from '@/hooks/usePricingContext'
+import { resolveCartLinePricing } from '@/lib/pricing'
 import {
   Dialog,
   DialogContent,
@@ -40,6 +42,7 @@ export function AddToOrderModal({ product, open, onClose }: AddToOrderModalProps
   const { addItem } = useCartStore()
   const { toast } = useToast()
   const { hasDiscount, commissionRate } = useCommissionRate()
+  const pricingCtx = usePricingContext()
   const [quantity, setQuantity] = useState(1)
   const [isAdding, setIsAdding] = useState(false)
   const [mode, setMode] = useState<'normal' | 'backorder'>('normal')
@@ -99,6 +102,7 @@ export function AddToOrderModal({ product, open, onClose }: AddToOrderModalProps
     // Add to cart (this creates a draft order line)
     const result = addItem(product, quantity, 'buyer', {
       is_backorder: isBackorderMode,
+      pricing: resolveCartLinePricing(product, pricingCtx),
     })
     
     setIsAdding(false)

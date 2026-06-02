@@ -57,8 +57,13 @@ export function useMutationCreateClient() {
       return result as CreateClientResult
     },
     onSuccess: () => {
+      // Refresh every surface that lists or counts tenant members so the
+      // new client shows up immediately without a page refresh.
       queryClient.invalidateQueries({ queryKey: ['workspace', 'clients'] })
       queryClient.invalidateQueries({ queryKey: ['workspace', 'invitations'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'tenant-members'] })
+      queryClient.invalidateQueries({ queryKey: ['workspace', 'pricing-policy'] })
     },
   })
 }

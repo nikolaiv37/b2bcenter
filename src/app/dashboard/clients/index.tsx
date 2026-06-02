@@ -31,19 +31,14 @@ import { useToast } from '@/components/ui/use-toast'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryClients } from '@/hooks/useQueryClients'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
-import {
-  useMutationUpdateClient,
-  useMutationDeactivateClient,
-} from '@/hooks/useMutationClient'
+import { useMutationDeactivateClient } from '@/hooks/useMutationClient'
 import { useMutationCreateClient } from '@/hooks/useMutationCreateClient'
 import { Client } from '@/types'
 import {
   Users,
   Search,
-  Edit,
   Trash2,
   Percent,
-  Info,
   Mail,
   Calendar,
   AlertCircle,
@@ -76,8 +71,6 @@ export function ClientsPage() {
   )
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [editingClient, setEditingClient] = useState<Client | null>(null)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -87,22 +80,20 @@ export function ClientsPage() {
 
   // Add client modal state (new manual creation flow)
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false)
+  // commission_rate is intentionally NOT in the add-client form — new clients
+  // start at 0 and per-client pricing is managed via the Pricing Policies page.
+  // The legacy commission_rate field is still editable on existing clients via
+  // the edit modal below.
   const [addClientForm, setAddClientForm] = useState({
     email: '',
     company_name: '',
-    commission_rate: 0,
     password: '',
     confirmPassword: '',
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const [editForm, setEditForm] = useState({
-    commission_rate: 0,
-  })
-
   const { data: clients, isLoading, error } = useQueryClients()
-  const updateMutation = useMutationUpdateClient()
   const deactivateMutation = useMutationDeactivateClient()
   const createMutation = useMutationCreateClient()
 
@@ -168,47 +159,6 @@ export function ClientsPage() {
     return null
   }
 
-  const handleEdit = (client: Client) => {
-    setEditingClient(client)
-    setEditForm({
-      commission_rate: (client.commission_rate || 0) * 100,
-    })
-    setIsEditModalOpen(true)
-  }
-
-  const handleSaveEdit = async () => {
-    if (!editingClient) return
-
-    if (editForm.commission_rate < 0 || editForm.commission_rate > 50) {
-      toast({
-        title: t('distributors.error'),
-        description: t('distributors.commissionRateError'),
-        variant: 'destructive',
-      })
-      return
-    }
-
-    try {
-      await updateMutation.mutateAsync({
-        id: editingClient.id,
-        commission_rate: editForm.commission_rate / 100,
-      })
-
-      toast({
-        title: t('distributors.success'),
-        description: t('distributors.updateSuccess'),
-      })
-      setIsEditModalOpen(false)
-      setEditingClient(null)
-    } catch {
-      toast({
-        title: t('distributors.error'),
-        description: t('distributors.updateError'),
-        variant: 'destructive',
-      })
-    }
-  }
-
   const handleDeleteClick = (client: Client) => {
     setDeletingClient(client)
     setIsDeleteDialogOpen(true)
@@ -253,15 +203,6 @@ export function ClientsPage() {
       return
     }
 
-    if (addClientForm.commission_rate < 0 || addClientForm.commission_rate > 50) {
-      toast({
-        title: t('distributors.error'),
-        description: t('distributors.commissionRateError'),
-        variant: 'destructive',
-      })
-      return
-    }
-
     if (addClientForm.password.length < 6) {
       toast({
         title: t('distributors.error'),
@@ -284,7 +225,9 @@ export function ClientsPage() {
       await createMutation.mutateAsync({
         email: addClientForm.email.trim(),
         company_name: addClientForm.company_name.trim(),
-        commission_rate: addClientForm.commission_rate,
+        // New clients start with no legacy commission discount. Pricing is
+        // managed per-client via the Pricing Policies page.
+        commission_rate: 0,
         password: addClientForm.password,
       })
 
@@ -294,7 +237,7 @@ export function ClientsPage() {
       })
 
       setIsAddClientModalOpen(false)
-      setAddClientForm({ email: '', company_name: '', commission_rate: 0, password: '', confirmPassword: '' })
+      setAddClientForm({ email: '', company_name: '', password: '', confirmPassword: '' })
       setShowPassword(false)
       setShowConfirmPassword(false)
     } catch (err) {
@@ -308,14 +251,6 @@ export function ClientsPage() {
 
   const isClientInvited = (client: Client) => {
     return client.invitation_status === 'invited'
-  }
-
-  const formatCommissionRate = (rate?: number | null) => {
-    if (rate === undefined || rate === null || rate === 0) {
-      return null
-    }
-    const percentage = rate * 100
-    return `${percentage.toFixed(percentage % 1 === 0 ? 0 : 1)}%`
   }
 
   const getCompanyName = (client: Client) => {
@@ -595,8 +530,10 @@ export function ClientsPage() {
           <div className="p-5">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {paginatedClients.map((client) => {
-                const commissionDisplay = formatCommissionRate(client.commission_rate)
-                const hasCommission = commissionDisplay !== null
+                // Legacy commission_rate is no longer surfaced on the client
+                // card — per-client discounting now lives in Pricing Policies.
+                // The DB column and edit modal are intentionally kept for
+                // backwards compatibility.
                 const joinedAgo = getJoinedAgo(client.created_at)
                 const ordersCount = client.orders_count ?? 0
                 const unpaidAmount = client.unpaid_amount ?? 0
@@ -659,31 +596,6 @@ export function ClientsPage() {
 
                       {/* Details Grid */}
                       <div className="space-y-3.5 flex-1 pb-1">
-                        {/* Commission Rate Row */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <span>{t('distributors.commissionLabel')}</span>
-                            <Tooltip content={t('distributors.commissionRateTooltip')} side="top">
-                              <button
-                                type="button"
-                                className="inline-flex items-center justify-center rounded-full hover:bg-muted/80 p-0.5 transition-colors"
-                              >
-                                <Info className="w-3 h-3 text-muted-foreground/70" />
-                              </button>
-                            </Tooltip>
-                          </div>
-                          {hasCommission ? (
-                            <Badge 
-                              className="gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                            >
-                              <Percent className="w-3 h-3" />
-                              {commissionDisplay}
-                            </Badge>
-                          ) : (
-                            <span className="text-sm font-medium text-muted-foreground/60 tabular-nums">—%</span>
-                          )}
-                        </div>
-
                         {/* Join Date Row */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -744,27 +656,23 @@ export function ClientsPage() {
                       </div>
 
                       {/* Footer: Actions */}
-                      <div className="flex items-center justify-between pt-3 mt-3 border-t border-border/20">
-                        <div className="flex items-center gap-1.5">
-                          {hasCommission && (
-                            <Badge 
-                              variant="outline" 
-                              className="text-[10px] uppercase tracking-wider px-2 py-0.5 font-medium border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5"
-                            >
-                              <ShoppingBag className="w-2.5 h-2.5 mr-1" />
-                              {t('distributors.discountedBadge')}
-                            </Badge>
-                          )}
-                        </div>
+                      <div className="flex items-center justify-end pt-3 mt-3 border-t border-border/20">
                         <div className="flex items-center gap-1.5">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 rounded-full px-3 opacity-80 group-hover:opacity-100 transition-opacity text-xs"
-                            onClick={() => handleEdit(client)}
+                            className="h-8 rounded-full px-3 opacity-80 group-hover:opacity-100 transition-opacity text-xs text-sky-700 dark:text-sky-300 hover:bg-sky-500/10"
+                            onClick={() =>
+                              navigate(
+                                withBase(`/dashboard/pricing-policies?client=${client.id}`),
+                              )
+                            }
+                            aria-label={t('pricingPolicies.manageClientPolicy', {
+                              name: getCompanyName(client),
+                            })}
                           >
-                            <Edit className="w-3.5 h-3.5 mr-1" />
-                            <span>{t('general.edit')}</span>
+                            <Percent className="w-3.5 h-3.5 mr-1" />
+                            <span>{t('distributors.pricingPolicy')}</span>
                           </Button>
 
                           <Button
@@ -805,85 +713,8 @@ export function ClientsPage() {
         )}
       </GlassCard>
 
-      {/* Edit Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Edit className="w-5 h-5 text-sky-500" />
-              {t('distributors.editDistributor')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('distributors.editDistributorDesc')}{' '}
-              <span className="font-medium">
-                {editingClient ? getCompanyName(editingClient) : t('distributors.thisDistributor')}
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-5 py-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="commission_rate" className="text-sm font-medium">
-                    {t('distributors.commissionRateLabel')}
-                  </Label>
-                  <Tooltip content={t('distributors.commissionRateTooltip')} side="top">
-                    <button type="button" className="rounded-full hover:bg-muted p-0.5">
-                      <Info className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                  </Tooltip>
-                </div>
-                <Badge 
-                  variant={editForm.commission_rate > 0 ? 'default' : 'secondary'}
-                  className="text-xs"
-                >
-                  {editForm.commission_rate > 0
-                    ? t('distributors.commissionBadge', { rate: editForm.commission_rate })
-                    : t('distributors.noDiscount')}
-                </Badge>
-              </div>
-              <div className="relative">
-                <Input
-                  id="commission_rate"
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.5"
-                  value={editForm.commission_rate}
-                  onChange={(e) =>
-                    setEditForm((prev) => ({
-                      ...prev,
-                      commission_rate: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  className="pr-10 text-lg font-semibold h-12"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                  %
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t('distributors.commissionRateHelp')}
-              </p>
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-              {t('general.cancel')}
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={updateMutation.isPending}
-              className="gap-2"
-            >
-              {updateMutation.isPending && (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              )}
-              {t('general.save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Edit modal removed — legacy commission_rate is no longer editable
+          from this page. Per-client pricing is managed via Pricing Policies. */}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -971,42 +802,8 @@ export function ClientsPage() {
               </div>
             </div>
 
-            {/* Commission rate field */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="add_client_commission" className="text-sm font-medium">
-                  {t('distributors.commissionRateLabel')}
-                </Label>
-                <Tooltip content={t('distributors.commissionRateTooltip')} side="top">
-                  <button type="button" className="rounded-full hover:bg-muted p-0.5">
-                    <Info className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
-                </Tooltip>
-              </div>
-              <div className="relative">
-                <Input
-                  id="add_client_commission"
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.5"
-                  value={addClientForm.commission_rate}
-                  onChange={(e) =>
-                    setAddClientForm((prev) => ({
-                      ...prev,
-                      commission_rate: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  className="pr-10 h-11"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                  %
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t('distributors.commissionRateHelp')}
-              </p>
-            </div>
+            {/* Commission rate field removed — per-client pricing is now
+                handled by Pricing Policies (/dashboard/pricing-policies). */}
 
             {/* Temporary password field */}
             <div className="space-y-2">

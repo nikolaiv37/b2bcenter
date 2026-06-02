@@ -1,9 +1,9 @@
 import { useCallback } from 'react'
 import { useAppContext } from '@/lib/app/AppContext'
-import { applyCommissionRate, shouldApplyCommission } from '@/lib/priceUtils'
+import { applyPolicyToProducts, resolveCartLinePricing } from '@/lib/pricing'
 import { supabase } from '@/lib/supabase/client'
-import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
+import { usePricingContext } from '@/hooks/usePricingContext'
 import { Product } from '@/types'
 
 export interface OrderSourceLine {
@@ -38,24 +38,6 @@ function buildEmptyResult(): OrderSourceCartLoadResult {
     adjustedQuantities: [],
     cancelled: false,
   }
-}
-
-function applyCommissionToProducts(
-  products: Product[],
-  role: string | null | undefined,
-  commissionRate: number | null | undefined,
-): Product[] {
-  if (!shouldApplyCommission(role, commissionRate)) {
-    return products.map((product) => ({
-      ...product,
-      adjusted_price: product.weboffer_price,
-    }))
-  }
-
-  return products.map((product) => ({
-    ...product,
-    adjusted_price: applyCommissionRate(product.weboffer_price, commissionRate),
-  }))
 }
 
 export function normalizeOrderSourceLines(lines: unknown): OrderSourceLine[] {
@@ -97,7 +79,9 @@ export function normalizeOrderSourceLines(lines: unknown): OrderSourceLine[] {
 
 export function useOrderSourceCartLoader() {
   const { workspaceId: tenantId } = useAppContext()
-  const profile = useAuthStore((state) => state.profile)
+  // Phase 5: reorder/template flows must use the same pricing context as the
+  // catalog. We resolve once per loader invocation and pass it down per line.
+  const pricingCtx = usePricingContext()
 
   const replaceCartWithSource = useCallback(
     async (
@@ -127,11 +111,9 @@ export function useOrderSourceCartLoader() {
         throw error
       }
 
-      const products = applyCommissionToProducts(
-        (data ?? []) as Product[],
-        profile?.role,
-        profile?.commission_rate,
-      )
+      // Stamp policy-resolved adjusted_price on every product so any code that
+      // still reads `product.adjusted_price` downstream sees the correct value.
+      const products = applyPolicyToProducts((data ?? []) as Product[], pricingCtx)
       const productsBySku = new Map(products.map((product) => [product.sku, product]))
 
       const preparedLines: Array<{ product: Product; quantity: number }> = []
@@ -185,7 +167,17 @@ export function useOrderSourceCartLoader() {
       cartStore.clearCart()
 
       for (const preparedLine of preparedLines) {
-        const addResult = cartStore.addItem(preparedLine.product, preparedLine.quantity, 'buyer')
+        // Pass explicit pricing so the cart writes the policy-resolved unit
+        // price (and audit metadata), not whatever `adjusted_price` happens
+        // to hold at this moment.
+        const addResult = cartStore.addItem(
+          preparedLine.product,
+          preparedLine.quantity,
+          'buyer',
+          {
+            pricing: resolveCartLinePricing(preparedLine.product, pricingCtx),
+          },
+        )
         if (addResult.success) {
           result.addedCount += 1
         } else if ((preparedLine.product.quantity ?? 0) <= 0) {
@@ -195,7 +187,7 @@ export function useOrderSourceCartLoader() {
 
       return result
     },
-    [profile?.commission_rate, profile?.role, tenantId],
+    [tenantId, pricingCtx],
   )
 
   return {

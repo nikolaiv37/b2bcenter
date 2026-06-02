@@ -37,6 +37,7 @@ const UnpaidBalancesPage = lazy(() => import('@/app/dashboard/unpaid-balances').
 const CategoriesPage = lazy(() => import('@/app/dashboard/categories').then((m) => ({ default: m.CategoriesPage })))
 const ManageCategoriesPage = lazy(() => import('@/app/dashboard/categories/manage').then((m) => ({ default: m.ManageCategoriesPage })))
 const ClientsPage = lazy(() => import('@/app/dashboard/clients').then((m) => ({ default: m.ClientsPage })))
+const PricingPoliciesPage = lazy(() => import('@/app/dashboard/pricing-policies').then((m) => ({ default: m.PricingPoliciesPage })))
 
 const LandingPage = lazy(() => import('@/pages/LandingPage'))
 const MainIndexRoute = lazy(() => import('@/pages/MainIndexRoute').then((m) => ({ default: m.MainIndexRoute })))
@@ -168,6 +169,7 @@ function App() {
                   <Route path="analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsPage /></Suspense>} />
                   <Route path="unpaid-balances" element={<Suspense fallback={<PageLoader />}><UnpaidBalancesPage /></Suspense>} />
                   <Route path="clients" element={<Suspense fallback={<PageLoader />}><ClientsPage /></Suspense>} />
+                  <Route path="pricing-policies" element={<Suspense fallback={<PageLoader />}><PricingPoliciesPage /></Suspense>} />
                 </Route>
 
                 <Route

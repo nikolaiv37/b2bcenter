@@ -45,16 +45,48 @@ export function useQueryClients() {
 
       if (profilesError) throw profilesError
 
+      // Visibility rule (strict — tenant_memberships is the source of truth):
+      //   Active client:  profile.role='company'
+      //                   + membership row for this tenant with role='member'
+      //   Pending invite: profile.role='company'
+      //                   + NO membership row yet
+      //                   + invitation_status='invited'
+      //                   (still shown so admins see in-flight invites)
+      //   Anything else (no membership AND invitation_status='active') is
+      //   treated as a revoked/deleted client and HIDDEN.
+      //
+      // Owner/admin memberships are also hidden — those are tenant admins
+      // whose profile happens to carry the legacy 'company' role.
       const baseClients = ((profiles || []) as Client[]).filter((profile) => {
         const membershipRole = membershipRoleByUserId.get(profile.id)
-
-        if (membershipRole) {
-          return membershipRole === 'member'
-        }
-
-        // Keep pending invited client profiles visible before they accept.
+        if (membershipRole === 'member') return true
+        if (membershipRole === 'owner' || membershipRole === 'admin') return false
+        // No membership row visible.
         return profile.invitation_status === 'invited'
       })
+
+      // DEV-only diagnostic. The strict filter above requires that admins can
+      // read every member-role membership row in their tenant via the
+      // `tenant_memberships_select_admin` RLS policy
+      // (supabase/migrations/20260312123100_tenant_memberships_admin_select.sql).
+      // If that policy is missing or ineffective on this DB, the membership
+      // map will only contain the admin's own row, and newly-created clients
+      // will silently disappear from this list. Surface that clearly.
+      if (import.meta.env.DEV) {
+        const memberRowCount = Array.from(membershipRoleByUserId.values()).filter(
+          (r) => r === 'member',
+        ).length
+        const companyProfilesCount = (profiles ?? []).length
+        if (companyProfilesCount > 0 && memberRowCount === 0) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            '[useQueryClients] Found %d company-role profiles but 0 member-role memberships are visible. ' +
+              'Likely cause: the `tenant_memberships_select_admin` RLS policy is not applied to this database. ' +
+              'Apply supabase/migrations/20260312123100_tenant_memberships_admin_select.sql.',
+            companyProfilesCount,
+          )
+        }
+      }
 
       if (!baseClients.length) {
         return baseClients

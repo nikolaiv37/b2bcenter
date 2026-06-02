@@ -230,9 +230,18 @@ export interface PriceTier {
 export interface CartItem {
   product: Product
   quantity: number
+  /** Effective unit price persisted at the moment of add. */
   price: number
+  /** price * quantity */
   total: number
   is_backorder?: boolean
+  // ── Phase 5 pricing metadata (optional, backward compatible) ─────────
+  /** Original `weboffer_price` at the moment of add. */
+  base_price?: number
+  /** Decimal discount rate applied (0–0.5). */
+  discount_rate?: number
+  /** Which pricing rule produced `price`. */
+  discount_source?: PricingDiscountSource
 }
 
 export interface DashboardStats {
@@ -250,6 +259,62 @@ export interface WishlistItem {
   user_id: string
   product_sku: string
   created_at: string
+}
+
+// ── Pricing Policies ───────────────────────────────────────
+//
+// Client-specific pricing rules with priority:
+//   1. Product-specific discount  (PricingPolicyItem with scope='product')
+//   2. Category-specific discount (PricingPolicyItem with scope='category')
+//   3. Default discount           (PricingPolicy.default_discount)
+//   4. Legacy commission_rate fallback (Profile.commission_rate)
+//   5. No discount
+//
+// Discount rates are stored as decimals (0.10 = 10%, 0.50 = 50%, capped at 0.5).
+
+export type PricingPolicyItemScope = 'product' | 'category'
+
+export interface PricingPolicy {
+  id: string
+  tenant_id: string
+  client_user_id: string
+  name: string
+  default_discount: number
+  is_active: boolean
+  created_by?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PricingPolicyItem {
+  id: string
+  tenant_id: string
+  policy_id: string
+  scope: PricingPolicyItemScope
+  product_sku?: string | null
+  category_id?: string | null
+  discount: number
+  created_at: string
+}
+
+export interface ResolvedPricingPolicy {
+  policy: PricingPolicy
+  items: PricingPolicyItem[]
+}
+
+export type PricingDiscountSource =
+  | 'product'
+  | 'category'
+  | 'default'
+  | 'legacy'
+  | 'none'
+
+export interface EffectivePriceResult {
+  basePrice: number
+  finalPrice: number
+  discountRate: number
+  discountSource: PricingDiscountSource
+  matchedPolicyItemId?: string
 }
 
 // ── Notifications ──────────────────────────────────────────

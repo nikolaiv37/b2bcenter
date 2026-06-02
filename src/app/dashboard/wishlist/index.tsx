@@ -14,8 +14,10 @@ import { useWishlist } from '@/hooks/useWishlist'
 import { useCartStore } from '@/stores/cartStore'
 import { Product } from '@/types'
 import { Heart, ShoppingCart, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTenantPath } from '@/lib/tenant/TenantProvider'
+import { applyPolicyToProducts, resolveCartLinePricing } from '@/lib/pricing'
+import { usePricingContext } from '@/hooks/usePricingContext'
 
 export function WishlistPage() {
   const { t } = useTranslation()
@@ -32,7 +34,7 @@ export function WishlistPage() {
   const wishlistSkus = wishlistItems.map((item) => item.product_sku)
 
   // Fetch products by SKUs
-  const { data: products = [], isLoading } = useQuery({
+  const { data: productsRaw = [], isLoading } = useQuery({
     queryKey: ['workspace', 'wishlist-products', wishlistSkus.join(',')],
     queryFn: async () => {
       if (!tenantId || wishlistSkus.length === 0) return []
@@ -50,6 +52,13 @@ export function WishlistPage() {
     },
     enabled: !!tenantId && wishlistSkus.length > 0,
   })
+
+  // Apply current user's pricing policy (with legacy commission fallback).
+  const pricingCtx = usePricingContext()
+  const products = useMemo(
+    () => applyPolicyToProducts(productsRaw, pricingCtx),
+    [productsRaw, pricingCtx],
+  )
 
   // Remove item from wishlist
   const handleRemove = (sku: string) => {
@@ -75,7 +84,9 @@ export function WishlistPage() {
     let failedCount = 0
 
     products.forEach((product) => {
-      const result = addItem(product, 1, 'buyer')
+      const result = addItem(product, 1, 'buyer', {
+        pricing: resolveCartLinePricing(product, pricingCtx),
+      })
       if (result.success) {
         addedCount++
       } else {

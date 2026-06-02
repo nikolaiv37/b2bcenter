@@ -1,18 +1,55 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Product, CartItem } from '@/types'
+import { Product, CartItem, PricingDiscountSource } from '@/types'
+
+/**
+ * Resolved pricing for a single cart line.
+ *
+ * Phase 5: every cart write path should compute this via
+ * `resolveProductPricing(product, usePricingContext())` and pass it through
+ * to `addItem` / `updateQuantity`. The cart then persists the unit price
+ * (and a light audit trail) instead of recomputing from `product.adjusted_price`.
+ *
+ * Callers that do NOT pass `pricing` fall back to the legacy behaviour
+ * (`product.adjusted_price ?? product.weboffer_price`). That keeps every
+ * existing call site working until they are migrated.
+ */
+export interface CartLinePricing {
+  unitPrice: number
+  basePrice: number
+  discountRate: number
+  discountSource: PricingDiscountSource
+}
 
 interface CartLineOptions {
   is_backorder?: boolean
+  pricing?: CartLinePricing
 }
 
 /**
- * Get the effective price for a product.
- * Uses adjusted_price if available (for commission discounts), otherwise weboffer_price.
+ * Backwards-compatible price resolver for callers that did not supply
+ * pricing metadata. Reads whatever `useQueryProducts` / `applyPolicyToProducts`
+ * already stamped onto the product.
  */
 function getEffectivePrice(product: Product): number {
-  // Use adjusted_price if set (commission-based discount), otherwise weboffer_price
   return product.adjusted_price ?? product.weboffer_price ?? 0
+}
+
+function pricingPatch(product: Product, pricing?: CartLinePricing): {
+  unitPrice: number
+  base_price?: number
+  discount_rate?: number
+  discount_source?: PricingDiscountSource
+} {
+  if (pricing) {
+    return {
+      unitPrice: pricing.unitPrice,
+      base_price: pricing.basePrice,
+      discount_rate: pricing.discountRate,
+      discount_source: pricing.discountSource,
+    }
+  }
+  return { unitPrice: getEffectivePrice(product) }
 }
 
 interface CartState {
@@ -78,6 +115,8 @@ export const useCartStore = create<CartState>()(
           (item) => item.product.id === product.id
         )
 
+        const patch = pricingPatch(product, options?.pricing)
+
         if (existingItemIndex > -1) {
           // Update existing item
           const existingItem = items[existingItemIndex]
@@ -91,28 +130,31 @@ export const useCartStore = create<CartState>()(
             }
           }
 
-          // Use effective price (adjusted_price if commission discount applies, else weboffer_price)
-          const unitPrice = getEffectivePrice(product)
           const updatedItems = [...items]
           updatedItems[existingItemIndex] = {
             ...updatedItems[existingItemIndex],
-            product, // Update product to store latest adjusted_price
+            product, // Update product to store latest snapshot
             quantity: newQuantity,
-            price: unitPrice,
-            total: unitPrice * newQuantity,
+            price: patch.unitPrice,
+            total: patch.unitPrice * newQuantity,
             is_backorder: nextIsBackorder,
+            base_price: patch.base_price,
+            discount_rate: patch.discount_rate,
+            discount_source: patch.discount_source,
           }
 
           set({ items: updatedItems })
         } else {
-          // Add new item - use effective price (adjusted_price or weboffer_price)
-          const unitPrice = getEffectivePrice(product)
+          // Add new item
           const newItem: CartItem = {
             product,
             quantity,
-            price: unitPrice,
-            total: unitPrice * quantity,
+            price: patch.unitPrice,
+            total: patch.unitPrice * quantity,
             is_backorder: isBackorder,
+            base_price: patch.base_price,
+            discount_rate: patch.discount_rate,
+            discount_source: patch.discount_source,
           }
 
           set({ items: [...items, newItem] })
@@ -140,7 +182,7 @@ export const useCartStore = create<CartState>()(
         }
 
         const item = items[itemIndex]
-        
+
         if (quantity === 0) {
           get().removeItem(productId)
           return { success: true }
@@ -157,8 +199,15 @@ export const useCartStore = create<CartState>()(
           }
         }
 
-        // Use effective price (adjusted_price if commission discount applies, else weboffer_price)
-        const unitPrice = getEffectivePrice(item.product)
+        // If the caller provided fresh pricing metadata, use it. Otherwise
+        // KEEP the previously persisted price on this line — never silently
+        // re-snap an existing line to today's catalog price (the user added
+        // it at a specific price and quantity edits should not change that).
+        const useFreshPricing = !!options?.pricing
+        const unitPrice = useFreshPricing
+          ? options!.pricing!.unitPrice
+          : item.price
+
         const updatedItems = [...items]
         updatedItems[itemIndex] = {
           ...item,
@@ -166,6 +215,13 @@ export const useCartStore = create<CartState>()(
           price: unitPrice,
           total: unitPrice * quantity,
           is_backorder: nextIsBackorder,
+          ...(useFreshPricing
+            ? {
+                base_price: options!.pricing!.basePrice,
+                discount_rate: options!.pricing!.discountRate,
+                discount_source: options!.pricing!.discountSource,
+              }
+            : null),
         }
 
         set({ items: updatedItems })

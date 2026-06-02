@@ -1,76 +1,70 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAppContext } from '@/lib/app/AppContext'
 import { supabase } from '@/lib/supabase/client'
 import { Product } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
-import { applyCommissionRate, shouldApplyCommission } from '@/lib/priceUtils'
+import { applyPolicyToProducts } from '@/lib/pricing'
+import { usePricingContext } from '@/hooks/usePricingContext'
 
-/**
- * Apply commission-based price adjustments to products.
- * Only company users with a commission_rate > 0 get adjusted prices.
- */
-function applyCommissionToProducts(
-  products: Product[],
-  role: string | null | undefined,
-  commissionRate: number | null | undefined
-): Product[] {
-  // Check if we should apply commission
-  if (!shouldApplyCommission(role, commissionRate)) {
-    // Return products with adjusted_price = weboffer_price (no discount)
-    return products.map((p) => ({
-      ...p,
-      adjusted_price: p.weboffer_price,
-    }))
-  }
-
-  // Apply commission rate to each product
-  return products.map((p) => ({
-    ...p,
-    adjusted_price: applyCommissionRate(p.weboffer_price, commissionRate),
-  }))
-}
+// ---------------------------------------------------------------------------
+// Phase 4: pricing comes from `pricing_policies` via `resolveProductPricing`.
+//
+// We deliberately stamp `adjusted_price` on each product *after* the fetch so
+// that existing card/detail components (which read
+// `product.adjusted_price ?? product.weboffer_price`) keep working unchanged.
+// The commission-folding that used to live in this file is gone — the
+// resolver now owns that, with `commission_rate` only used as a final
+// fallback when no active policy exists (see `usePricingContext`).
+// ---------------------------------------------------------------------------
 
 export function useQueryProducts(supplierId?: string) {
   const profile = useAuthStore((state) => state.profile)
   const { workspaceId: tenantId } = useAppContext()
   const isAdmin = profile?.role === 'admin'
+  const ctx = usePricingContext()
 
-  return useQuery({
-    queryKey: ['workspace', 'products', supplierId, profile?.id, profile?.commission_rate, isAdmin],
+  const query = useQuery({
+    queryKey: ['workspace', 'products', supplierId, profile?.id, isAdmin],
     queryFn: async () => {
-      let query = supabase.from('products').select('*').order('created_at', { ascending: false })
+      let q = supabase.from('products').select('*').order('created_at', { ascending: false })
 
       if (tenantId) {
-        query = query.eq('tenant_id', tenantId)
+        q = q.eq('tenant_id', tenantId)
       }
 
       if (supplierId) {
-        query = query.eq('supplier_id', supplierId)
+        q = q.eq('supplier_id', supplierId)
       }
 
       if (!isAdmin) {
-        query = query.eq('is_visible', true)
+        q = q.eq('is_visible', true)
       }
 
-      const { data, error } = await query
+      const { data, error } = await q
 
       if (error) throw error
-      
-      // Apply commission-based pricing
-      return applyCommissionToProducts(data as Product[], profile?.role, profile?.commission_rate)
+      return (data ?? []) as Product[]
     },
-    // For dev mode, always enable to show all products
     enabled: !!tenantId,
   })
+
+  const data = useMemo(
+    () => applyPolicyToProducts(query.data, ctx),
+    [query.data, ctx],
+  )
+
+  return { ...query, data }
 }
 
 export function useQueryProduct(productId: string) {
   const profile = useAuthStore((state) => state.profile)
   const { workspaceId: tenantId } = useAppContext()
   const isAdmin = profile?.role === 'admin'
+  const ctx = usePricingContext()
 
-  return useQuery({
-    queryKey: ['workspace', 'product', productId, profile?.id, profile?.commission_rate],
+  const query = useQuery({
+    queryKey: ['workspace', 'product', productId, profile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
@@ -84,13 +78,19 @@ export function useQueryProduct(productId: string) {
       if (!isAdmin && data?.is_visible === false) {
         return null
       }
-      
-      // Apply commission-based pricing
-      const products = applyCommissionToProducts([data as Product], profile?.role, profile?.commission_rate)
-      return products[0]
+
+      return data as Product
     },
     enabled: !!productId && !!tenantId,
   })
+
+  const data = useMemo(() => {
+    if (!query.data) return query.data ?? null
+    const [adjusted] = applyPolicyToProducts([query.data], ctx)
+    return adjusted ?? query.data
+  }, [query.data, ctx])
+
+  return { ...query, data }
 }
 
 export function useQueryPublicProducts(companySlug: string, filters?: {
@@ -101,60 +101,66 @@ export function useQueryPublicProducts(companySlug: string, filters?: {
 }) {
   const profile = useAuthStore((state) => state.profile)
   const { workspaceId: tenantId } = useAppContext()
+  const ctx = usePricingContext()
 
-  return useQuery({
-    queryKey: ['workspace', 'public-products', companySlug, filters, profile?.id, profile?.commission_rate],
+  const query = useQuery({
+    queryKey: ['workspace', 'public-products', companySlug, filters, profile?.id],
     queryFn: async () => {
       // For MVP: Show all visible products
-      // TODO: Later filter by company if needed
-      let query = supabase
+      let q = supabase
         .from('products')
         .select('*')
         .eq('is_visible', true)
         .gt('quantity', 0) // Only show in-stock products
       if (tenantId) {
-        query = query.eq('tenant_id', tenantId)
+        q = q.eq('tenant_id', tenantId)
       }
 
       if (filters?.category) {
-        query = query.eq('category', filters.category)
+        q = q.eq('category', filters.category)
       }
 
       if (filters?.search) {
-        query = query.or(
+        q = q.or(
           `name.ilike.%${filters.search}%,description.ilike.%${filters.search}%,sku.ilike.%${filters.search}%`
         )
       }
 
       if (filters?.minPrice) {
-        query = query.gte('weboffer_price', filters.minPrice)
+        q = q.gte('weboffer_price', filters.minPrice)
       }
 
       if (filters?.maxPrice) {
-        query = query.lte('weboffer_price', filters.maxPrice)
+        q = q.lte('weboffer_price', filters.maxPrice)
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false })
+      const { data, error } = await q.order('created_at', { ascending: false })
 
       if (error) throw error
-      
-      // Apply commission-based pricing
-      return applyCommissionToProducts(data as Product[], profile?.role, profile?.commission_rate)
+      return (data ?? []) as Product[]
     },
     enabled: !!companySlug && !!tenantId,
   })
+
+  const data = useMemo(
+    () => applyPolicyToProducts(query.data, ctx),
+    [query.data, ctx],
+  )
+
+  return { ...query, data }
 }
 
 /**
- * Hook to fetch a product by SKU with commission-adjusted pricing.
+ * Hook to fetch a product by SKU with policy-resolved pricing.
  */
 export function useQueryProductBySku(sku: string) {
   const profile = useAuthStore((state) => state.profile)
   const { workspaceId: tenantId } = useAppContext()
   const isAdmin = profile?.role === 'admin'
+  const ctx = usePricingContext()
 
-  return useQuery({
-    queryKey: ['workspace', 'product', 'sku', sku, profile?.id, profile?.commission_rate],
+  const query = useQuery({
+    queryKey: ['workspace', 'product', 'sku', sku, profile?.id],
     queryFn: async () => {
       if (!sku) throw new Error('SKU is required')
 
@@ -177,11 +183,17 @@ export function useQueryProductBySku(sku: string) {
         return null
       }
 
-      // Apply commission-based pricing
-      const products = applyCommissionToProducts([data as Product], profile?.role, profile?.commission_rate)
-      return products[0]
+      return data as Product
     },
     enabled: !!sku && !!tenantId,
     retry: false,
   })
+
+  const data = useMemo(() => {
+    if (!query.data) return query.data ?? null
+    const [adjusted] = applyPolicyToProducts([query.data], ctx)
+    return adjusted ?? query.data
+  }, [query.data, ctx])
+
+  return { ...query, data }
 }
