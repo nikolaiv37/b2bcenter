@@ -278,14 +278,6 @@ function buildShipmentPayload(
     typeof values.lengthCm === 'number' && Number.isFinite(values.lengthCm) && values.lengthCm > 0 &&
     typeof values.widthCm === 'number' && Number.isFinite(values.widthCm) && values.widthCm > 0 &&
     typeof values.heightCm === 'number' && Number.isFinite(values.heightCm) && values.heightCm > 0
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.debug('[ShipmentPanel] buildShipmentPayload sendDimensions=', sendDimensions, {
-      length: values.lengthCm,
-      width: values.widthCm,
-      height: values.heightCm,
-    })
-  }
 
   return {
     quoteId: Number(seed.quoteId),

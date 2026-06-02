@@ -196,19 +196,18 @@ function asString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
-// -- DEBUG helper (remove or disable after Phase 2 verification) --
-// Returns true when the calling tenant is on the demo environment or the
-// edge function has been deployed with ECONT_DEBUG=true. Logs are gated by
-// this so production stays quiet by default.
-export function econtDebugEnabled(integrationOrDefaults: TenantIntegrationRow | EcontIntegrationDefaults | null | undefined): boolean {
+// -- DEBUG helper (gated; safe to leave in for ad-hoc verification) --
+// Returns true ONLY when the edge function has been deployed with
+// ECONT_DEBUG=true. Production stays quiet by default. To re-enable for a
+// short investigation, set the secret, invoke, then unset — no code change.
+// The `_arg` parameter is kept for call-site stability if we later want to
+// branch on integration shape; today it's unused.
+export function econtDebugEnabled(_arg?: TenantIntegrationRow | EcontIntegrationDefaults | null | undefined): boolean {
   try {
-    if (Deno.env.get('ECONT_DEBUG') === 'true') return true
+    return Deno.env.get('ECONT_DEBUG') === 'true'
   } catch (_e) {
-    // Deno.env may be restricted; fall back to env-from-row.
+    return false
   }
-  if (!integrationOrDefaults) return false
-  const env = (integrationOrDefaults as TenantIntegrationRow).environment
-  return env === 'demo'
 }
 
 export function clampTrackingThrottleMinutes(value: unknown): number {

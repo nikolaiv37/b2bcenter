@@ -178,24 +178,10 @@ export function EcontIntegrationSettings() {
         },
       }
 
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.debug('[EcontSettings] saving defaults', {
-          default_send_dimensions_to_econt: payload.defaults.default_send_dimensions_to_econt,
-          default_cod_enabled: payload.defaults.default_cod_enabled,
-          default_declared_value_enabled: payload.defaults.default_declared_value_enabled,
-        })
-      }
       const { data, error } = await supabase.functions.invoke('econt-settings-save', {
         body: payload,
       })
       if (error) throw error
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.debug('[EcontSettings] saved defaults', {
-          default_send_dimensions_to_econt: (data as SettingsResponse).integration?.defaults?.default_send_dimensions_to_econt,
-        })
-      }
       return data as SettingsResponse
     },
     onSuccess: (saved) => {
