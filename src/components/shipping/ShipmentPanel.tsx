@@ -20,6 +20,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { getCarrierAdapter } from '@/lib/shipping/carriers/registry'
 import type { ShipmentDraftInput } from '@/lib/shipping/carriers/types'
 import { cn } from '@/lib/utils'
@@ -65,13 +73,6 @@ const schema = z.object({
   lengthCm: optionalNumber(0),
   widthCm: optionalNumber(0),
   heightCm: optionalNumber(0),
-}).superRefine((values, ctx) => {
-  if (values.destinationType === 'office' && !values.officeCode) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['officeCode'], message: 'Office code is required' })
-  }
-  if (values.destinationType === 'address' && !values.city) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['city'], message: 'City is required' })
-  }
 }).superRefine((values, ctx) => {
   if (values.destinationType === 'office' && !values.officeCode) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['officeCode'], message: 'Office code is required' })
@@ -474,6 +475,17 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
   const [officeSuggestions, setOfficeSuggestions] = useState<string[]>([])
   const [officePickerOpen, setOfficePickerOpen] = useState(false)
   const [officeSearch, setOfficeSearch] = useState('')
+  const [saveToProductConfirm, setSaveToProductConfirm] = useState<null | {
+    sku: string
+    productName: string
+    quantity: number
+    weightTotal: number | null
+    perUnitWeight: number | null
+    perUnitParcels: number | null
+    lengthCm: number | null
+    widthCm: number | null
+    heightCm: number | null
+  }>(null)
 
   const itemSkus = useMemo(
     () => (seed.items || []).map((line) => line.sku).filter(Boolean),
@@ -1140,7 +1152,7 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
               type="button"
               variant="outline"
               disabled={saveToProductMutation.isPending}
-              onClick={async () => {
+              onClick={() => {
                 const values = form.getValues()
                 const num = (v: unknown): number | null => {
                   const parsed = parseLocalizedNumber(v)
@@ -1149,38 +1161,21 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
                 const qty = Math.max(1, Number(singleProductLine.quantity) || 1)
                 const weightTotal = num(values.weightKg)
                 const parcelsTotal = num(values.parcelsCount)
-                const perUnitWeight = weightTotal != null ? weightTotal / qty : null
+                const perUnitWeight =
+                  weightTotal != null ? Math.round((weightTotal / qty) * 1000) / 1000 : null
                 const perUnitParcels =
                   parcelsTotal != null ? Math.max(1, Math.round(parcelsTotal / qty)) : null
-                try {
-                  await saveToProductMutation.mutateAsync({
-                    sku: singleProductLine.sku,
-                    productId: singleProductLine.product_id || undefined,
-                    shipping_weight_kg: perUnitWeight,
-                    shipping_parcels_count: perUnitParcels,
-                    shipping_length_cm: num(values.lengthCm),
-                    shipping_width_cm: num(values.widthCm),
-                    shipping_height_cm: num(values.heightCm),
-                  })
-                  toast({
-                    title: t('shippingEcont.toasts.saveToProductSuccessTitle'),
-                    description: t('shippingEcont.toasts.saveToProductSuccessDescription', {
-                      sku: singleProductLine.sku,
-                    }),
-                  })
-                } catch (error) {
-                  const description =
-                    error instanceof ProductNotFoundError
-                      ? t('shippingEcont.toasts.saveToProductNotFound', { sku: error.sku })
-                      : error instanceof Error
-                        ? error.message
-                        : 'Unknown error'
-                  toast({
-                    title: t('shippingEcont.toasts.saveToProductErrorTitle'),
-                    description,
-                    variant: 'destructive',
-                  })
-                }
+                setSaveToProductConfirm({
+                  sku: singleProductLine.sku,
+                  productName: singleProductLine.product_name || singleProductLine.sku,
+                  quantity: qty,
+                  weightTotal,
+                  perUnitWeight,
+                  perUnitParcels,
+                  lengthCm: num(values.lengthCm),
+                  widthCm: num(values.widthCm),
+                  heightCm: num(values.heightCm),
+                })
               }}
             >
               {saveToProductMutation.isPending ? (
@@ -1192,7 +1187,50 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
             </Button>
           ) : null}
         </div>
+        {singleProductLine ? (
+          <p className="text-xs text-muted-foreground -mt-1">
+            {t('shippingEcont.saveToProduct.helper')}
+          </p>
+        ) : null}
       </form>
+
+      <SaveToProductDialog
+        state={saveToProductConfirm}
+        isPending={saveToProductMutation.isPending}
+        onCancel={() => setSaveToProductConfirm(null)}
+        onConfirm={async () => {
+          if (!saveToProductConfirm) return
+          try {
+            await saveToProductMutation.mutateAsync({
+              sku: saveToProductConfirm.sku,
+              shipping_weight_kg: saveToProductConfirm.perUnitWeight,
+              shipping_parcels_count: saveToProductConfirm.perUnitParcels,
+              shipping_length_cm: saveToProductConfirm.lengthCm,
+              shipping_width_cm: saveToProductConfirm.widthCm,
+              shipping_height_cm: saveToProductConfirm.heightCm,
+            })
+            toast({
+              title: t('shippingEcont.toasts.saveToProductSuccessTitle'),
+              description: t('shippingEcont.toasts.saveToProductSuccessDescription', {
+                sku: saveToProductConfirm.sku,
+              }),
+            })
+            setSaveToProductConfirm(null)
+          } catch (error) {
+            const description =
+              error instanceof ProductNotFoundError
+                ? t('shippingEcont.toasts.saveToProductNotFound', { sku: error.sku })
+                : error instanceof Error
+                  ? error.message
+                  : 'Unknown error'
+            toast({
+              title: t('shippingEcont.toasts.saveToProductErrorTitle'),
+              description,
+              variant: 'destructive',
+            })
+          }
+        }}
+      />
 
       {lastTrackMessage ? (
         <div className="rounded border bg-muted/40 p-3 space-y-1">
@@ -1304,5 +1342,115 @@ export function ShipmentPanel({ seed, className }: { seed: OrderShipmentSeed; cl
         )}
       </div>
     </div>
+  )
+}
+
+function formatKg(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  // Trim trailing zeros for readability (1.200 kg → 1.2 kg).
+  return `${Number(value.toFixed(3))} kg`
+}
+
+interface SaveToProductDialogState {
+  sku: string
+  productName: string
+  quantity: number
+  weightTotal: number | null
+  perUnitWeight: number | null
+  perUnitParcels: number | null
+  lengthCm: number | null
+  widthCm: number | null
+  heightCm: number | null
+}
+
+function SaveToProductDialog({
+  state,
+  isPending,
+  onCancel,
+  onConfirm,
+}: {
+  state: SaveToProductDialogState | null
+  isPending: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const { t } = useTranslation()
+  const open = state !== null
+  return (
+    <Dialog open={open} onOpenChange={(o) => (!o ? onCancel() : undefined)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('shippingEcont.saveToProduct.dialogTitle')}</DialogTitle>
+          <DialogDescription>
+            {t('shippingEcont.saveToProduct.dialogDescription')}
+          </DialogDescription>
+        </DialogHeader>
+
+        {state ? (
+          <div className="space-y-3">
+            <div className="rounded border bg-muted/40 p-3 text-sm space-y-1">
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">{t('shippingEcont.saveToProduct.sku')}</span>
+                <span className="font-mono font-medium">{state.sku}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">
+                  {t('shippingEcont.saveToProduct.productName')}
+                </span>
+                <span className="font-medium text-right line-clamp-2">{state.productName}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">
+                  {t('shippingEcont.saveToProduct.orderQuantity')}
+                </span>
+                <span className="font-medium">{state.quantity}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">
+                  {t('shippingEcont.saveToProduct.shipmentTotalWeight')}
+                </span>
+                <span className="font-medium">{formatKg(state.weightTotal)}</span>
+              </div>
+              <div className="flex justify-between gap-3 border-t pt-1 mt-1">
+                <span className="text-muted-foreground">
+                  {t('shippingEcont.saveToProduct.perUnitWeight')}
+                </span>
+                <span className="font-semibold">{formatKg(state.perUnitWeight)}</span>
+              </div>
+            </div>
+
+            {state.quantity > 1 && state.weightTotal != null && state.perUnitWeight != null ? (
+              <p className="text-xs text-muted-foreground">
+                {t('shippingEcont.saveToProduct.formula', {
+                  total: Number(state.weightTotal.toFixed(3)),
+                  qty: state.quantity,
+                  perUnit: Number(state.perUnitWeight.toFixed(3)),
+                })}
+              </p>
+            ) : null}
+
+            {state.lengthCm != null || state.widthCm != null || state.heightCm != null ? (
+              <div className="text-xs text-muted-foreground">
+                {t('shippingEcont.saveToProduct.dimensionsLine', {
+                  length: state.lengthCm ?? '—',
+                  width: state.widthCm ?? '—',
+                  height: state.heightCm ?? '—',
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
+            {t('shippingEcont.saveToProduct.cancel')}
+          </Button>
+          <Button type="button" onClick={onConfirm} disabled={isPending || !state}>
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {t('shippingEcont.saveToProduct.confirm')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

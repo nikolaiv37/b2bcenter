@@ -1370,9 +1370,23 @@
         "cancelSuccessDescription": "Пратката беше маркирана като анулирана.",
         "cancelErrorTitle": "Неуспешно анулиране",
         "saveToProductSuccessTitle": "Запазено към продукта",
-        "saveToProductSuccessDescription": "Данните за доставка са запазени към {{sku}}.",
+        "saveToProductSuccessDescription": "Записани са данни за доставка към продукт SKU {{sku}}.",
         "saveToProductErrorTitle": "Неуспешно запазване към продукта",
         "saveToProductNotFound": "Не беше намерен продукт със SKU {{sku}}."
+      },
+      "saveToProduct": {
+        "helper": "Запазва теглото и размерите като стойности за 1 бр. продукт.",
+        "dialogTitle": "Запази данни за доставка към продукта",
+        "dialogDescription": "Стойностите се записват за 1 бр. продукт. Прегледайте преди да потвърдите.",
+        "sku": "SKU",
+        "productName": "Продукт",
+        "orderQuantity": "Количество в поръчката",
+        "shipmentTotalWeight": "Общо тегло в пратката",
+        "perUnitWeight": "Тегло за запис към продукта",
+        "formula": "{{total}} кг ÷ {{qty}} бр. = {{perUnit}} кг",
+        "dimensionsLine": "Размери (см): Д {{length}} × Ш {{width}} × В {{height}} — се записват както са въведени.",
+        "cancel": "Отказ",
+        "confirm": "Запази"
       }
     },
     "productShipping": {

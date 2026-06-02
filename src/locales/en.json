@@ -1692,9 +1692,23 @@
         "cancelSuccessDescription": "Shipment was marked as cancelled.",
         "cancelErrorTitle": "Cancel failed",
         "saveToProductSuccessTitle": "Saved to product",
-        "saveToProductSuccessDescription": "Shipping data saved to {{sku}}.",
+        "saveToProductSuccessDescription": "Shipping data saved to product SKU {{sku}}.",
         "saveToProductErrorTitle": "Save to product failed",
         "saveToProductNotFound": "No product found with SKU {{sku}}."
+      },
+      "saveToProduct": {
+        "helper": "Stores weight and dimensions as values for 1 unit of the product.",
+        "dialogTitle": "Save shipping data to product",
+        "dialogDescription": "Values are stored per single unit. Please review before confirming.",
+        "sku": "SKU",
+        "productName": "Product",
+        "orderQuantity": "Order quantity",
+        "shipmentTotalWeight": "Shipment total weight",
+        "perUnitWeight": "Weight to save to product",
+        "formula": "{{total}} kg ÷ {{qty}} units = {{perUnit}} kg",
+        "dimensionsLine": "Dimensions (cm): L {{length}} × W {{width}} × H {{height}} — stored as entered.",
+        "cancel": "Cancel",
+        "confirm": "Save"
       }
     },
     "productShipping": {
