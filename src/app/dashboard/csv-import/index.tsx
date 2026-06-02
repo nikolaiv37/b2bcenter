@@ -1,5 +1,6 @@
 import { useAuth } from '@/hooks/useAuth'
 import { CSVImportWizard } from '@/components/csv-import'
+import { CatalogExport } from '@/components/csv-import/CatalogExport'
 import { GlassCard } from '@/components/GlassCard'
 import { Lock, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -67,6 +68,11 @@ export function CSVImportPage() {
     )
   }
 
-  // Admin users see the full wizard
-  return <CSVImportWizard />
+  // Admin users see the export backup section and the full import wizard.
+  return (
+    <>
+      <CatalogExport />
+      <CSVImportWizard />
+    </>
+  )
 }

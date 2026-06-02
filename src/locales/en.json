@@ -646,6 +646,27 @@
         "failedDescription": "Failed to complete onboarding. Please try again."
       }
     },
+    "catalogExport": {
+      "title": "Catalog export (backup)",
+      "subtitle": "Download CSV snapshots of the current catalog before running an import or sync, so manual edits to categories, pricing and shipping data are not lost.",
+      "actions": {
+        "download": "Download CSV"
+      },
+      "buttons": {
+        "fullLabel": "Full catalog",
+        "fullDescription": "SKU, name, description, category, prices, stock, images, status and shipping data.",
+        "categoriesLabel": "Category mapping",
+        "categoriesDescription": "Just SKU, name, main category and subcategory. Useful as a backup before re-categorisation.",
+        "shippingLabel": "Shipping data",
+        "shippingDescription": "Per-product weights and dimensions. Useful as a backup before a weight/dimension import."
+      },
+      "toasts": {
+        "missingTenant": "Missing tenant context — export not possible.",
+        "successTitle": "Export ready",
+        "successDescription": "Downloaded {{count}} products.",
+        "errorTitle": "Export failed"
+      }
+    },
     "csvImport": {
       "access": {
         "adminOnly": "Admin Access Required",
