@@ -108,6 +108,12 @@ Deno.serve(async (req) => {
     const econtResponse = await econtPost('Shipments/LabelService.createLabel.json', payload, integration)
     const normalized = normalizeCreateLabelResult(econtResponse)
 
+    // The payer we actually requested is the source of truth (Econt does not
+    // always echo the payment fields back). Persist it so re-creating from a
+    // stored shipment row via shipmentRowToInput reconstructs the same payer.
+    normalized.labelData.shipment_payer =
+      snapshot.payer || integration.defaults.default_payer || 'SENDER'
+
     if (!normalized.waybillNumber) {
       throw new HttpError(502, 'Econt label created but no waybill number was returned')
     }

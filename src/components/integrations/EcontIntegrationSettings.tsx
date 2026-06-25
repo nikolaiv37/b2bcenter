@@ -59,6 +59,10 @@ type SettingsResponse = {
     enabled: boolean
     environment: 'demo' | 'prod'
     has_credentials: boolean
+    // Safe metadata only. The saved Econt login username (never the password),
+    // returned to admins so they can tell which profile is active. May be null
+    // if no credentials are saved or it could not be read.
+    username?: string | null
     defaults: {
       sender?: {
         name?: string
@@ -82,6 +86,36 @@ type SettingsResponse = {
       tracking_throttle_minutes?: number
     }
   }
+}
+
+// supabase.functions.invoke surfaces non-2xx responses as a FunctionsHttpError
+// whose generic message is "Edge Function returned a non-2xx status code". The
+// real, actionable message lives in the JSON body (`{ error: "..." }`) which is
+// only reachable via the attached Response on `error.context`. This reads it so
+// the user sees what actually went wrong instead of the opaque wrapper message.
+async function readEcontFunctionError(error: unknown): Promise<string> {
+  const e = error as (Error & { context?: Response }) | null
+  let serverMessage: string | null = null
+  if (e?.context && typeof e.context.json === 'function') {
+    try {
+      const payload = (await e.context.clone().json()) as { error?: unknown }
+      if (typeof payload?.error === 'string' && payload.error.trim()) {
+        serverMessage = payload.error.trim()
+      }
+    } catch {
+      serverMessage = null
+    }
+  }
+
+  const message = serverMessage || (e instanceof Error ? e.message : 'Unknown error')
+
+  // Special-case the missing server encryption key so operators get a precise
+  // next action. The secret value itself is never referenced — only its name.
+  if (/encryption key/i.test(message)) {
+    return 'Missing Econt encryption key on server. Configure ECONT_CREDENTIALS_ENCRYPTION_KEY in Supabase Edge Function secrets.'
+  }
+
+  return message
 }
 
 function toFormDefaults(data?: SettingsResponse['integration']): FormValues {
@@ -140,6 +174,15 @@ export function EcontIntegrationSettings() {
   }, [data, form])
 
   const hasCredentials = data?.integration?.has_credentials ?? false
+  const savedUsername = data?.integration?.username ?? null
+  const savedEnvironment = data?.integration?.environment ?? 'demo'
+  // Human-readable status describing which Econt profile is active. Falls back
+  // to an environment-qualified message when the username is unavailable.
+  const credentialsStatus = !hasCredentials
+    ? null
+    : savedUsername
+      ? `Credentials saved for: ${savedUsername}`
+      : `${savedEnvironment === 'prod' ? 'Production' : 'Demo'} credentials saved`
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -181,7 +224,7 @@ export function EcontIntegrationSettings() {
       const { data, error } = await supabase.functions.invoke('econt-settings-save', {
         body: payload,
       })
-      if (error) throw error
+      if (error) throw new Error(await readEcontFunctionError(error))
       return data as SettingsResponse
     },
     onSuccess: (saved) => {
@@ -283,6 +326,9 @@ export function EcontIntegrationSettings() {
           <div className="space-y-4 rounded-lg border p-4">
             <div>
               <p className="font-medium">Credentials</p>
+              {credentialsStatus && (
+                <p className="mt-1 text-xs font-medium text-green-700">{credentialsStatus}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 Leave blank to keep existing credentials. For demo mode, built-in Econt demo credentials can be used.
               </p>

@@ -85,7 +85,9 @@ Deno.serve(async (req) => {
       throw new HttpError(500, `Failed to save Econt settings: ${saveError.message}`)
     }
 
-    return ok({ success: true, integration: getSettingsResponse(saved) })
+    // Caller is already required to be a tenant admin (requireAdmin: true), so
+    // it is safe to surface the saved username back to the settings screen.
+    return ok({ success: true, integration: await getSettingsResponse(saved, { includeUsername: true }) })
   } catch (error) {
     return errorResponse(error)
   }

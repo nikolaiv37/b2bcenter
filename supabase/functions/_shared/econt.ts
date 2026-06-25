@@ -130,7 +130,12 @@ function fromBase64(value: string): Uint8Array {
 async function getEncryptionKey() {
   const secret = Deno.env.get('ECONT_CREDENTIALS_ENCRYPTION_KEY')
   if (!secret) {
-    throw new HttpError(500, 'Missing server encryption key for Econt credentials')
+    // Actionable, server-only message. The secret value is never logged or
+    // returned — only its name so an operator knows exactly what to configure.
+    throw new HttpError(
+      500,
+      'Missing Econt encryption key on server. Configure ECONT_CREDENTIALS_ENCRYPTION_KEY in Supabase Edge Function secrets.',
+    )
   }
   const secretBytes = new TextEncoder().encode(secret)
   const hash = await crypto.subtle.digest('SHA-256', secretBytes)
@@ -705,9 +710,35 @@ export function buildEcontLabelPayload(input: ShipmentSnapshotInput, defaults: E
     label.receiverAddress = buildAddress(input.destination.address)
   }
 
-  const services: Record<string, unknown> = {
-    shipmentPayer: { payer: input.payer || defaults.default_payer || 'SENDER' },
+  // -------------------------------------------------------------------------
+  // Delivery-price payer mapping (Econt API).
+  //
+  // Econt's createLabel/calculate has NO single "payer" enum. The previous code
+  // sent `services.shipmentPayer = { payer: 'SENDER' | 'RECEIVER' }`, which is
+  // not a recognised Econt field — Econt silently ignored it and always billed
+  // the sender. That is why "Default payer = Receiver" made no difference.
+  //
+  // The supported mechanism is the receiver-payment fields on the Label:
+  //   - SENDER pays (default): set paymentSenderMethod = 'cash' and leave the
+  //     receiver-payment fields unset → sender is billed the full delivery price.
+  //   - RECEIVER pays: set paymentReceiverMethod = 'cash',
+  //     paymentReceiverAmount = 100, paymentReceiverAmountIsPercent = true
+  //     → receiver is billed 100% of the delivery price.
+  //
+  // IMPORTANT: this controls ONLY who pays the *delivery price*. It is
+  // independent of COD / наложен платеж (`cdAmount` below), which is the goods
+  // amount collected from the receiver. The two are configured separately and
+  // do not affect each other here. Order-level `input.payer` wins over the
+  // tenant `default_payer`; both are normalised to 'SENDER' | 'RECEIVER'.
+  const payer: EcontPayer = input.payer || defaults.default_payer || 'SENDER'
+  label.paymentSenderMethod = 'cash'
+  if (payer === 'RECEIVER') {
+    label.paymentReceiverMethod = 'cash'
+    label.paymentReceiverAmount = 100
+    label.paymentReceiverAmountIsPercent = true
   }
+
+  const services: Record<string, unknown> = {}
   if (input.codAmount && input.codAmount > 0) {
     services.cdAmount = Number(input.codAmount)
   }
@@ -900,12 +931,6 @@ function pickFirstString(...values: unknown[]): string | null {
   return null
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null
-}
-
 function asRecordArray(value: unknown): Array<Record<string, unknown>> {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
@@ -978,10 +1003,16 @@ export function normalizeCreateLabelResult(response: unknown) {
     price,
     labelData: {
       ...printInfo,
+      // Derive who pays the delivery price from the fields Econt echoes back.
+      // A non-empty paymentReceiverMethod means the receiver was billed for the
+      // delivery; otherwise the sender pays. (The legacy `services.shipmentPayer`
+      // read was always null — that field was never sent to nor returned by
+      // Econt.) econt-create-label additionally overrides this with the payer we
+      // actually requested, so the stored value stays authoritative.
       shipment_payer:
-        ((asRecord(label.services)?.shipmentPayer as Record<string, unknown> | undefined)?.payer) ||
-        asRecord(label.services)?.shipmentPayer ||
-        firstService?.paymentSide,
+        (typeof label.paymentReceiverMethod === 'string' && label.paymentReceiverMethod.trim())
+          ? 'RECEIVER'
+          : 'SENDER',
       shipment_description: pickFirstString(label.shipmentDescription, root.shipmentDescription),
       service_description: pickFirstString(firstService?.description),
       total_price: price.totalPrice,
@@ -1127,14 +1158,37 @@ export async function getTenantShipment(adminClient: any, tenantId: string, ship
   return data as ShipmentRow
 }
 
-export function getSettingsResponse(row: TenantIntegrationRow | null) {
+export async function getSettingsResponse(
+  row: TenantIntegrationRow | null,
+  options?: { includeUsername?: boolean },
+) {
   const defaults = normalizeDefaults(row?.defaults)
+  const hasCredentials = Boolean(row?.credentials && Object.keys(row.credentials || {}).length > 0)
+
+  // Surface ONLY the saved username so an admin can tell which Econt profile is
+  // active. The password is never decrypted for output and never returned to
+  // the browser. Gated on `includeUsername` so callers can restrict it to admin
+  // contexts (the settings screen) and not leak it to every tenant operator.
+  // Best-effort: if decryption fails (e.g. missing encryption key, or a
+  // legacy/corrupt blob) we omit the username rather than failing the whole
+  // settings read. The username is never logged.
+  let username: string | null = null
+  if (hasCredentials && options?.includeUsername) {
+    try {
+      const creds = await decryptEcontCredentials(row?.credentials)
+      username = creds?.username ?? null
+    } catch {
+      username = null
+    }
+  }
+
   return {
     provider: ECONT_PROVIDER,
     enabled: row?.enabled ?? false,
     environment: normalizeEnvironment(row?.environment),
     defaults,
-    has_credentials: Boolean(row?.credentials && Object.keys(row.credentials || {}).length > 0),
+    has_credentials: hasCredentials,
+    username,
   }
 }
 

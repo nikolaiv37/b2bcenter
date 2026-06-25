@@ -10,12 +10,17 @@ Deno.serve(async (req) => {
     const body = await parseJson<{ tenant_id?: string }>(req)
     const auth = await requireTenantAuth(req, { tenantId: body.tenant_id ?? null })
 
+    // Only expose the saved username to tenant admins/owners (the settings
+    // screen). Regular members who hit this endpoint (e.g. the shipment panel)
+    // still get has_credentials but no username.
+    const includeUsername = auth.role === 'owner' || auth.role === 'admin'
+
     try {
       const integration = await getTenantEcontIntegration(auth.adminClient, auth.tenantId, { requireEnabled: false })
-      return ok({ success: true, integration: getSettingsResponse(integration) })
+      return ok({ success: true, integration: await getSettingsResponse(integration, { includeUsername }) })
     } catch (error) {
       if ((error as { status?: number })?.status === 404) {
-        return ok({ success: true, integration: getSettingsResponse(null) })
+        return ok({ success: true, integration: await getSettingsResponse(null, { includeUsername }) })
       }
       throw error
     }
