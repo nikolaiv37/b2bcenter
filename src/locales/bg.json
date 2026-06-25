@@ -240,6 +240,7 @@
       "toolsAndAccount": "Инструменти и Профил",
       "overview": "Обзор",
       "orders": "Поръчки",
+      "waybills": "Товарителници",
       "orderTemplates": "Шаблони за поръчки",
       "complaintsReturns": "Рекламации и връщания",
       "analytics": "Анализ",
@@ -1479,6 +1480,65 @@
       "manageClientPolicy": "Управление на ценова политика за {{name}}",
       "policyForClient": "Политика за: {{name}}",
       "futureReusablePoliciesNote": "В момента всеки клиент има собствена политика. Бъдещи версии могат да поддържат шаблони, споделени между няколко клиента."
+    },
+    "waybills": {
+      "title": "Товарителници",
+      "subtitle": "Управление на товарителници Econt, създадени през платформата.",
+      "searchPlaceholder": "Търсене по товарителница, поръчка, фирма или получател",
+      "empty": "Все още няма създадени товарителници.",
+      "errorLoading": "Неуспешно зареждане на товарителниците. Опитайте отново.",
+      "filters": {
+        "allStatuses": "Всички статуси"
+      },
+      "status": {
+        "created": "Създадена",
+        "in_transit": "В транзит",
+        "delivered": "Доставена",
+        "returned": "Върната",
+        "cancelled": "Анулирана",
+        "error": "Грешка"
+      },
+      "columns": {
+        "created": "Създадена",
+        "waybill": "Товарителница №",
+        "order": "Поръчка",
+        "company": "Фирма",
+        "recipient": "Получател",
+        "delivery": "Доставка",
+        "payer": "Платец",
+        "status": "Статус",
+        "actions": "Действия"
+      },
+      "delivery": {
+        "office": "Офис",
+        "address": "Адрес"
+      },
+      "payer": {
+        "sender": "Подател",
+        "receiver": "Получател"
+      },
+      "actions": {
+        "openOrder": "Отвори поръчката",
+        "track": "Проследи / обнови статус",
+        "printLabel": "Отвори / отпечатай етикет",
+        "cancel": "Анулирай товарителница",
+        "refreshList": "Обнови списъка"
+      },
+      "toasts": {
+        "trackThrottledTitle": "Проследяването е ограничено",
+        "trackThrottledDescription": "Опитайте отново след {{minutes}} минута(и).",
+        "trackSuccessTitle": "Статусът е обновен",
+        "trackErrorTitle": "Неуспешно проследяване",
+        "cancelSuccessTitle": "Товарителницата е анулирана",
+        "cancelSuccessDescription": "Товарителницата беше анулирана в Econt.",
+        "cancelErrorTitle": "Неуспешно анулиране"
+      },
+      "cancelDialog": {
+        "title": "Анулиране на тази товарителница?",
+        "description": "Товарителница {{waybill}} ще бъде анулирана в Econt. За поправка на грешни данни — анулирайте я и създайте нова от поръчката. Действието е необратимо.",
+        "keep": "Запази",
+        "confirm": "Анулирай"
+      }
     }
   }
 }

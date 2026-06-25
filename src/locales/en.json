@@ -240,6 +240,7 @@
       "toolsAndAccount": "Tools & Account",
       "overview": "Overview",
       "orders": "Orders",
+      "waybills": "Waybills",
       "orderTemplates": "Order Templates",
       "complaintsReturns": "Complaints & Returns",
       "analytics": "Analytics",
@@ -719,7 +720,7 @@
         "unmapped": "Unmapped",
         "ready": "✅ Ready",
         "missing": "⚠️ Missing",
-        "mapped": "mapped",
+        "mapped": "Mapped",
         "missingRequiredFields": "Missing Required Fields",
         "mustBeMapped": "The following required fields must be mapped to continue:",
         "duplicateMappingsDetected": "Duplicate Mappings Detected",
@@ -744,7 +745,6 @@
         "notMapped": "— Not Mapped —",
         "ignoreColumn": "🚫 Ignore Column",
         "alreadyUsed": "(already used)",
-        "mapped": "Mapped",
         "reviewSuggested": "Review Suggested",
         "ignored": "Ignored",
         "categorySubCat": "Category/Sub-Cat",
@@ -978,7 +978,7 @@
       "skip": "Skip",
       "select": "Select",
       "all": "All",
-      "none": "None",
+      "none": "Not set",
       "view": "View",
       "details": "Details",
       "actions": "Actions",
@@ -1006,7 +1006,6 @@
       "help": "Need help",
       "contactSupport": "Contact support",
       "whatsapp": "WhatsApp us",
-      "none": "Not set",
       "notAvailable": "N/A",
       "website": "Website",
       "or": "or",
@@ -1235,7 +1234,7 @@
       "allStocked": "All stocked",
       "unpaidBalancesByCompany": "Unpaid Balances by Company",
       "totalUnpaid": "Total unpaid:",
-      "viewAll": "View All",
+      "viewAll": "View all",
       "company": "Company",
       "unpaidAmount": "Unpaid Amount",
       "orders": "Orders",
@@ -1258,13 +1257,11 @@
       "revenueDistributionDescription": "Revenue distribution across product categories",
       "categoriesCount": "{{count}} category",
       "categoriesCount_plural": "{{count}} categories",
-      "totalRevenue": "Total Revenue",
       "totalRevenueLabel": "total",
       "categoryBreakdown": "Category Breakdown",
       "ofTotal": "of total",
       "recentOrders": "Recent Orders",
       "viewOrders": "View orders",
-      "viewAll": "View all",
       "lowStockProducts": "Low Stock Products",
       "viewAllProducts": "View all products",
       "noRecentOrders": "No recent orders",
@@ -1801,6 +1798,65 @@
       "manageClientPolicy": "Manage pricing policy for {{name}}",
       "policyForClient": "Policy for: {{name}}",
       "futureReusablePoliciesNote": "Each client currently has its own policy. Future versions may support reusable policy templates assigned to multiple clients."
+    },
+    "waybills": {
+      "title": "Waybills",
+      "subtitle": "Manage Econt waybills created on the platform.",
+      "searchPlaceholder": "Search by waybill, order, company or recipient",
+      "empty": "No waybills created yet.",
+      "errorLoading": "Failed to load waybills. Please try again.",
+      "filters": {
+        "allStatuses": "All statuses"
+      },
+      "status": {
+        "created": "Created",
+        "in_transit": "In transit",
+        "delivered": "Delivered",
+        "returned": "Returned",
+        "cancelled": "Cancelled",
+        "error": "Error"
+      },
+      "columns": {
+        "created": "Created",
+        "waybill": "Waybill №",
+        "order": "Order",
+        "company": "Company",
+        "recipient": "Recipient",
+        "delivery": "Delivery",
+        "payer": "Payer",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "delivery": {
+        "office": "Office",
+        "address": "Address"
+      },
+      "payer": {
+        "sender": "Sender",
+        "receiver": "Receiver"
+      },
+      "actions": {
+        "openOrder": "Open order",
+        "track": "Track / refresh status",
+        "printLabel": "Open / print label",
+        "cancel": "Cancel waybill",
+        "refreshList": "Refresh list"
+      },
+      "toasts": {
+        "trackThrottledTitle": "Tracking throttled",
+        "trackThrottledDescription": "Try again in {{minutes}} minute(s).",
+        "trackSuccessTitle": "Status updated",
+        "trackErrorTitle": "Failed to track waybill",
+        "cancelSuccessTitle": "Waybill cancelled",
+        "cancelSuccessDescription": "The waybill was cancelled in Econt.",
+        "cancelErrorTitle": "Failed to cancel waybill"
+      },
+      "cancelDialog": {
+        "title": "Cancel this waybill?",
+        "description": "Waybill {{waybill}} will be cancelled in Econt. To fix wrong data, cancel it and create a new waybill from the order. This cannot be undone.",
+        "keep": "Keep",
+        "confirm": "Cancel waybill"
+      }
     }
   }
 }

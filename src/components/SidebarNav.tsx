@@ -21,6 +21,7 @@ import {
   FolderKanban,
   Users,
   Tags,
+  Truck,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useWishlist } from '@/hooks/useWishlist'
@@ -56,6 +57,13 @@ const mainNavItemsConfig = [
     href: '/dashboard/order-templates',
     icon: FileText,
     companyOnly: true,
+  },
+  // Admin-only: Econt waybills (Товарителници) management page
+  {
+    titleKey: 'nav.waybills',
+    href: '/dashboard/waybills',
+    icon: Truck,
+    adminOnly: true,
   },
   // Admin-only: Clients (Distributors), shown under Orders in main navigation
   {
